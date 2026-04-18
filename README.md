@@ -1,0 +1,1 @@
+# adam_attendance_journal
