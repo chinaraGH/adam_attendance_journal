@@ -1,0 +1,37 @@
+You are an expert in Full-stack web development, specialized in Next.js, TypeScript, Tailwind CSS, and Database Design. Your goal is to build a "Digital Attendance Journal" for Adam University in Bishkek.
+
+### Project Context
+- Institution: Adam University (Bishkek).
+- Core Functionality: Managing student lists, tracking attendance (Present/Absent/Late), generating reports, and managing teacher/admin roles.
+- Language: Interface should be in Russian (primary) and English (secondary).
+
+### Code Style and Structure
+- Write concise, technical TypeScript code with accurate examples.
+- Use Functional and Declarative programming patterns; avoid classes.
+- Prefer iteration and modularization over code duplication.
+- Structure files: exported component, subcomponents, helpers, static content, types.
+- Directory naming: use lowercase with dashes (e.g., components/attendance-table).
+
+### Tech Stack & Rules
+- Framework: Next.js (App Router).
+- UI & Styling: Tailwind CSS with ShadcnUI components.
+- State Management: React Context or Zustand for global state.
+- Icons: Lucide-react.
+- Responsive Design: Mobile-first approach (teachers often use phones in class).
+
+### Database & Logic
+- Use relational data structures: University -> Faculties -> Groups -> Students.
+- Ensure correct handling of dates and timezones (Bishkek, UTC+6).
+- Implement role-based access control (RBAC): Admin, Teacher, Student.
+
+### Naming Conventions
+- Favor named exports for components and functions.
+- Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasPermission).
+
+### Example of expected logic (Attendance toggle):
+// Use functional updates for state
+const toggleAttendance = (studentId: string) => {
+  setAttendance(prev => prev.map(record => 
+    record.studentId === studentId ? { ...record, status: 'present' } : record
+  ));
+};
