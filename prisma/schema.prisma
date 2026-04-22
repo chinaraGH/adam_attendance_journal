@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Group {
+  id        String    @id @default(cuid())
+  gaudiId   String    @unique @map("gaudi_id")
+  name      String
+  code      String?
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  students      Student[]
+  classSessions ClassSession[]
+
+  @@index([updatedAt])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("groups")
+}
+
+model Student {
+  id        String    @id @default(cuid())
+  gaudiId   String    @unique @map("gaudi_id")
+  groupId   String    @map("group_id")
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  group       Group        @relation(fields: [groupId], references: [id])
+  attendances Attendance[]
+
+  @@index([groupId])
+  @@index([updatedAt])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("students")
+}
+
+model ClassSession {
+  id                   String    @id @default(cuid())
+  scheduleExternalId   String    @unique @map("schedule_external_id")
+  gaudiId              String?   @unique @map("gaudi_id")
+  disciplineId         String    @map("discipline_id")
+  groupId              String    @map("group_id")
+  teacherId            String    @map("teacher_id")
+  semesterId           String    @map("semester_id")
+  startTime            DateTime  @map("start_time")
+  endTime              DateTime  @map("end_time")
+  status               String    @default("scheduled")
+  openedAt             DateTime? @map("opened_at")
+  flagLateTeacher      Boolean   @default(false) @map("flag_late_teacher")
+  isActive             Boolean   @default(true) @map("is_active")
+  deletedAt            DateTime? @map("deleted_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  group       Group        @relation(fields: [groupId], references: [id])
+  attendances Attendance[]
+
+  @@index([groupId])
+  @@index([semesterId])
+  @@index([startTime])
+  @@index([endTime])
+  @@index([status])
+  @@index([updatedAt])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("class_sessions")
+}
+
+model Attendance {
+  id             String    @id @default(cuid())
+  classSessionId String    @map("class_session_id")
+  studentId      String    @map("student_id")
+  status         String?
+  gaudiId        String?   @unique @map("gaudi_id")
+  isActive       Boolean   @default(true) @map("is_active")
+  deletedAt      DateTime? @map("deleted_at")
+  updatedBy      String?   @map("updated_by")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  classSession ClassSession @relation(fields: [classSessionId], references: [id])
+  student      Student      @relation(fields: [studentId], references: [id])
+
+  @@unique([classSessionId, studentId])
+  @@index([studentId])
+  @@index([classSessionId])
+  @@index([status])
+  @@index([updatedAt])
+  @@index([classSessionId, status])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("attendances")
+}
