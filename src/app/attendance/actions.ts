@@ -1,10 +1,31 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getEffectiveClassSessionStatus } from "@/lib/class-session/effective-status";
+import { getCurrentUser } from "@/lib/auth/get-current-user";
 
 function normalizeRequestedStatus(input: unknown): string {
   if (typeof input !== "string") return "";
   return input.trim().toUpperCase();
+}
+
+function normalizeTeacherAttendanceStatusV2(input: unknown): string {
+  const s = normalizeRequestedStatus(input);
+  if (!s) return "";
+
+  // UI sends these (planned): P/O/NB/B (button). Allow both Latin & Cyrillic.
+  if (s === "P" || s === "П") return "P";
+  if (s === "O" || s === "О") return "O";
+  if (s === "NB" || s === "НБ") return "NB";
+  if (s === "B" || s === "Б") return "B_PENDING";
+  if (s === "B_PENDING" || s === "Б_PENDING") return "B_PENDING";
+
+  // Back-compat with current repo constants
+  if (s === "PRESENT") return "P";
+  if (s === "LATE") return "O";
+  if (s === "UNEXCUSED_ABSENCE") return "NB";
+
+  return "";
 }
 
 export async function saveAttendance(formData: FormData) {
@@ -38,18 +59,66 @@ export async function saveAttendances(input: {
   }
 
   try {
-    console.log("Данные получены сервером:", input.items);
+    const actor = await getCurrentUser();
 
     const session = await prisma.classSession.findFirst({
       where: { id: input.classSessionId, isActive: true, deletedAt: null },
-      select: { id: true, groupId: true },
+      select: {
+        id: true,
+        groupId: true,
+        startTime: true,
+        endTime: true,
+        openedAt: true,
+        status: true,
+        statusV2: true,
+        semester: { select: { isLocked: true } },
+      },
     });
 
     if (!session) return { ok: false as const, error: "Занятие не найдено." };
 
+    if (session.semester?.isLocked) {
+      throw new Error("Семестр закрыт. Изменение посещаемости запрещено.");
+    }
+
+    const effectiveStatus = getEffectiveClassSessionStatus({
+      startTime: session.startTime,
+      endTime: session.endTime,
+      openedAt: session.openedAt,
+      status: session.status,
+      statusV2: session.statusV2,
+    });
+
+    if (effectiveStatus !== "active") {
+      return { ok: false as const, error: "Сохранение доступно только во время активного занятия." };
+    }
+
+    // Must mark every active student in the group: NULL is forbidden on save.
+    const groupStudents = await prisma.student.findMany({
+      where: { groupId: session.groupId, isActive: true, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (groupStudents.length === 0) {
+      return { ok: false as const, error: "В группе нет активных студентов." };
+    }
+
+    const statusByStudentId = new Map<string, string>();
+    for (const item of input.items) {
+      if (!item || typeof item.studentId !== "string") continue;
+      const normalized = normalizeTeacherAttendanceStatusV2(item.status);
+      if (!normalized) continue;
+      statusByStudentId.set(item.studentId, normalized);
+    }
+
+    const missing = groupStudents.filter((s) => !statusByStudentId.has(s.id));
+    if (missing.length > 0) {
+      return { ok: false as const, error: "Нельзя сохранить журнал: есть неотмеченные студенты." };
+    }
+
     const students = await prisma.student.findMany({
       where: {
-        id: { in: input.items.map((x) => x.studentId) },
+        id: { in: groupStudents.map((s) => s.id) },
         groupId: session.groupId,
         isActive: true,
         deletedAt: null,
@@ -58,22 +127,39 @@ export async function saveAttendances(input: {
     });
     const allowedStudentIds = new Set(students.map((s) => s.id));
 
-    const items = input.items
-      .filter((x) => typeof x.studentId === "string" && x.studentId.length > 0)
-      .map((x) => ({
-        studentId: x.studentId,
-        requestedStatus: normalizeRequestedStatus(x.status),
+    const items = groupStudents
+      .map((s) => ({
+        studentId: s.id,
+        statusV2: statusByStudentId.get(s.id) ?? "",
       }))
-      .filter((x) => x.requestedStatus.length > 0)
+      .filter((x) => x.statusV2.length > 0)
       .filter((x) => allowedStudentIds.has(x.studentId));
 
     if (items.length === 0) {
       return { ok: false as const, error: "Нет валидных студентов для сохранения." };
     }
 
-    await prisma.$transaction(
-      items.map((item) => {
-        return prisma.attendance.upsert({
+    const existing = await prisma.attendance.findMany({
+      where: {
+        classSessionId: session.id,
+        studentId: { in: items.map((x) => x.studentId) },
+        isActive: true,
+        deletedAt: null,
+      },
+      select: { id: true, studentId: true, status: true, statusV2: true },
+    });
+    const existingByStudentId = new Map(existing.map((r) => [r.studentId, r]));
+
+    await prisma.$transaction(async (tx) => {
+      for (const item of items) {
+        const before = existingByStudentId.get(item.studentId) ?? null;
+        const beforeStatusV2 =
+          (before?.statusV2 && before.statusV2.trim().toUpperCase()) ||
+          (before?.status && before.status.trim().toUpperCase()) ||
+          null;
+
+        // Save both for now: `statusV2` is canonical going forward, `status` kept for compatibility.
+        const row = await tx.attendance.upsert({
           where: {
             classSessionId_studentId: {
               classSessionId: session.id,
@@ -83,21 +169,38 @@ export async function saveAttendances(input: {
           create: {
             classSessionId: session.id,
             studentId: item.studentId,
-            status: item.requestedStatus,
-            updatedBy: "teacher:test",
+            status: item.statusV2,
+            statusV2: item.statusV2,
+            updatedBy: actor.id,
             isActive: true,
             deletedAt: null,
           },
           update: {
-            status: item.requestedStatus,
-            updatedBy: "teacher:test",
+            status: item.statusV2,
+            statusV2: item.statusV2,
+            updatedBy: actor.id,
             isActive: true,
             deletedAt: null,
           },
-          select: { id: true },
+          select: { id: true, status: true, statusV2: true },
         });
-      }),
-    );
+
+        if (beforeStatusV2 !== item.statusV2) {
+          await tx.auditTrail.create({
+            data: {
+              actorType: actor.role === "TEACHER" ? "teacher" : actor.role.toLowerCase(),
+              actorId: actor.id,
+              action: "attendance_update",
+              entityType: "Attendance",
+              entityId: row.id,
+              beforeJson: JSON.stringify({ statusV2: beforeStatusV2 }),
+              afterJson: JSON.stringify({ statusV2: item.statusV2 }),
+            },
+            select: { id: true },
+          });
+        }
+      }
+    });
 
     return { ok: true as const, savedCount: items.length };
   } catch (e) {

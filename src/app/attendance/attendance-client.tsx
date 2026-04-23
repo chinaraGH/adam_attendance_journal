@@ -7,12 +7,13 @@ import { saveAttendances } from "./actions";
 type Student = { id: string; name: string };
 
 const STATUS = {
-  PRESENT: "PRESENT",
-  UNEXCUSED_ABSENCE: "UNEXCUSED_ABSENCE",
-  LATE: "LATE",
+  P: "P",
+  O: "O",
+  NB: "NB",
+  B: "B",
 } as const;
 
-function getButtonStyle(params: { kind: "present" | "absent" | "late"; isActive: boolean }) {
+function getButtonStyle(params: { kind: "p" | "o" | "nb" | "b"; isActive: boolean }) {
   const { kind, isActive } = params;
 
   const base: React.CSSProperties = {
@@ -29,44 +30,55 @@ function getButtonStyle(params: { kind: "present" | "absent" | "late"; isActive:
 
   if (!isActive) return base;
 
-  if (kind === "present") return { ...base, background: "#16a34a", borderColor: "#16a34a", color: "white" };
-  if (kind === "absent") return { ...base, background: "#dc2626", borderColor: "#dc2626", color: "white" };
-  return { ...base, background: "#f59e0b", borderColor: "#f59e0b", color: "#111827" };
+  if (kind === "p") return { ...base, background: "#16a34a", borderColor: "#16a34a", color: "white" }; // green
+  if (kind === "o") return { ...base, background: "#f59e0b", borderColor: "#f59e0b", color: "#111827" }; // yellow
+  if (kind === "nb") return { ...base, background: "#dc2626", borderColor: "#dc2626", color: "white" }; // red
+  return { ...base, background: "#2563eb", borderColor: "#2563eb", color: "white" }; // blue
 }
 
 export function AttendanceClient(props: {
   students: Student[];
   initialStatusByStudentId: Record<string, string | null | undefined>;
   classSessionId: string;
+  readOnly?: boolean;
 }) {
-  const { students, initialStatusByStudentId, classSessionId } = props;
+  const { students, initialStatusByStudentId, classSessionId, readOnly } = props;
 
   const [isPending, startTransition] = useTransition();
   const [saveMessage, setSaveMessage] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [statusByStudentId, setStatusByStudentId] = useState<Record<string, string>>(() => {
-    const next: Record<string, string> = {};
+  const [statusByStudentId, setStatusByStudentId] = useState<Record<string, string | null>>(() => {
+    const next: Record<string, string | null> = {};
     for (const s of students) {
       const initial = initialStatusByStudentId[s.id];
       if (typeof initial === "string" && initial.length > 0) {
         next[s.id] = initial;
+      } else {
+        next[s.id] = null;
       }
     }
     return next;
   });
 
-  const selectedCount = useMemo(() => Object.keys(statusByStudentId).length, [statusByStudentId]);
+  const remainingCount = useMemo(() => {
+    let remaining = 0;
+    for (const s of students) {
+      if (!statusByStudentId[s.id]) remaining += 1;
+    }
+    return remaining;
+  }, [statusByStudentId, students]);
 
   function setStatus(studentId: string, status: string) {
     setSaveMessage("");
     setErrorMessage("");
+    if (readOnly) return;
     setStatusByStudentId((prev) => ({ ...prev, [studentId]: status }));
   }
 
   function onSave() {
-    const items = Object.entries(statusByStudentId).map(([studentId, status]) => ({
-      studentId,
-      status,
+    const items = students.map((s) => ({
+      studentId: s.id,
+      status: statusByStudentId[s.id] ?? "",
     }));
 
     startTransition(async () => {
@@ -140,29 +152,38 @@ export function AttendanceClient(props: {
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button
                   type="button"
-                  onClick={() => setStatus(student.id, STATUS.PRESENT)}
-                  disabled={isPending}
-                  style={getButtonStyle({ kind: "present", isActive: current === STATUS.PRESENT })}
+                  onClick={() => setStatus(student.id, STATUS.P)}
+                  disabled={isPending || !!readOnly}
+                  style={getButtonStyle({ kind: "p", isActive: current === STATUS.P })}
                 >
-                  Присутствует
+                  П
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setStatus(student.id, STATUS.UNEXCUSED_ABSENCE)}
-                  disabled={isPending}
-                  style={getButtonStyle({ kind: "absent", isActive: current === STATUS.UNEXCUSED_ABSENCE })}
+                  onClick={() => setStatus(student.id, STATUS.O)}
+                  disabled={isPending || !!readOnly}
+                  style={getButtonStyle({ kind: "o", isActive: current === STATUS.O })}
                 >
-                  Отсутствует
+                  О
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setStatus(student.id, STATUS.LATE)}
-                  disabled={isPending}
-                  style={getButtonStyle({ kind: "late", isActive: current === STATUS.LATE })}
+                  onClick={() => setStatus(student.id, STATUS.NB)}
+                  disabled={isPending || !!readOnly}
+                  style={getButtonStyle({ kind: "nb", isActive: current === STATUS.NB })}
                 >
-                  Опоздал
+                  НБ
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStatus(student.id, STATUS.B)}
+                  disabled={isPending || !!readOnly}
+                  style={getButtonStyle({ kind: "b", isActive: current === STATUS.B })}
+                >
+                  Б
                 </button>
               </div>
             </li>
@@ -174,7 +195,7 @@ export function AttendanceClient(props: {
         <button
           type="button"
           onClick={onSave}
-          disabled={isPending || selectedCount === 0}
+          disabled={isPending || remainingCount > 0 || !!readOnly}
           style={{
             borderWidth: 1,
             borderStyle: "solid",
@@ -182,15 +203,17 @@ export function AttendanceClient(props: {
             borderRadius: 12,
             padding: "10px 14px",
             fontWeight: 700,
-            cursor: isPending || selectedCount === 0 ? "not-allowed" : "pointer",
-            opacity: isPending || selectedCount === 0 ? 0.6 : 1,
+            cursor: isPending || remainingCount > 0 || !!readOnly ? "not-allowed" : "pointer",
+            opacity: isPending || remainingCount > 0 || !!readOnly ? 0.6 : 1,
             background: "#111827",
             color: "white",
           }}
         >
           {isPending ? "Сохранение..." : "Сохранить"}
         </button>
-        <div style={{ color: "#374151", fontWeight: 600 }}>Выбрано: {selectedCount}</div>
+        <div style={{ color: "#374151", fontWeight: 600 }}>
+          {remainingCount > 0 ? `Осталось отметить: ${remainingCount}` : "Все студенты отмечены"}
+        </div>
       </div>
     </>
   );
