@@ -3,6 +3,25 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
+  await prisma.semester.upsert({
+    where: { id: "SEMESTER_TEST" },
+    update: {
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      isLocked: false,
+      lockedAt: null,
+    },
+    create: {
+      id: "SEMESTER_TEST",
+      name: "Тестовый семестр",
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      isLocked: false,
+      lockedAt: null,
+    },
+    select: { id: true },
+  });
+
   const group = await prisma.group.upsert({
     where: { gaudiId: "GAUDI_GROUP_INFORMATICS_TEST" },
     update: {
@@ -17,6 +36,18 @@ async function main() {
       isActive: true,
       deletedAt: null,
     },
+    select: { id: true },
+  });
+
+  await prisma.user.upsert({
+    where: { id: "CURATOR_TEST" },
+    update: { role: "CURATOR", isActive: true, deletedAt: null },
+    create: { id: "CURATOR_TEST", role: "CURATOR", isActive: true, deletedAt: null },
+  });
+  await prisma.userGroupCurator.upsert({
+    where: { userId_groupId: { userId: "CURATOR_TEST", groupId: group.id } },
+    update: { isActive: true, deletedAt: null },
+    create: { userId: "CURATOR_TEST", groupId: group.id, isActive: true, deletedAt: null },
     select: { id: true },
   });
 

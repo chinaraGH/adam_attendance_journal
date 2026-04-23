@@ -16,7 +16,6 @@ const markAttendanceInput = z.object({
   updatedBy: z.string().min(1).optional(),
   /** For tests or backdated marks; defaults to server time. */
   markedAt: z.coerce.date().optional(),
-  sessionStartMeansBishkekWallAsUtc: z.boolean().optional(),
 });
 
 export type GroupStudentsResult =
@@ -103,7 +102,6 @@ export async function markAttendance(raw: unknown): Promise<MarkAttendanceResult
     status,
     updatedBy,
     markedAt,
-    sessionStartMeansBishkekWallAsUtc,
   } = parsed.data;
 
   const markTime = markedAt ?? new Date();
@@ -147,7 +145,6 @@ export async function markAttendance(raw: unknown): Promise<MarkAttendanceResult
       sessionStart: session.startTime,
       markTime,
       requestedStatus: status,
-      sessionStartMeansBishkekWallAsUtc,
     });
 
     const attendance = await prisma.attendance.upsert({

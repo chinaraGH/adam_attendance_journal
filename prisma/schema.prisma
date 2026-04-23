@@ -19,11 +19,48 @@ model Group {
 
   students      Student[]
   classSessions ClassSession[]
+  curatorLinks  UserGroupCurator[]
 
   @@index([updatedAt])
   @@index([isActive])
   @@index([deletedAt])
   @@map("groups")
+}
+
+model User {
+  id        String   @id
+  role      String   @map("role")
+  isActive  Boolean  @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  curatorGroups UserGroupCurator[]
+
+  @@index([role])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model UserGroupCurator {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  groupId   String   @map("group_id")
+  isActive  Boolean  @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+  group Group @relation(fields: [groupId], references: [id])
+
+  @@unique([userId, groupId])
+  @@index([userId])
+  @@index([groupId])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("user_group_curators")
 }
 
 model Student {
@@ -57,6 +94,8 @@ model ClassSession {
   startTime            DateTime  @map("start_time")
   endTime              DateTime  @map("end_time")
   status               String    @default("scheduled")
+  // Soft migration status field (enums not supported by current SQLite connector).
+  statusV2             String?   @map("status_v2")
   openedAt             DateTime? @map("opened_at")
   flagLateTeacher      Boolean   @default(false) @map("flag_late_teacher")
   isActive             Boolean   @default(true) @map("is_active")
@@ -65,6 +104,7 @@ model ClassSession {
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
   group       Group        @relation(fields: [groupId], references: [id])
+  semester    Semester?    @relation(fields: [semesterId], references: [id])
   attendances Attendance[]
 
   @@index([groupId])
@@ -72,6 +112,7 @@ model ClassSession {
   @@index([startTime])
   @@index([endTime])
   @@index([status])
+  @@index([statusV2])
   @@index([updatedAt])
   @@index([isActive])
   @@index([deletedAt])
@@ -83,6 +124,8 @@ model Attendance {
   classSessionId String    @map("class_session_id")
   studentId      String    @map("student_id")
   status         String?
+  // Soft migration status field (enums not supported by current SQLite connector).
+  statusV2       String?   @map("status_v2")
   gaudiId        String?   @unique @map("gaudi_id")
   isActive       Boolean   @default(true) @map("is_active")
   deletedAt      DateTime? @map("deleted_at")
@@ -97,9 +140,50 @@ model Attendance {
   @@index([studentId])
   @@index([classSessionId])
   @@index([status])
+  @@index([statusV2])
   @@index([updatedAt])
   @@index([classSessionId, status])
   @@index([isActive])
   @@index([deletedAt])
   @@map("attendances")
+}
+
+model Semester {
+  id        String    @id @default(cuid())
+  name      String?
+  startDate DateTime  @map("start_date")
+  endDate   DateTime  @map("end_date")
+  isLocked  Boolean   @default(false) @map("is_locked")
+  lockedAt  DateTime? @map("locked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  classSessions ClassSession[]
+
+  @@index([startDate])
+  @@index([endDate])
+  @@index([isLocked])
+  @@map("semesters")
+}
+
+model AuditTrail {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  actorType String   @map("actor_type")
+  actorId   String?  @map("actor_id")
+
+  action     String @map("action")
+  entityType String @map("entity_type")
+  entityId   String @map("entity_id")
+
+  // Store JSON as string (Prisma Json not supported by current SQLite connector).
+  beforeJson String? @map("before_json")
+  afterJson  String? @map("after_json")
+
+  @@index([createdAt])
+  @@index([actorType, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_trail")
 }
