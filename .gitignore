@@ -78,6 +78,9 @@ web_modules/
 .next
 out
 
+# Local dev database (Prisma / sqlite prototype remnants)
+prisma/*.db
+
 # Nuxt.js build / generate output
 .nuxt
 dist

@@ -3,6 +3,11 @@
 import { prisma } from "@/lib/prisma";
 import { getEffectiveClassSessionStatus } from "@/lib/class-session/effective-status";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
+import {
+  decideAttendanceStatusChange,
+  getCanonicalAttendanceStatusV2,
+  normalizeAttendanceStatusV2,
+} from "@/lib/attendance/status-machine";
 
 function normalizeRequestedStatus(input: unknown): string {
   if (typeof input !== "string") return "";
@@ -12,20 +17,9 @@ function normalizeRequestedStatus(input: unknown): string {
 function normalizeTeacherAttendanceStatusV2(input: unknown): string {
   const s = normalizeRequestedStatus(input);
   if (!s) return "";
-
-  // UI sends these (planned): P/O/NB/B (button). Allow both Latin & Cyrillic.
-  if (s === "P" || s === "П") return "P";
-  if (s === "O" || s === "О") return "O";
-  if (s === "NB" || s === "НБ") return "NB";
-  if (s === "B" || s === "Б") return "B_PENDING";
-  if (s === "B_PENDING" || s === "Б_PENDING") return "B_PENDING";
-
-  // Back-compat with current repo constants
-  if (s === "PRESENT") return "P";
-  if (s === "LATE") return "O";
-  if (s === "UNEXCUSED_ABSENCE") return "NB";
-
-  return "";
+  if (s === "B") return "B_PENDING";
+  const mapped = normalizeAttendanceStatusV2(s);
+  return mapped ? mapped : "";
 }
 
 export async function saveAttendance(formData: FormData) {
@@ -66,6 +60,7 @@ export async function saveAttendances(input: {
       select: {
         id: true,
         groupId: true,
+        semesterId: true,
         startTime: true,
         endTime: true,
         openedAt: true,
@@ -153,10 +148,18 @@ export async function saveAttendances(input: {
     await prisma.$transaction(async (tx) => {
       for (const item of items) {
         const before = existingByStudentId.get(item.studentId) ?? null;
-        const beforeStatusV2 =
-          (before?.statusV2 && before.statusV2.trim().toUpperCase()) ||
-          (before?.status && before.status.trim().toUpperCase()) ||
-          null;
+        const beforeStatusV2 = before ? getCanonicalAttendanceStatusV2(before) : null;
+
+        const decision = decideAttendanceStatusChange({
+          actorRole: actor.role,
+          isSemesterLocked: Boolean(session.semester?.isLocked),
+          currentStatus: beforeStatusV2,
+          requestedStatus: normalizeAttendanceStatusV2(item.statusV2)!,
+        });
+
+        if (!decision.ok) {
+          throw new Error(decision.error);
+        }
 
         // Save both for now: `statusV2` is canonical going forward, `status` kept for compatibility.
         const row = await tx.attendance.upsert({
@@ -169,15 +172,16 @@ export async function saveAttendances(input: {
           create: {
             classSessionId: session.id,
             studentId: item.studentId,
-            status: item.statusV2,
-            statusV2: item.statusV2,
+            semesterId: session.semesterId,
+            status: decision.next,
+            statusV2: decision.next,
             updatedBy: actor.id,
             isActive: true,
             deletedAt: null,
           },
           update: {
-            status: item.statusV2,
-            statusV2: item.statusV2,
+            status: decision.next,
+            statusV2: decision.next,
             updatedBy: actor.id,
             isActive: true,
             deletedAt: null,
@@ -185,7 +189,7 @@ export async function saveAttendances(input: {
           select: { id: true, status: true, statusV2: true },
         });
 
-        if (beforeStatusV2 !== item.statusV2) {
+        if (beforeStatusV2 !== decision.next) {
           await tx.auditTrail.create({
             data: {
               actorType: actor.role === "TEACHER" ? "teacher" : actor.role.toLowerCase(),
@@ -194,7 +198,7 @@ export async function saveAttendances(input: {
               entityType: "Attendance",
               entityId: row.id,
               beforeJson: JSON.stringify({ statusV2: beforeStatusV2 }),
-              afterJson: JSON.stringify({ statusV2: item.statusV2 }),
+              afterJson: JSON.stringify({ statusV2: decision.next }),
             },
             select: { id: true },
           });

@@ -3,13 +3,91 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Faculty {
+  id        String    @id @default(cuid())
+  name      String
+  code      String?   @unique
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  programs Program[]
+
+  @@index([updatedAt])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("faculties")
+}
+
+model Program {
+  id        String    @id @default(cuid())
+  facultyId String    @map("faculty_id")
+  name      String
+  code      String?   @unique
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  faculty     Faculty     @relation(fields: [facultyId], references: [id])
+  groups      Group[]
+  disciplines Discipline[]
+
+  @@index([facultyId])
+  @@index([updatedAt])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("programs")
+}
+
+model Discipline {
+  id        String    @id @default(cuid())
+  programId String?   @map("program_id")
+  name      String
+  code      String?   @unique
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  program       Program?      @relation(fields: [programId], references: [id])
+  classSessions ClassSession[]
+
+  @@index([programId])
+  @@index([updatedAt])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("disciplines")
+}
+
+model Teacher {
+  // Use same ID space as `User` for now (mock auth uses userId like TEACHER_TEST).
+  id        String    @id
+  gaudiId   String?   @unique @map("gaudi_id")
+  name      String
+  email     String?
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  classSessions ClassSession[]
+
+  @@index([updatedAt])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("teachers")
 }
 
 model Group {
   id        String    @id @default(cuid())
   gaudiId   String    @unique @map("gaudi_id")
+  programId String?   @map("program_id")
   name      String
   code      String?
   isActive  Boolean   @default(true) @map("is_active")
@@ -17,10 +95,12 @@ model Group {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
+  program Program? @relation(fields: [programId], references: [id])
   students      Student[]
   classSessions ClassSession[]
   curatorLinks  UserGroupCurator[]
 
+  @@index([programId])
   @@index([updatedAt])
   @@index([isActive])
   @@index([deletedAt])
@@ -103,11 +183,16 @@ model ClassSession {
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
+  discipline  Discipline   @relation(fields: [disciplineId], references: [id])
   group       Group        @relation(fields: [groupId], references: [id])
+  teacher     Teacher      @relation(fields: [teacherId], references: [id])
   semester    Semester?    @relation(fields: [semesterId], references: [id])
   attendances Attendance[]
 
+  @@index([disciplineId])
   @@index([groupId])
+  @@index([groupId, startTime])
+  @@index([teacherId])
   @@index([semesterId])
   @@index([startTime])
   @@index([endTime])
@@ -123,6 +208,7 @@ model Attendance {
   id             String    @id @default(cuid())
   classSessionId String    @map("class_session_id")
   studentId      String    @map("student_id")
+  semesterId     String    @map("semester_id")
   status         String?
   // Soft migration status field (enums not supported by current SQLite connector).
   statusV2       String?   @map("status_v2")
@@ -135,10 +221,13 @@ model Attendance {
 
   classSession ClassSession @relation(fields: [classSessionId], references: [id])
   student      Student      @relation(fields: [studentId], references: [id])
+  semester     Semester     @relation(fields: [semesterId], references: [id])
 
   @@unique([classSessionId, studentId])
   @@index([studentId])
   @@index([classSessionId])
+  @@index([studentId, classSessionId])
+  @@index([semesterId])
   @@index([status])
   @@index([statusV2])
   @@index([updatedAt])
@@ -146,6 +235,24 @@ model Attendance {
   @@index([isActive])
   @@index([deletedAt])
   @@map("attendances")
+}
+
+model IntegrationLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  provider  String   @map("provider") // "gaudi" | "schedule"
+  status    String   @map("status")   // "success" | "error"
+
+  addedCount   Int @default(0) @map("added_count")
+  updatedCount Int @default(0) @map("updated_count")
+  errorCount   Int @default(0) @map("error_count")
+
+  detailsJson String? @map("details_json") // store summary/errors
+
+  @@index([provider, createdAt])
+  @@index([status, createdAt])
+  @@map("integration_logs")
 }
 
 model Semester {
@@ -159,6 +266,7 @@ model Semester {
   updatedAt DateTime  @updatedAt @map("updated_at")
 
   classSessions ClassSession[]
+  attendances   Attendance[]
 
   @@index([startDate])
   @@index([endDate])

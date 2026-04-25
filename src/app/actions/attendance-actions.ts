@@ -117,6 +117,7 @@ export async function markAttendance(raw: unknown): Promise<MarkAttendanceResult
         id: true,
         groupId: true,
         startTime: true,
+        semesterId: true,
       },
     });
 
@@ -147,6 +148,12 @@ export async function markAttendance(raw: unknown): Promise<MarkAttendanceResult
       requestedStatus: status,
     });
 
+    const before = await prisma.attendance.findFirst({
+      where: { classSessionId, studentId, isActive: true, deletedAt: null },
+      select: { id: true, statusV2: true, status: true },
+    });
+    const beforeStatus = (before?.statusV2 ?? before?.status ?? null)?.toString() ?? null;
+
     const attendance = await prisma.attendance.upsert({
       where: {
         classSessionId_studentId: {
@@ -157,13 +164,16 @@ export async function markAttendance(raw: unknown): Promise<MarkAttendanceResult
       create: {
         classSessionId,
         studentId,
+        semesterId: session.semesterId,
         status: appliedStatus,
+        statusV2: appliedStatus,
         updatedBy: updatedBy ?? null,
         isActive: true,
         deletedAt: null,
       },
       update: {
         status: appliedStatus,
+        statusV2: appliedStatus,
         updatedBy: updatedBy ?? null,
         isActive: true,
         deletedAt: null,
@@ -177,6 +187,22 @@ export async function markAttendance(raw: unknown): Promise<MarkAttendanceResult
         updatedAt: true,
       },
     });
+
+    const afterStatus = appliedStatus;
+    if ((beforeStatus ?? null) !== (afterStatus ?? null)) {
+      await prisma.auditTrail.create({
+        data: {
+          actorType: updatedBy ? "teacher" : "system",
+          actorId: updatedBy ?? null,
+          action: "attendance_update",
+          entityType: "Attendance",
+          entityId: attendance.id,
+          beforeJson: JSON.stringify({ studentId, statusV2: beforeStatus }),
+          afterJson: JSON.stringify({ studentId, statusV2: afterStatus }),
+        },
+        select: { id: true },
+      });
+    }
 
     return { ok: true, attendance, appliedStatus };
   } catch {
