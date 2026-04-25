@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "postinstall": "prisma generate",
     "prisma:backfill-statuses": "ts-node prisma/backfill-statuses.ts"
@@ -12,6 +12,7 @@
     "@prisma/client": "^5.22.0",
     "date-fns": "^3.6.0",
     "date-fns-tz": "^3.2.0",
+    "jose": "^6.2.2",
     "next": "^14.2.18",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
