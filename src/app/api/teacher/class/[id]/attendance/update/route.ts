@@ -4,7 +4,12 @@ import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { saveAttendances } from "@/app/attendance/actions";
 
 export async function POST(request: Request, ctx: { params: { id: string } }) {
-  const actor = await getCurrentUser();
+  let actor: Awaited<ReturnType<typeof getCurrentUser>>;
+  try {
+    actor = await getCurrentUser();
+  } catch {
+    return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
+  }
   if (actor.role !== "TEACHER") {
     return NextResponse.json({ ok: false, error: "Недостаточно прав." }, { status: 403 });
   }

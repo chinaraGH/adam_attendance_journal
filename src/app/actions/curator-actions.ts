@@ -4,7 +4,7 @@ import { isAfter } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth/get-current-user";
+import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { BISHKEK_TIME_ZONE, getBishkekNow } from "@/lib/time/bishkek-now";
 import { decideAttendanceStatusChange, getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
 
@@ -12,7 +12,7 @@ export async function processSickRequest(input: {
   attendanceId: string;
   decision: "confirm" | "reject";
 }) {
-  const actor = await getCurrentUser();
+  const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "CURATOR") {
     return { ok: false as const, error: "Недостаточно прав." };
   }
@@ -107,7 +107,7 @@ export async function processSickRequest(input: {
 }
 
 export async function setAdministrativeAbsence(input: { attendanceId: string }) {
-  const actor = await getCurrentUser();
+  const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "CURATOR") {
     return { ok: false as const, error: "Недостаточно прав." };
   }

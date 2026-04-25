@@ -13,7 +13,7 @@ export default async function CuratorBRequestsPage() {
           <div className="mt-1 text-sm text-gray-600">Подтверждение/отклонение справок кураторами.</div>
         </div>
         <Link className="font-bold underline" href="/curator/dashboard">
-          ← Dashboard
+          ← Назад
         </Link>
       </div>
 

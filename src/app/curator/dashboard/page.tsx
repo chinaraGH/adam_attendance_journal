@@ -9,10 +9,10 @@ export default async function CuratorDashboardPage() {
   return (
     <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 900 }}>Dashboard Куратора</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 900 }}>Кабинет куратора</h1>
         <div style={{ display: "flex", gap: 12 }}>
           <Link href="/" style={{ fontWeight: 800 }}>
-            ← Teacher Dashboard
+            ← Назад
           </Link>
           <Link href="/admin/search" style={{ fontWeight: 800 }}>
             Поиск студентов
@@ -50,7 +50,12 @@ export default async function CuratorDashboardPage() {
                       </Link>
                     </td>
                     <td style={{ padding: "10px 8px" }}>{r.totalSessions}</td>
-                    <td style={{ padding: "10px 8px" }}>{r.attendancePct}%</td>
+                    <td style={{ padding: "10px 8px" }}>
+                      {r.attendancePct}%{" "}
+                      <span style={{ fontWeight: 900, color: r.trend === "up" ? "#16a34a" : r.trend === "down" ? "#dc2626" : "#6b7280" }}>
+                        {r.trend === "up" ? "↑" : r.trend === "down" ? "↓" : "→"}
+                      </span>
+                    </td>
                     <td style={{ padding: "10px 8px" }}>{r.nbCount}</td>
                     <td style={{ padding: "10px 8px" }}>{r.sickCount}</td>
                   </tr>

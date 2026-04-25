@@ -1,14 +1,14 @@
 import Link from "next/link";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth/get-current-user";
+import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 
 function qNorm(v: string | undefined) {
   return (v ?? "").trim();
 }
 
 export default async function AdminSearchPage(props: { searchParams: { q?: string } }) {
-  const actor = await getCurrentUser();
+  const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "ADMIN" && actor.role !== "ACADEMIC_OFFICE") {
     return (
       <main className="mx-auto max-w-[1000px] p-6">

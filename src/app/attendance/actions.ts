@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getEffectiveClassSessionStatus } from "@/lib/class-session/effective-status";
-import { getCurrentUser } from "@/lib/auth/get-current-user";
+import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import {
   decideAttendanceStatusChange,
   getCanonicalAttendanceStatusV2,
@@ -53,7 +53,7 @@ export async function saveAttendances(input: {
   }
 
   try {
-    const actor = await getCurrentUser();
+    const actor = await getCurrentUserOrRedirect();
 
     const session = await prisma.classSession.findFirst({
       where: { id: input.classSessionId, isActive: true, deletedAt: null },
@@ -84,8 +84,8 @@ export async function saveAttendances(input: {
       statusV2: session.statusV2,
     });
 
-    if (effectiveStatus !== "active") {
-      return { ok: false as const, error: "Сохранение доступно только во время активного занятия." };
+    if (effectiveStatus !== "active" && effectiveStatus !== "scheduled") {
+      return { ok: false as const, error: "Сохранение недоступно: занятие завершено или отменено." };
     }
 
     // Must mark every active student in the group: NULL is forbidden on save.

@@ -244,11 +244,7 @@ model IntegrationLog {
   provider  String   @map("provider") // "gaudi" | "schedule"
   status    String   @map("status")   // "success" | "error"
 
-  addedCount   Int @default(0) @map("added_count")
-  updatedCount Int @default(0) @map("updated_count")
-  errorCount   Int @default(0) @map("error_count")
-
-  detailsJson String? @map("details_json") // store summary/errors
+  details   Json?    @map("details") // summary/errors payload
 
   @@index([provider, createdAt])
   @@index([status, createdAt])

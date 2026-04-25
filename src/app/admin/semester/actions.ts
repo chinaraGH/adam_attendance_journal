@@ -1,15 +1,25 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth/get-current-user";
+import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { lockSemesterAndConvertPendingToNb } from "@/lib/semester/lock-semester";
 
 async function requireAcademicOffice() {
-  const actor = await getCurrentUser();
-  if (actor.role !== "ACADEMIC_OFFICE") {
+  const actor = await getCurrentUserOrRedirect();
+  if (actor.role !== "ACADEMIC_OFFICE" && actor.role !== "ADMIN") {
     throw new Error("Недостаточно прав.");
   }
   return actor;
+}
+
+export async function getAllSemesters() {
+  await requireAcademicOffice();
+  const semesters = await prisma.semester.findMany({
+    orderBy: { startDate: "desc" },
+    select: { id: true, name: true, startDate: true, endDate: true, isLocked: true },
+    take: 50,
+  });
+  return { ok: true as const, semesters };
 }
 
 export async function getCurrentSemester() {
@@ -27,14 +37,16 @@ export async function getCurrentSemester() {
   return { ok: true as const, semester };
 }
 
-export async function updateSemesterDates(formData: FormData) {
+export async function upsertSemester(formData: FormData) {
   await requireAcademicOffice();
 
   const semesterId = formData.get("semesterId");
+  const name = formData.get("name");
   const startDate = formData.get("startDate");
   const endDate = formData.get("endDate");
 
-  if (typeof semesterId !== "string" || !semesterId) throw new Error("semesterId is required");
+  if (semesterId !== null && typeof semesterId !== "string") throw new Error("semesterId is invalid");
+  if (typeof name !== "string" || !name) throw new Error("name is required");
   if (typeof startDate !== "string" || !startDate) throw new Error("startDate is required");
   if (typeof endDate !== "string" || !endDate) throw new Error("endDate is required");
 
@@ -42,21 +54,26 @@ export async function updateSemesterDates(formData: FormData) {
   const end = new Date(endDate);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) throw new Error("Некорректные даты.");
 
-  await prisma.semester.update({
-    where: { id: semesterId },
-    data: { startDate: start, endDate: end },
-    select: { id: true },
-  });
+  const row = semesterId
+    ? await prisma.semester.update({
+        where: { id: semesterId },
+        data: { name, startDate: start, endDate: end },
+        select: { id: true },
+      })
+    : await prisma.semester.create({
+        data: { name, startDate: start, endDate: end, isLocked: false, lockedAt: null },
+        select: { id: true },
+      });
 
   await prisma.auditTrail.create({
     data: {
       actorType: "academic_office",
-      actorId: "ACADEMIC_OFFICE_TEST",
-      action: "semester_update_dates",
+      actorId: (await getCurrentUserOrRedirect()).id,
+      action: semesterId ? "semester_update" : "semester_create",
       entityType: "Semester",
-      entityId: semesterId,
+      entityId: row.id,
       beforeJson: null,
-      afterJson: JSON.stringify({ startDate: start.toISOString(), endDate: end.toISOString() }),
+      afterJson: JSON.stringify({ name, startDate: start.toISOString(), endDate: end.toISOString() }),
     },
     select: { id: true },
   });

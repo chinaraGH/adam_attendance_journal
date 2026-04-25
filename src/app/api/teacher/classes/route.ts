@@ -2,26 +2,27 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
-import { getBishkekNow } from "@/lib/time/bishkek-now";
+import { getBishkekDayRangeInstants } from "@/lib/time/bishkek-day-range";
 
 export async function GET() {
-  const actor = await getCurrentUser();
+  let actor: Awaited<ReturnType<typeof getCurrentUser>>;
+  try {
+    actor = await getCurrentUser();
+  } catch {
+    return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
+  }
   if (actor.role !== "TEACHER") {
     return NextResponse.json({ ok: false, error: "Недостаточно прав." }, { status: 403 });
   }
 
-  const now = getBishkekNow();
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
+  const { startInstant, endInstant } = getBishkekDayRangeInstants();
 
   const classes = await prisma.classSession.findMany({
     where: {
       teacherId: actor.id,
       isActive: true,
       deletedAt: null,
-      startTime: { gte: start, lt: end },
+      startTime: { gte: startInstant, lte: endInstant },
       NOT: [{ statusV2: "cancelled" }, { status: "cancelled" }],
     },
     orderBy: { startTime: "asc" },

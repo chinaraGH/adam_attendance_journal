@@ -89,10 +89,7 @@ export async function POST(request: NextRequest) {
       data: {
         provider: "gaudi",
         status: errors.length > 0 ? "error" : "success",
-        addedCount: added,
-        updatedCount: updated,
-        errorCount: errors.length,
-        detailsJson: JSON.stringify({ startedAt, finishedAt, errors: errors.slice(0, 50) }),
+        details: { startedAt, finishedAt, added, updated, errors: errors.slice(0, 50) },
       },
       select: { id: true },
     });
@@ -110,10 +107,7 @@ export async function POST(request: NextRequest) {
       data: {
         provider: "gaudi",
         status: "error",
-        addedCount: added,
-        updatedCount: updated,
-        errorCount: errors.length + 1,
-        detailsJson: JSON.stringify({ startedAt, finishedAt: new Date(), error: message, errors: errors.slice(0, 50) }),
+        details: { startedAt, finishedAt: new Date(), added, updated, error: message, errors: errors.slice(0, 50) },
       },
       select: { id: true },
     });

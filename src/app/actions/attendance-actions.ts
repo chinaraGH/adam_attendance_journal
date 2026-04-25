@@ -118,11 +118,16 @@ export async function markAttendance(raw: unknown): Promise<MarkAttendanceResult
         groupId: true,
         startTime: true,
         semesterId: true,
+        semester: { select: { isLocked: true } },
       },
     });
 
     if (!session) {
       return { ok: false, error: "Занятие не найдено или недоступно." };
+    }
+
+    if (session.semester?.isLocked) {
+      return { ok: false, error: "Семестр закрыт. Изменение посещаемости запрещено." };
     }
 
     const student = await prisma.student.findFirst({

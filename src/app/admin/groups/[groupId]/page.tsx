@@ -2,10 +2,10 @@ import Link from "next/link";
 
 import { prisma } from "@/lib/prisma";
 import { ExportCsvButton } from "@/components/export-csv-button";
-import { getCurrentUser } from "@/lib/auth/get-current-user";
+import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 
 export default async function AdminGroupReportPage(props: { params: { groupId: string } }) {
-  const actor = await getCurrentUser();
+  const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "ADMIN" && actor.role !== "ACADEMIC_OFFICE") {
     return (
       <main className="mx-auto max-w-[1100px] p-6">

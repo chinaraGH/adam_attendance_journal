@@ -1,11 +1,11 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth/get-current-user";
+import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { processSickRequest, setAdministrativeAbsence } from "@/app/actions/curator-actions";
 
 export async function getPendingSickAttendances() {
-  const actor = await getCurrentUser();
+  const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "CURATOR") {
     return { ok: false as const, error: "Недостаточно прав." };
   }
@@ -40,7 +40,7 @@ export async function getPendingSickAttendances() {
 }
 
 export async function getCuratorGroupSummary() {
-  const actor = await getCurrentUser();
+  const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "CURATOR") {
     return { ok: false as const, error: "Недостаточно прав." };
   }
@@ -64,7 +64,7 @@ export async function getCuratorGroupSummary() {
 
   const sessions = await prisma.classSession.findMany({
     where: { groupId: { in: groupIds }, isActive: true, deletedAt: null },
-    select: { id: true, groupId: true, status: true, statusV2: true },
+    select: { id: true, groupId: true, startTime: true, status: true, statusV2: true },
   });
 
   const sessionIds = sessions.map((s) => s.id);
@@ -153,12 +153,67 @@ export async function getCuratorGroupSummary() {
       attendancePct: pct,
       nbCount: rec.nb,
       sickCount: rec.sick,
+      trend: "flat" as "up" | "down" | "flat",
     };
+  });
+
+  // Trend: last 7 days vs previous 7 days (by session.startTime).
+  const now = new Date();
+  const startLast = new Date(now);
+  startLast.setDate(startLast.getDate() - 7);
+  const startPrev = new Date(now);
+  startPrev.setDate(startPrev.getDate() - 14);
+
+  const lastWeekSessionIds = sessions.filter((s) => s.startTime >= startLast && s.startTime <= now).map((s) => s.id);
+  const prevWeekSessionIds = sessions.filter((s) => s.startTime >= startPrev && s.startTime < startLast).map((s) => s.id);
+
+  const aggWeek = async (ids: string[]) => {
+    if (ids.length === 0) return new Map<string, { denom: number; numer: number }>();
+    const total = await prisma.attendance.groupBy({
+      by: ["classSessionId"],
+      where: { classSessionId: { in: ids }, isActive: true, deletedAt: null, statusV2: { not: null } },
+      _count: { _all: true },
+    });
+    const attended = await prisma.attendance.groupBy({
+      by: ["classSessionId"],
+      where: { classSessionId: { in: ids }, isActive: true, deletedAt: null, statusV2: { in: ["P", "O"] } },
+      _count: { _all: true },
+    });
+    const denomByGroup = new Map<string, number>();
+    for (const r of total) {
+      const gid = sessionIdToGroupId.get(r.classSessionId);
+      if (!gid) continue;
+      denomByGroup.set(gid, (denomByGroup.get(gid) ?? 0) + r._count._all);
+    }
+    const numerByGroup = new Map<string, number>();
+    for (const r of attended) {
+      const gid = sessionIdToGroupId.get(r.classSessionId);
+      if (!gid) continue;
+      numerByGroup.set(gid, (numerByGroup.get(gid) ?? 0) + r._count._all);
+    }
+    const out = new Map<string, { denom: number; numer: number }>();
+    for (const gid of groupIds) {
+      out.set(gid, { denom: denomByGroup.get(gid) ?? 0, numer: numerByGroup.get(gid) ?? 0 });
+    }
+    return out;
+  };
+
+  const lastWeek = await aggWeek(lastWeekSessionIds);
+  const prevWeek = await aggWeek(prevWeekSessionIds);
+
+  const rowsWithTrend = rows.map((r) => {
+    const lw = lastWeek.get(r.groupId) ?? { denom: 0, numer: 0 };
+    const pw = prevWeek.get(r.groupId) ?? { denom: 0, numer: 0 };
+    const lwPct = lw.denom > 0 ? lw.numer / lw.denom : null;
+    const pwPct = pw.denom > 0 ? pw.numer / pw.denom : null;
+    const trend =
+      lwPct === null || pwPct === null ? "flat" : lwPct > pwPct ? "up" : lwPct < pwPct ? "down" : "flat";
+    return { ...r, trend };
   });
 
   return {
     ok: true as const,
-    rows,
+    rows: rowsWithTrend,
     totals: {
       attendedCount,
       nbCount,

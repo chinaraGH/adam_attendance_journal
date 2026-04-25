@@ -2,7 +2,7 @@ import Link from "next/link";
 import { performance } from "node:perf_hooks";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth/get-current-user";
+import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { ExportCsvButton } from "@/components/export-csv-button";
 
 function fmtShort(d: Date) {
@@ -15,7 +15,7 @@ function fmtTime(d: Date) {
 
 export default async function CuratorGroupReportPage(props: { params: { groupId: string } }) {
   const t0 = performance.now();
-  const actor = await getCurrentUser();
+  const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "CURATOR") {
     return (
       <main className="mx-auto max-w-[1200px] p-6">
@@ -178,7 +178,7 @@ export default async function CuratorGroupReportPage(props: { params: { groupId:
           </div>
         </div>
         <Link className="font-bold underline" href="/curator/dashboard">
-          ← Dashboard
+          ← Назад
         </Link>
       </div>
 
