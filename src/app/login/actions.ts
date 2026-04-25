@@ -5,19 +5,34 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { getSessionCookieName, signSessionToken } from "@/lib/auth/session";
+import { getDashboardPathForRole } from "@/lib/auth/role-routes";
 
-export async function loginWithRole(formData: FormData) {
-  const role = formData.get("role");
-  const userId = formData.get("userId");
+type LoginState = { ok: true } | { ok: false; error: string };
 
-  if (typeof role !== "string" || !role) return;
-  if (typeof userId !== "string" || !userId) return;
+function getTestPassword() {
+  return process.env.TEST_PASSWORD ?? "test";
+}
+
+export async function loginWithPassword(_prevState: LoginState, formData: FormData): Promise<LoginState> {
+  const login = formData.get("login");
+  const password = formData.get("password");
+
+  if (typeof login !== "string" || login.trim().length === 0) {
+    return { ok: false, error: "INVALID" };
+  }
+  if (typeof password !== "string" || password.length === 0) {
+    return { ok: false, error: "INVALID" };
+  }
+
+  if (password !== getTestPassword()) {
+    return { ok: false, error: "INVALID" };
+  }
 
   const user = await prisma.user.findFirst({
-    where: { id: userId, role, isActive: true, deletedAt: null },
+    where: { id: login.trim(), isActive: true, deletedAt: null },
     select: { id: true, role: true },
   });
-  if (!user) return;
+  if (!user) return { ok: false, error: "INVALID" };
 
   const token = await signSessionToken({ sub: user.id, role: user.role });
   cookies().set(getSessionCookieName(), token, {
@@ -28,7 +43,7 @@ export async function loginWithRole(formData: FormData) {
     maxAge: 60 * 60 * 24 * 7,
   });
 
-  redirect("/");
+  redirect(getDashboardPathForRole(user.role as any));
 }
 
 export async function logout() {

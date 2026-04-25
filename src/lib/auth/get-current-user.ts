@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { verifySessionToken } from "@/lib/auth/session";
@@ -24,5 +25,13 @@ export async function getCurrentUser(): Promise<CurrentUser> {
   if (!user) throw new Error("UNAUTHORIZED");
 
   return { id: user.id, role: user.role as AppRole };
+}
+
+export async function getCurrentUserOrRedirect(to: string = "/login"): Promise<CurrentUser> {
+  try {
+    return await getCurrentUser();
+  } catch {
+    redirect(to);
+  }
 }
 

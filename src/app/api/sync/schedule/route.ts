@@ -13,6 +13,7 @@ type ScheduleSessionInput = {
   startTime: string;
   endTime: string;
   status?: string | null;
+  deleted?: boolean | null;
 };
 
 export async function POST(request: NextRequest) {
@@ -78,6 +79,8 @@ export async function POST(request: NextRequest) {
         select: { id: true },
       });
 
+      const nextStatus = s.deleted ? "cancelled" : s.status ?? "scheduled";
+
       await prisma.classSession.upsert({
         where: { scheduleExternalId: s.scheduleExternalId },
         create: {
@@ -89,8 +92,8 @@ export async function POST(request: NextRequest) {
           semesterId: s.semesterId,
           startTime: start,
           endTime: end,
-          status: s.status ?? "scheduled",
-          statusV2: s.status ?? "scheduled",
+          status: nextStatus,
+          statusV2: nextStatus,
           openedAt: null,
           flagLateTeacher: false,
           isActive: true,
@@ -103,8 +106,8 @@ export async function POST(request: NextRequest) {
           semesterId: s.semesterId,
           startTime: start,
           endTime: end,
-          status: s.status ?? "scheduled",
-          statusV2: s.status ?? "scheduled",
+          status: nextStatus,
+          statusV2: nextStatus,
           isActive: true,
           deletedAt: null,
         },
@@ -119,10 +122,7 @@ export async function POST(request: NextRequest) {
       data: {
         provider: "schedule",
         status: errors.length > 0 ? "error" : "success",
-        addedCount: added,
-        updatedCount: updated,
-        errorCount: errors.length,
-        detailsJson: JSON.stringify({ startedAt, finishedAt, errors: errors.slice(0, 50) }),
+        details: { startedAt, finishedAt, added, updated, errors: errors.slice(0, 50) },
       },
       select: { id: true },
     });
@@ -140,10 +140,7 @@ export async function POST(request: NextRequest) {
       data: {
         provider: "schedule",
         status: "error",
-        addedCount: added,
-        updatedCount: updated,
-        errorCount: errors.length + 1,
-        detailsJson: JSON.stringify({ startedAt, finishedAt: new Date(), error: message, errors: errors.slice(0, 50) }),
+        details: { startedAt, finishedAt: new Date(), added, updated, error: message, errors: errors.slice(0, 50) },
       },
       select: { id: true },
     });

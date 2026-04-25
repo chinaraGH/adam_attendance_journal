@@ -6,14 +6,14 @@ import { toZonedTime } from "date-fns-tz";
 import { prisma } from "@/lib/prisma";
 import { BISHKEK_TIME_ZONE, getBishkekNow } from "@/lib/time/bishkek-now";
 import { getEffectiveClassSessionStatus } from "@/lib/class-session/effective-status";
-import { getCurrentUser } from "@/lib/auth/get-current-user";
+import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 
 export async function openJournal(input: { classSessionId: string }) {
   if (!input || typeof input.classSessionId !== "string" || input.classSessionId.length === 0) {
     return { ok: false as const, error: "Некорректный идентификатор занятия." };
   }
 
-  const actor = await getCurrentUser();
+  const actor = await getCurrentUserOrRedirect();
 
   const session = await prisma.classSession.findFirst({
     where: { id: input.classSessionId, isActive: true, deletedAt: null },

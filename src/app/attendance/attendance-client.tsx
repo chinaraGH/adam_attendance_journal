@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { saveAttendances } from "./actions";
+import { ExitButton } from "@/components/exit-button";
 
 type Student = { id: string; name: string };
 
@@ -12,6 +13,10 @@ const STATUS = {
   NB: "NB",
   B: "B",
 } as const;
+
+function isValidTeacherStatus(input: unknown): input is (typeof STATUS)[keyof typeof STATUS] {
+  return input === STATUS.P || input === STATUS.O || input === STATUS.NB || input === STATUS.B;
+}
 
 function getButtonStyle(params: { kind: "p" | "o" | "nb" | "b"; isActive: boolean }) {
   const { kind, isActive } = params;
@@ -44,15 +49,16 @@ export function AttendanceClient(props: {
 }) {
   const { students, initialStatusByStudentId, classSessionId, readOnly } = props;
 
-  const [isPending, startTransition] = useTransition();
+  const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [statusByStudentId, setStatusByStudentId] = useState<Record<string, string | null>>(() => {
     const next: Record<string, string | null> = {};
     for (const s of students) {
       const initial = initialStatusByStudentId[s.id];
-      if (typeof initial === "string" && initial.length > 0) {
-        next[s.id] = initial;
+      const normalized = typeof initial === "string" ? initial.trim().toUpperCase() : null;
+      if (normalized && isValidTeacherStatus(normalized)) {
+        next[s.id] = normalized;
       } else {
         next[s.id] = null;
       }
@@ -60,13 +66,28 @@ export function AttendanceClient(props: {
     return next;
   });
 
+  const initialSnapshotRef = useRef<Record<string, string | null>>(statusByStudentId);
+
   const remainingCount = useMemo(() => {
     let remaining = 0;
     for (const s of students) {
-      if (!statusByStudentId[s.id]) remaining += 1;
+      const v = statusByStudentId[s.id];
+      if (!v || !isValidTeacherStatus(v)) remaining += 1;
     }
     return remaining;
   }, [statusByStudentId, students]);
+
+  const isDirty = useMemo(() => {
+    const initial = initialSnapshotRef.current;
+    for (const s of students) {
+      const a = statusByStudentId[s.id] ?? null;
+      const b = initial[s.id] ?? null;
+      if (a !== b) return true;
+    }
+    return false;
+  }, [statusByStudentId, students]);
+
+  const isLogoutDisabled = !readOnly && (isSaving || isDirty);
 
   function setStatus(studentId: string, status: string) {
     setSaveMessage("");
@@ -76,34 +97,44 @@ export function AttendanceClient(props: {
   }
 
   function onSave() {
+    const snapshot = { ...statusByStudentId };
     const items = students.map((s) => ({
       studentId: s.id,
-      status: statusByStudentId[s.id] ?? "",
+      status: isValidTeacherStatus(snapshot[s.id]) ? (snapshot[s.id] as string) : "",
     }));
 
-    startTransition(async () => {
-      try {
-        setSaveMessage("");
-        setErrorMessage("");
-        const result = await saveAttendances({ classSessionId, items });
+    setIsSaving(true);
+    setSaveMessage("");
+    setErrorMessage("");
+
+    saveAttendances({ classSessionId, items })
+      .then((result) => {
         if (result.ok) {
           const msg = "Успешно сохранено в базу";
           setSaveMessage(msg);
+          initialSnapshotRef.current = snapshot;
           console.log(msg);
         } else {
           setErrorMessage(result.error);
           console.log(result.error);
         }
-      } catch {
+      })
+      .catch(() => {
         const msg = "Ошибка сохранения";
         setErrorMessage(msg);
         console.log(msg);
-      }
-    });
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   }
 
   return (
     <>
+      <div style={{ position: "fixed", top: 16, left: 16, zIndex: 50 }}>
+        <ExitButton disabled={isLogoutDisabled} />
+      </div>
+
       {errorMessage ? (
         <div
           style={{
@@ -141,7 +172,7 @@ export function AttendanceClient(props: {
                 border: "1px solid #e5e7eb",
                 borderRadius: 12,
                 padding: 12,
-                opacity: isPending ? 0.85 : 1,
+                opacity: isSaving ? 0.85 : 1,
                 flexWrap: "wrap",
               }}
             >
@@ -153,7 +184,7 @@ export function AttendanceClient(props: {
                 <button
                   type="button"
                   onClick={() => setStatus(student.id, STATUS.P)}
-                  disabled={isPending || !!readOnly}
+                  disabled={isSaving || !!readOnly}
                   style={getButtonStyle({ kind: "p", isActive: current === STATUS.P })}
                 >
                   П
@@ -162,7 +193,7 @@ export function AttendanceClient(props: {
                 <button
                   type="button"
                   onClick={() => setStatus(student.id, STATUS.O)}
-                  disabled={isPending || !!readOnly}
+                  disabled={isSaving || !!readOnly}
                   style={getButtonStyle({ kind: "o", isActive: current === STATUS.O })}
                 >
                   О
@@ -171,7 +202,7 @@ export function AttendanceClient(props: {
                 <button
                   type="button"
                   onClick={() => setStatus(student.id, STATUS.NB)}
-                  disabled={isPending || !!readOnly}
+                  disabled={isSaving || !!readOnly}
                   style={getButtonStyle({ kind: "nb", isActive: current === STATUS.NB })}
                 >
                   НБ
@@ -180,7 +211,7 @@ export function AttendanceClient(props: {
                 <button
                   type="button"
                   onClick={() => setStatus(student.id, STATUS.B)}
-                  disabled={isPending || !!readOnly}
+                  disabled={isSaving || !!readOnly}
                   style={getButtonStyle({ kind: "b", isActive: current === STATUS.B })}
                 >
                   Б
@@ -195,7 +226,7 @@ export function AttendanceClient(props: {
         <button
           type="button"
           onClick={onSave}
-          disabled={isPending || remainingCount > 0 || !!readOnly}
+          disabled={isSaving || remainingCount > 0 || !!readOnly}
           style={{
             borderWidth: 1,
             borderStyle: "solid",
@@ -203,14 +234,15 @@ export function AttendanceClient(props: {
             borderRadius: 12,
             padding: "10px 14px",
             fontWeight: 700,
-            cursor: isPending || remainingCount > 0 || !!readOnly ? "not-allowed" : "pointer",
-            opacity: isPending || remainingCount > 0 || !!readOnly ? 0.6 : 1,
+            cursor: isSaving || remainingCount > 0 || !!readOnly ? "not-allowed" : "pointer",
+            opacity: isSaving || remainingCount > 0 || !!readOnly ? 0.6 : 1,
             background: "#111827",
             color: "white",
           }}
         >
-          {isPending ? "Сохранение..." : "Сохранить"}
+          {isSaving ? "Сохранение..." : "Сохранить"}
         </button>
+        <ExitButton disabled={isLogoutDisabled} />
         <div style={{ color: "#374151", fontWeight: 600 }}>
           {remainingCount > 0 ? `Осталось отметить: ${remainingCount}` : "Все студенты отмечены"}
         </div>

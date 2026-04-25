@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { BISHKEK_TIME_ZONE, getBishkekNow } from "@/lib/time/bishkek-now";
 import { getEffectiveClassSessionStatus } from "@/lib/class-session/effective-status";
 import { toZonedTime } from "date-fns-tz";
+import { formatClassSessionStatusLabel } from "@/lib/ui/labels";
+import { getBishkekDayRangeInstants } from "@/lib/time/bishkek-day-range";
+import { ExitButton } from "@/components/exit-button";
 
 function formatTimeRange(start: Date, end: Date) {
   const s = toZonedTime(start, BISHKEK_TIME_ZONE);
@@ -13,17 +16,13 @@ function formatTimeRange(start: Date, end: Date) {
 }
 
 export default async function HomePage() {
-  const now = getBishkekNow();
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(now);
-  endOfDay.setHours(23, 59, 59, 999);
+  const { nowBishkek, startInstant, endInstant } = getBishkekDayRangeInstants();
 
   const sessions = await prisma.classSession.findMany({
     where: {
       isActive: true,
       deletedAt: null,
-      startTime: { gte: startOfDay, lte: endOfDay },
+      startTime: { gte: startInstant, lte: endInstant },
     },
     orderBy: { startTime: "asc" },
     select: {
@@ -52,7 +51,7 @@ export default async function HomePage() {
         openedAt: s.openedAt,
         status: s.status,
         statusV2: s.statusV2,
-        now,
+        now: nowBishkek,
       });
 
       const totalStudents = s.group._count.students;
@@ -72,9 +71,11 @@ export default async function HomePage() {
 
   return (
     <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 28, fontWeight: 900, marginBottom: 12 }}>Dashboard</h1>
+      <div style={{ position: "fixed", top: 16, left: 16, zIndex: 50 }}>
+        <ExitButton />
+      </div>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
-        <div style={{ color: "#6b7280", fontWeight: 700 }}>Сегодня (Bishkek): {now.toLocaleDateString("ru-RU")}</div>
+        <div style={{ color: "#6b7280", fontWeight: 700 }}>Сегодня (Bishkek): {nowBishkek.toLocaleDateString("ru-RU")}</div>
         <Link
           href="/reports"
           style={{
@@ -122,7 +123,7 @@ export default async function HomePage() {
                   </div>
 
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontWeight: 900 }}>{effective}</div>
+                    <div style={{ fontWeight: 900 }}>{formatClassSessionStatusLabel(effective)}</div>
                     <div style={{ marginTop: 6, color: isFilled ? "#16a34a" : "#b45309", fontWeight: 800 }}>
                       {statusLabel}
                     </div>
@@ -138,20 +139,15 @@ export default async function HomePage() {
               </div>
             );
 
-            if (isActive || isReadOnly) {
-              return (
-                <Link
-                  key={session.id}
-                  href={href}
-                  style={{ textDecoration: "none", color: "inherit" }}
-                  aria-disabled={!isActive && !isReadOnly}
-                >
-                  {CardInner}
-                </Link>
-              );
+            if (effective === "scheduled") {
+              return <div key={session.id}>{CardInner}</div>;
             }
 
-            return <div key={session.id}>{CardInner}</div>;
+            return (
+              <Link key={session.id} href={href} style={{ textDecoration: "none", color: "inherit" }}>
+                {CardInner}
+              </Link>
+            );
           })}
         </div>
       )}

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { headers } from "next/headers";
 
 import { Navbar } from "@/components/navbar";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
@@ -19,6 +20,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 }
 
 async function AuthNavbar() {
+  const pathname = headers().get("x-pathname") ?? "";
+  if (pathname.startsWith("/login")) return null;
+  if (pathname.startsWith("/attendance")) return null;
+
   try {
     const user = await getCurrentUser();
     return <Navbar user={user} />;

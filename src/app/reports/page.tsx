@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth/get-current-user";
+import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 
 const LOW_ATTENDANCE_THRESHOLD = 70;
 
@@ -19,14 +19,14 @@ function parseDate(param: string | undefined): Date | null {
 export default async function ReportsPage(props: {
   searchParams: { groupId?: string; disciplineId?: string; from?: string; to?: string };
 }) {
-  const actor = await getCurrentUser();
+  const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "TEACHER" && actor.role !== "CURATOR") {
     return (
       <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
         <h1 style={{ fontSize: 26, fontWeight: 900 }}>Отчеты</h1>
         <p style={{ marginTop: 12 }}>Недостаточно прав.</p>
         <p style={{ marginTop: 12 }}>
-          <Link href="/">← Dashboard</Link>
+          <Link href="/">← Назад</Link>
         </p>
       </main>
     );
@@ -124,7 +124,7 @@ export default async function ReportsPage(props: {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
         <h1 style={{ fontSize: 26, fontWeight: 900 }}>Отчеты</h1>
         <Link href="/" style={{ fontWeight: 900 }}>
-          ← Dashboard
+          ← Назад
         </Link>
       </div>
 

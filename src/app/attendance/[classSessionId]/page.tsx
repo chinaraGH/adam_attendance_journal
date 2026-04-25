@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getEffectiveClassSessionStatus } from "@/lib/class-session/effective-status";
 import { openJournal } from "@/app/actions/class-session-actions";
+import { formatClassSessionStatusLabel } from "@/lib/ui/labels";
 
 import { AttendanceClient } from "../attendance-client";
 
@@ -40,7 +41,7 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
         <h1 style={{ fontSize: 24, fontWeight: 800 }}>Журнал</h1>
         <p style={{ marginTop: 12 }}>Занятие не найдено.</p>
         <p style={{ marginTop: 12 }}>
-          <Link href="/">Назад на Dashboard</Link>
+          <Link href="/">Назад</Link>
         </p>
       </main>
     );
@@ -102,7 +103,7 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
     initialStatusByStudentId[r.studentId] = r.statusV2 ?? r.status ?? null;
   }
 
-  const isReadOnly = effective !== "active" || !!session.semester?.isLocked;
+  const isReadOnly = effective === "finished" || effective === "auto_closed" || effective === "cancelled" || !!session.semester?.isLocked;
 
   return (
     <main style={{ padding: 24, maxWidth: 820, margin: "0 auto" }}>
@@ -114,7 +115,7 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
           </div>
           <div style={{ color: "#374151", fontWeight: 900, fontSize: 16, marginTop: 2 }}>{session.group.name}</div>
           <div style={{ color: "#6b7280", marginTop: 4 }}>
-            Статус: <span style={{ fontWeight: 800 }}>{effective}</span>
+            Статус: <span style={{ fontWeight: 800 }}>{formatClassSessionStatusLabel(effective)}</span>
             {isReadOnly ? " (только просмотр)" : ""}
           </div>
           {session.semester?.isLocked ? (
@@ -123,9 +124,6 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
             </div>
           ) : null}
         </div>
-        <Link href="/" style={{ fontWeight: 700 }}>
-          ← Dashboard
-        </Link>
       </div>
 
       <div style={{ marginTop: 16 }}>

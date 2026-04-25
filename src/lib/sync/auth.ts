@@ -4,7 +4,7 @@ export function requireSyncAuth(request: NextRequest) {
   const secret = process.env.SYNC_SECRET;
   if (!secret) return false;
 
-  const header = request.headers.get("x-sync-secret");
+  const header = request.headers.get("x-sync-token");
   if (header && header === secret) return true;
 
   const auth = request.headers.get("authorization");

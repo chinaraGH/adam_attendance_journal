@@ -36,7 +36,7 @@ export function ProblemGroupsClient() {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black">Dashboard руководства</h1>
+          <h1 className="text-2xl font-black">Руководство</h1>
           <div className="mt-1 text-sm text-gray-600">Проблемные группы: посещаемость ниже 70%</div>
         </div>
         <ExportCsvButton

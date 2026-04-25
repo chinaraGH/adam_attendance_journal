@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth/get-current-user";
-import { getCurrentSemester, lockSemester, updateSemesterDates } from "./actions";
+import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
+import { getAllSemesters, getCurrentSemester, lockSemester, upsertSemester } from "./actions";
 
 function toDateInputValue(d: Date) {
   // YYYY-MM-DD
@@ -11,8 +11,8 @@ function toDateInputValue(d: Date) {
 }
 
 export default async function SemesterAdminPage() {
-  const actor = await getCurrentUser();
-  if (actor.role !== "ACADEMIC_OFFICE") {
+  const actor = await getCurrentUserOrRedirect();
+  if (actor.role !== "ACADEMIC_OFFICE" && actor.role !== "ADMIN") {
     return (
       <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
         <h1 style={{ fontSize: 26, fontWeight: 900 }}>Семестр</h1>
@@ -25,15 +25,16 @@ export default async function SemesterAdminPage() {
   }
 
   const { semester } = await getCurrentSemester();
+  const { semesters } = await getAllSemesters();
   const gaudiLastSuccess = await prisma.integrationLog.findFirst({
     where: { provider: "gaudi", status: "success" },
     orderBy: { createdAt: "desc" },
-    select: { createdAt: true, addedCount: true, updatedCount: true, errorCount: true },
+    select: { createdAt: true },
   });
   const scheduleLastSuccess = await prisma.integrationLog.findFirst({
     where: { provider: "schedule", status: "success" },
     orderBy: { createdAt: "desc" },
-    select: { createdAt: true, addedCount: true, updatedCount: true, errorCount: true },
+    select: { createdAt: true },
   });
 
   if (!semester) {
@@ -50,7 +51,7 @@ export default async function SemesterAdminPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
         <h1 style={{ fontSize: 26, fontWeight: 900 }}>Управление семестром</h1>
         <Link href="/" style={{ fontWeight: 900 }}>
-          ← Dashboard
+          ← Назад
         </Link>
       </div>
 
@@ -77,9 +78,18 @@ export default async function SemesterAdminPage() {
       </div>
 
       <div style={{ marginTop: 16, border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>
-        <div style={{ fontWeight: 900, marginBottom: 10 }}>Даты семестра</div>
-        <form action={updateSemesterDates} style={{ display: "grid", gap: 10, maxWidth: 420 }}>
+        <div style={{ fontWeight: 900, marginBottom: 10 }}>Создание / редактирование семестра</div>
+        <form action={upsertSemester} style={{ display: "grid", gap: 10, maxWidth: 520 }}>
           <input type="hidden" name="semesterId" value={semester.id} />
+          <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
+            Название
+            <input
+              name="name"
+              defaultValue={semester.name ?? ""}
+              placeholder="Например: Весенний семестр 2026"
+              style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", fontWeight: 800 }}
+            />
+          </label>
           <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
             Начало
             <input
@@ -111,9 +121,33 @@ export default async function SemesterAdminPage() {
               marginTop: 6,
             }}
           >
-            Сохранить даты
+            Сохранить семестр
           </button>
         </form>
+
+        <div style={{ marginTop: 14, color: "#6b7280", fontWeight: 700 }}>Последние семестры:</div>
+        <div style={{ marginTop: 8, overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+            <thead>
+              <tr style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb" }}>
+                <th style={{ padding: "10px 8px" }}>Название</th>
+                <th style={{ padding: "10px 8px" }}>Начало</th>
+                <th style={{ padding: "10px 8px" }}>Конец</th>
+                <th style={{ padding: "10px 8px" }}>Locked</th>
+              </tr>
+            </thead>
+            <tbody>
+              {semesters.map((s) => (
+                <tr key={s.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                  <td style={{ padding: "10px 8px", fontWeight: 900 }}>{s.name ?? "—"}</td>
+                  <td style={{ padding: "10px 8px" }}>{new Date(s.startDate).toLocaleDateString("ru-RU")}</td>
+                  <td style={{ padding: "10px 8px" }}>{new Date(s.endDate).toLocaleDateString("ru-RU")}</td>
+                  <td style={{ padding: "10px 8px" }}>{s.isLocked ? "Да" : "Нет"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>
