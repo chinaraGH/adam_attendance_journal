@@ -6,7 +6,8 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "postinstall": "prisma generate",
-    "prisma:backfill-statuses": "ts-node prisma/backfill-statuses.ts"
+    "prisma:backfill-statuses": "ts-node prisma/backfill-statuses.ts",
+    "autosave": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/autosave.ps1"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
