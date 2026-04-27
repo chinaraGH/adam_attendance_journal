@@ -4,6 +4,8 @@ import { AttendanceClient } from "./attendance-client";
 
 const TEST_GROUP_GAUDI_ID = "GAUDI_GROUP_INFORMATICS_TEST";
 
+export const dynamic = "force-dynamic";
+
 export default async function AttendancePage() {
   const group = await prisma.group.findFirst({
     where: { gaudiId: TEST_GROUP_GAUDI_ID, isActive: true, deletedAt: null },
