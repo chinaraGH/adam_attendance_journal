@@ -17,9 +17,15 @@ const baseStyle: React.CSSProperties = {
   background: "white",
 };
 
-export function ExitButton(props: { disabled?: boolean; className?: string; style?: React.CSSProperties }) {
+export function ExitButton(props: {
+  disabled?: boolean;
+  label?: string;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
   const router = useRouter();
   const disabled = Boolean(props.disabled);
+  const label = props.label ?? "Выход";
 
   return (
     <button
@@ -41,7 +47,7 @@ export function ExitButton(props: { disabled?: boolean; className?: string; styl
         }
       }}
     >
-      Выход
+      {label}
     </button>
   );
 }
