@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 
@@ -25,9 +23,6 @@ export default async function ReportsPage(props: {
       <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
         <h1 style={{ fontSize: 26, fontWeight: 900 }}>Отчеты</h1>
         <p style={{ marginTop: 12 }}>Недостаточно прав.</p>
-        <p style={{ marginTop: 12 }}>
-          <Link href="/">← Назад</Link>
-        </p>
       </main>
     );
   }
@@ -123,9 +118,6 @@ export default async function ReportsPage(props: {
     <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
         <h1 style={{ fontSize: 26, fontWeight: 900 }}>Отчеты</h1>
-        <Link href="/" style={{ fontWeight: 900 }}>
-          ← Назад
-        </Link>
       </div>
 
       <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>

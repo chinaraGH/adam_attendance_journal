@@ -17,9 +17,6 @@ export default async function SemesterAdminPage() {
       <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
         <h1 style={{ fontSize: 26, fontWeight: 900 }}>Семестр</h1>
         <p style={{ marginTop: 12 }}>Недостаточно прав.</p>
-        <p style={{ marginTop: 12 }}>
-          <Link href="/">← Назад</Link>
-        </p>
       </main>
     );
   }
@@ -50,9 +47,6 @@ export default async function SemesterAdminPage() {
     <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
         <h1 style={{ fontSize: 26, fontWeight: 900 }}>Управление семестром</h1>
-        <Link href="/" style={{ fontWeight: 900 }}>
-          ← Назад
-        </Link>
       </div>
 
       <div style={{ marginTop: 12, color: "#6b7280" }}>
