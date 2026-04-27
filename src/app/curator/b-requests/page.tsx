@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { decideSickRequestForm, getPendingSickAttendances } from "@/app/curator/dashboard/actions";
 
 export default async function CuratorBRequestsPage() {
@@ -12,9 +10,6 @@ export default async function CuratorBRequestsPage() {
           <h1 className="text-2xl font-black">Запросы по болезни (B_PENDING)</h1>
           <div className="mt-1 text-sm text-gray-600">Подтверждение/отклонение справок кураторами.</div>
         </div>
-        <Link className="font-bold underline" href="/curator/dashboard">
-          ← Назад
-        </Link>
       </div>
 
       {!result.ok ? (

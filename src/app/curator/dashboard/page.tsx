@@ -11,9 +11,6 @@ export default async function CuratorDashboardPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
         <h1 style={{ fontSize: 28, fontWeight: 900 }}>Кабинет куратора</h1>
         <div style={{ display: "flex", gap: 12 }}>
-          <Link href="/" style={{ fontWeight: 800 }}>
-            ← Назад
-          </Link>
           <Link href="/admin/search" style={{ fontWeight: 800 }}>
             Поиск студентов
           </Link>

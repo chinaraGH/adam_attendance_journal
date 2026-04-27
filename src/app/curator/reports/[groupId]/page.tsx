@@ -21,11 +21,6 @@ export default async function CuratorGroupReportPage(props: { params: { groupId:
       <main className="mx-auto max-w-[1200px] p-6">
         <h1 className="text-2xl font-black">Отчет по группе</h1>
         <p className="mt-3 text-sm text-gray-600">Недостаточно прав.</p>
-        <p className="mt-3">
-          <Link className="font-bold underline" href="/curator/dashboard">
-            ← Назад
-          </Link>
-        </p>
       </main>
     );
   }
@@ -177,9 +172,6 @@ export default async function CuratorGroupReportPage(props: { params: { groupId:
             Формула: % = (П + О) / всего занятий (по выбранным столбцам)
           </div>
         </div>
-        <Link className="font-bold underline" href="/curator/dashboard">
-          ← Назад
-        </Link>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
