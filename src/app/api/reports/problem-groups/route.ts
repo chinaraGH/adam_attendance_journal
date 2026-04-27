@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 
 const LOW_ATTENDANCE_THRESHOLD = 70;
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const groups = await prisma.group.findMany({
     where: { isActive: true, deletedAt: null },

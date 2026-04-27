@@ -16,7 +16,7 @@ model Faculty {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  programs Program[]
+  departments Department[]
 
   @@index([updatedAt])
   @@index([isActive])
@@ -24,7 +24,7 @@ model Faculty {
   @@map("faculties")
 }
 
-model Program {
+model Department {
   id        String    @id @default(cuid())
   facultyId String    @map("faculty_id")
   name      String
@@ -42,12 +42,12 @@ model Program {
   @@index([updatedAt])
   @@index([isActive])
   @@index([deletedAt])
-  @@map("programs")
+  @@map("departments")
 }
 
 model Discipline {
   id        String    @id @default(cuid())
-  programId String?   @map("program_id")
+  departmentId String?   @map("department_id")
   name      String
   code      String?   @unique
   isActive  Boolean   @default(true) @map("is_active")
@@ -55,10 +55,10 @@ model Discipline {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  program       Program?      @relation(fields: [programId], references: [id])
+  department    Department?   @relation(fields: [departmentId], references: [id])
   classSessions ClassSession[]
 
-  @@index([programId])
+  @@index([departmentId])
   @@index([updatedAt])
   @@index([isActive])
   @@index([deletedAt])
@@ -87,7 +87,7 @@ model Teacher {
 model Group {
   id        String    @id @default(cuid())
   gaudiId   String    @unique @map("gaudi_id")
-  programId String?   @map("program_id")
+  departmentId String?   @map("department_id")
   name      String
   code      String?
   isActive  Boolean   @default(true) @map("is_active")
@@ -95,12 +95,12 @@ model Group {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  program Program? @relation(fields: [programId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
   students      Student[]
   classSessions ClassSession[]
   curatorLinks  UserGroupCurator[]
 
-  @@index([programId])
+  @@index([departmentId])
   @@index([updatedAt])
   @@index([isActive])
   @@index([deletedAt])

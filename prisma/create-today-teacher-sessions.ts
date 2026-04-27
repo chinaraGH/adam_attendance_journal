@@ -58,19 +58,19 @@ async function main() {
     prisma.discipline.upsert({
       where: { code: `TEST_FINISHED_${dayKey}` },
       update: { name: `Тест-дисциплина (завершено) ${dayKey}`, isActive: true, deletedAt: null },
-      create: { code: `TEST_FINISHED_${dayKey}`, name: `Тест-дисциплина (завершено) ${dayKey}`, programId: null, isActive: true, deletedAt: null },
+      create: { code: `TEST_FINISHED_${dayKey}`, name: `Тест-дисциплина (завершено) ${dayKey}`, departmentId: null, isActive: true, deletedAt: null },
       select: { id: true, code: true },
     }),
     prisma.discipline.upsert({
       where: { code: `TEST_ACTIVE_${dayKey}` },
       update: { name: `Тест-дисциплина (текущее) ${dayKey}`, isActive: true, deletedAt: null },
-      create: { code: `TEST_ACTIVE_${dayKey}`, name: `Тест-дисциплина (текущее) ${dayKey}`, programId: null, isActive: true, deletedAt: null },
+      create: { code: `TEST_ACTIVE_${dayKey}`, name: `Тест-дисциплина (текущее) ${dayKey}`, departmentId: null, isActive: true, deletedAt: null },
       select: { id: true, code: true },
     }),
     prisma.discipline.upsert({
       where: { code: `TEST_FUTURE_${dayKey}` },
       update: { name: `Тест-дисциплина (будущее) ${dayKey}`, isActive: true, deletedAt: null },
-      create: { code: `TEST_FUTURE_${dayKey}`, name: `Тест-дисциплина (будущее) ${dayKey}`, programId: null, isActive: true, deletedAt: null },
+      create: { code: `TEST_FUTURE_${dayKey}`, name: `Тест-дисциплина (будущее) ${dayKey}`, departmentId: null, isActive: true, deletedAt: null },
       select: { id: true, code: true },
     }),
   ]);

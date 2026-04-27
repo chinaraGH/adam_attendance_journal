@@ -14,6 +14,8 @@ function formatTimeRange(start: Date, end: Date) {
   return `${pad(s.getHours())}:${pad(s.getMinutes())}–${pad(e.getHours())}:${pad(e.getMinutes())}`;
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const { nowBishkek, startInstant, endInstant } = getBishkekDayRangeInstants();
 
