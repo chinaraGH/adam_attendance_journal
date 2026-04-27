@@ -5,6 +5,7 @@ export function formatRoleLabel(role: string) {
   if (r === "ACADEMIC_OFFICE") return "Учебная часть";
   if (r === "LEADERSHIP") return "Руководство";
   if (r === "ADMIN") return "Администратор";
+  if (r === "STUDENT") return "Студент";
   return role;
 }
 

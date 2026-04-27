@@ -89,6 +89,7 @@ async function main() {
   await ensureUser("ACADEMIC_OFFICE_TEST", "ACADEMIC_OFFICE");
   await ensureUser("ADMIN_TEST", "ADMIN");
   await ensureUser("LEADERSHIP_TEST", "LEADERSHIP");
+  await ensureUser("STUDENT_TEST", "STUDENT");
 
   await prisma.teacher.createMany({
     data: [
@@ -183,6 +184,19 @@ async function main() {
     });
   }
   await prisma.student.createMany({ data: studentsToCreate });
+
+  // Special test student account tied to the first group.
+  await prisma.student.create({
+    data: {
+      id: "STUDENT_TEST",
+      gaudiId: "GAUDI_STUDENT_TEST",
+      groupId: groups[0]!.id,
+      name: "Тестов Тест",
+      isActive: true,
+      deletedAt: null,
+    },
+    select: { id: true },
+  });
 
   // Календарь текущей недели: создадим занятия на 5 рабочих дней.
   // Упрощение: используем локальное время окружения, но в проекте вся логика далее завязана на UTC+6.

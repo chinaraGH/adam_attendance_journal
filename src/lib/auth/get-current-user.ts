@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { verifySessionToken } from "@/lib/auth/session";
 
-export type AppRole = "TEACHER" | "CURATOR" | "ACADEMIC_OFFICE" | "ADMIN" | "LEADERSHIP";
+export type AppRole = "TEACHER" | "CURATOR" | "ACADEMIC_OFFICE" | "ADMIN" | "LEADERSHIP" | "STUDENT";
 
 export type CurrentUser = {
   id: string;
