@@ -11,7 +11,7 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  const user = await prisma.user.findFirst({
+  const user = await prisma.appUser.findFirst({
     where: { id: actor.id, isActive: true, deletedAt: null },
     select: { id: true, role: true, isActive: true, createdAt: true, updatedAt: true },
   });

@@ -28,7 +28,7 @@ export async function loginWithPassword(_prevState: LoginState, formData: FormDa
     return { ok: false, error: "INVALID" };
   }
 
-  const user = await prisma.user.findFirst({
+  const user = await prisma.appUser.findFirst({
     where: { id: login.trim(), isActive: true, deletedAt: null },
     select: { id: true, role: true },
   });

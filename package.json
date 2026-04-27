@@ -6,11 +6,12 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "postinstall": "prisma generate",
+    "prisma:studio": "npx -y node@20.19.0 node_modules/prisma/build/index.js studio --hostname 127.0.0.1 --port 5555 --browser none",
     "prisma:backfill-statuses": "ts-node prisma/backfill-statuses.ts",
     "autosave": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/autosave.ps1"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^6.19.3",
     "date-fns": "^3.6.0",
     "date-fns-tz": "^3.2.0",
     "jose": "^6.2.2",
@@ -23,7 +24,7 @@
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "prisma": "^5.22.0",
+    "prisma": "^6.19.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   },

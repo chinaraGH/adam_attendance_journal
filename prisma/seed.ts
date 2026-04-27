@@ -16,7 +16,7 @@ async function main() {
   await prisma.department.deleteMany({});
   await prisma.faculty.deleteMany({});
   await prisma.semester.deleteMany({});
-  await prisma.user.deleteMany({});
+  await prisma.appUser.deleteMany({});
 
   const now = new Date();
 
@@ -88,7 +88,7 @@ async function main() {
   ]);
 
   const ensureUser = async (id: string, role: string) => {
-    await prisma.user.create({
+    await prisma.appUser.create({
       data: { id, role, isActive: true, deletedAt: null },
       select: { id: true },
     });
