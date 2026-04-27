@@ -19,9 +19,15 @@ function roleAllowed(pathname: string, role: string) {
   return true;
 }
 
+function nextWithPathname(request: NextRequest) {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+  return NextResponse.next({ request: { headers: requestHeaders } });
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (isPublicPath(pathname)) return NextResponse.next();
+  if (isPublicPath(pathname)) return nextWithPathname(req);
 
   const token = req.cookies.get("ejp_session")?.value ?? null;
   if (!token) {
@@ -42,7 +48,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
 
-  return NextResponse.next();
+  return nextWithPathname(req);
 }
 
 export const config = {

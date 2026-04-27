@@ -22,7 +22,7 @@ function SubmitButton() {
   );
 }
 
-export function LoginForm(props: { users: UserRow[] }) {
+export function LoginForm(props: { users: UserRow[]; dbUnavailable?: boolean }) {
   const [state, formAction] = useFormState<State, FormData>(loginWithPassword as any, { ok: false, error: "" });
   const loginRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -73,11 +73,17 @@ export function LoginForm(props: { users: UserRow[] }) {
         <SubmitButton />
       </form>
 
-      <details className="rounded-xl border bg-white p-4">
+      <details className="rounded-xl border bg-white p-4" open={props.dbUnavailable && props.users.length === 0}>
         <summary className="cursor-pointer text-sm font-black">Тестовые логины (по ролям)</summary>
         <div className="mt-2 text-xs text-gray-600">
           Нажмите на логин, чтобы подставить его в поле «Логин». Пароль — одинаковый для всех тестовых аккаунтов.
         </div>
+        {props.dbUnavailable && props.users.length === 0 ? (
+          <div className="mt-2 text-xs font-bold text-amber-800">
+            Список не загружен: без базы нельзя подсмотреть тестовые id, но вручную можно ввести логин из seed (например
+            TEACHER_TEST) после проверки DATABASE_URL.
+          </div>
+        ) : null}
 
         <div className="mt-3 grid gap-3">
           {usersByRole.map(([role, items]) => (
