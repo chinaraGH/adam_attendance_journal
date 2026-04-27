@@ -17,6 +17,7 @@ model Faculty {
   updatedAt DateTime  @updatedAt @map("updated_at")
 
   departments Department[]
+  programs    Program[]
 
   @@index([updatedAt])
   @@index([isActive])
@@ -28,16 +29,17 @@ model Department {
   id        String    @id @default(cuid())
   facultyId String    @map("faculty_id")
   name      String
-  code      String?   @unique
+  code      String?
   isActive  Boolean   @default(true) @map("is_active")
   deletedAt DateTime? @map("deleted_at")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
   faculty     Faculty     @relation(fields: [facultyId], references: [id])
-  groups      Group[]
+  programs    Program[]
   disciplines Discipline[]
 
+  @@unique([facultyId, name])
   @@index([facultyId])
   @@index([updatedAt])
   @@index([isActive])
@@ -45,9 +47,35 @@ model Department {
   @@map("departments")
 }
 
+model Program {
+  id           String    @id @default(cuid())
+  facultyId    String    @map("faculty_id")
+  departmentId String    @map("department_id")
+  name         String
+  code         String?
+  isActive     Boolean   @default(true) @map("is_active")
+  deletedAt    DateTime? @map("deleted_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  faculty    Faculty    @relation(fields: [facultyId], references: [id])
+  department Department @relation(fields: [departmentId], references: [id])
+  groups     Group[]
+  disciplineLinks DisciplineProgram[]
+
+  // Variant B: allow same program name across faculties and also inside faculty across departments.
+  @@unique([facultyId, departmentId, name])
+  @@index([facultyId])
+  @@index([departmentId])
+  @@index([updatedAt])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("programs")
+}
+
 model Discipline {
   id        String    @id @default(cuid())
-  departmentId String?   @map("department_id")
+  departmentId String? @map("department_id")
   name      String
   code      String?   @unique
   isActive  Boolean   @default(true) @map("is_active")
@@ -55,14 +83,31 @@ model Discipline {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  department    Department?   @relation(fields: [departmentId], references: [id])
+  department    Department?        @relation(fields: [departmentId], references: [id])
   classSessions ClassSession[]
+  programLinks  DisciplineProgram[]
 
+  @@unique([departmentId, name])
   @@index([departmentId])
   @@index([updatedAt])
   @@index([isActive])
   @@index([deletedAt])
   @@map("disciplines")
+}
+
+model DisciplineProgram {
+  id           String   @id @default(cuid())
+  disciplineId String   @map("discipline_id")
+  programId    String   @map("program_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  discipline Discipline @relation(fields: [disciplineId], references: [id])
+  program    Program    @relation(fields: [programId], references: [id])
+
+  @@unique([disciplineId, programId])
+  @@index([disciplineId])
+  @@index([programId])
+  @@map("discipline_programs")
 }
 
 model Teacher {
@@ -87,7 +132,7 @@ model Teacher {
 model Group {
   id        String    @id @default(cuid())
   gaudiId   String    @unique @map("gaudi_id")
-  departmentId String?   @map("department_id")
+  programId String?   @map("program_id")
   name      String
   code      String?
   isActive  Boolean   @default(true) @map("is_active")
@@ -95,12 +140,13 @@ model Group {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  department Department? @relation(fields: [departmentId], references: [id])
+  program Program? @relation(fields: [programId], references: [id])
   students      Student[]
   classSessions ClassSession[]
   curatorLinks  UserGroupCurator[]
 
-  @@index([departmentId])
+  @@unique([programId, code])
+  @@index([programId])
   @@index([updatedAt])
   @@index([isActive])
   @@index([deletedAt])
