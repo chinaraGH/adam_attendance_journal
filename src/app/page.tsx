@@ -71,9 +71,6 @@ export default async function HomePage() {
 
   return (
     <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
-      <div style={{ position: "fixed", top: 16, left: 16, zIndex: 50 }}>
-        <ExitButton />
-      </div>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
         <div style={{ color: "#6b7280", fontWeight: 700 }}>Сегодня (Bishkek): {nowBishkek.toLocaleDateString("ru-RU")}</div>
         <Link
