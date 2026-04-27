@@ -8,7 +8,7 @@ export default async function LoginPage() {
   let users: { id: string; role: string }[] = [];
   let dbError: string | null = null;
   try {
-    users = await prisma.user.findMany({
+    users = await prisma.appUser.findMany({
       where: { isActive: true, deletedAt: null },
       select: { id: true, role: true },
       orderBy: [{ role: "asc" }, { id: "asc" }],

@@ -18,7 +18,7 @@ export async function getCurrentUser(): Promise<CurrentUser> {
   const payload = await verifySessionToken(token);
   if (!payload) throw new Error("UNAUTHORIZED");
 
-  const user = await prisma.user.findFirst({
+  const user = await prisma.appUser.findFirst({
     where: { id: payload.sub, isActive: true, deletedAt: null },
     select: { id: true, role: true },
   });

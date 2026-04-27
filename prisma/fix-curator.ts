@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 async function main() {
   const userId = "TEACHER_TEST";
 
-  const user = await prisma.user.upsert({
+  const user = await prisma.appUser.upsert({
     where: { id: userId },
     update: { role: "CURATOR", isActive: true, deletedAt: null },
     create: { id: userId, role: "CURATOR", isActive: true, deletedAt: null },

@@ -31,7 +31,7 @@ async function main() {
     });
 
     console.log("Deleted counts:", deleted);
-    console.log("Users left:", await prisma.user.count());
+    console.log("Users left:", await prisma.appUser.count());
   } finally {
     await prisma.$disconnect();
   }
