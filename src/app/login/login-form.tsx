@@ -10,12 +10,45 @@ import { loginWithPassword } from "./actions";
 type UserRow = { id: string; role: string };
 type State = { ok: true } | { ok: false; error: string };
 
+const cardStyle: React.CSSProperties = {
+  border: "1px solid #e5e7eb",
+  borderRadius: 14,
+  padding: 14,
+  background: "white",
+};
+
+const inputStyle: React.CSSProperties = {
+  border: "1px solid #e5e7eb",
+  borderRadius: 12,
+  padding: "10px 12px",
+  fontWeight: 800,
+  outline: "none",
+};
+
+const primaryButtonStyle: React.CSSProperties = {
+  appearance: "none",
+  border: "1px solid #111827",
+  borderRadius: 12,
+  padding: "10px 12px",
+  fontWeight: 900,
+  fontFamily: "inherit",
+  fontSize: 13,
+  lineHeight: "inherit",
+  textDecoration: "none",
+  color: "white",
+  background: "#111827",
+};
+
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <button
       disabled={pending}
-      className="mt-2 rounded-lg border border-gray-900 bg-gray-900 px-3 py-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
+      style={{
+        ...primaryButtonStyle,
+        marginTop: 8,
+        ...(pending ? { cursor: "not-allowed", opacity: 0.6, borderColor: "#e5e7eb", background: "#9ca3af" } : { cursor: "pointer" }),
+      }}
     >
       {pending ? "Входим..." : "Войти"}
     </button>
@@ -40,32 +73,42 @@ export function LoginForm(props: { users: UserRow[]; dbUnavailable?: boolean }) 
   }, [props.users]);
 
   return (
-    <div className="grid gap-4">
-      <form action={formAction} className="grid gap-3 rounded-xl border bg-white p-4">
-        <label className="grid gap-2 text-sm font-bold">
+    <div style={{ display: "grid", gap: 12 }}>
+      <form action={formAction} style={{ ...cardStyle, display: "grid", gap: 10 }}>
+        <label style={{ display: "grid", gap: 6, fontSize: 13, fontWeight: 900, color: "#111827" }}>
           Логин
           <input
             ref={loginRef}
             name="login"
             autoComplete="username"
             placeholder="Например: ADMIN_TEST"
-            className="rounded-lg border px-3 py-2 font-bold"
+            style={inputStyle}
           />
         </label>
 
-        <label className="grid gap-2 text-sm font-bold">
+        <label style={{ display: "grid", gap: 6, fontSize: 13, fontWeight: 900, color: "#111827" }}>
           Пароль
           <input
             name="password"
             type="password"
             autoComplete="current-password"
             placeholder="Введите пароль"
-            className="rounded-lg border px-3 py-2 font-bold"
+            style={inputStyle}
           />
         </label>
 
         {state.ok === false && state.error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
+          <div
+            style={{
+              borderRadius: 12,
+              border: "1px solid #fecaca",
+              background: "#fef2f2",
+              padding: "10px 12px",
+              fontSize: 13,
+              fontWeight: 800,
+              color: "#b91c1c",
+            }}
+          >
             Неверный логин или пароль
           </div>
         ) : null}
@@ -73,28 +116,38 @@ export function LoginForm(props: { users: UserRow[]; dbUnavailable?: boolean }) 
         <SubmitButton />
       </form>
 
-      <details className="rounded-xl border bg-white p-4" open={props.dbUnavailable && props.users.length === 0}>
-        <summary className="cursor-pointer text-sm font-black">Тестовые логины (по ролям)</summary>
-        <div className="mt-2 text-xs text-gray-600">
+      <details style={cardStyle} open={props.dbUnavailable && props.users.length === 0}>
+        <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 900 }}>
+          Тестовые логины (по ролям)
+        </summary>
+        <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
           Нажмите на логин, чтобы подставить его в поле «Логин». Пароль — одинаковый для всех тестовых аккаунтов.
         </div>
         {props.dbUnavailable && props.users.length === 0 ? (
-          <div className="mt-2 text-xs font-bold text-amber-800">
+          <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, color: "#92400e" }}>
             Список не загружен: без базы нельзя подсмотреть тестовые id, но вручную можно ввести логин из seed (например
             TEACHER_TEST) после проверки DATABASE_URL.
           </div>
         ) : null}
 
-        <div className="mt-3 grid gap-3">
+        <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
           {usersByRole.map(([role, items]) => (
-            <div key={role} className="rounded-lg border p-3">
-              <div className="text-sm font-black">{formatRoleLabel(role)}</div>
-              <div className="mt-2 flex flex-wrap gap-2">
+            <div key={role} style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 900 }}>{formatRoleLabel(role)}</div>
+              <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {items.slice(0, 8).map((u) => (
                   <button
                     key={u.id}
                     type="button"
-                    className="rounded-lg border bg-white px-2 py-1 text-xs font-black hover:bg-gray-50"
+                    style={{
+                      border: "1px solid #e5e7eb",
+                      borderRadius: 12,
+                      padding: "6px 10px",
+                      fontSize: 12,
+                      fontWeight: 900,
+                      background: "white",
+                      cursor: "pointer",
+                    }}
                     onClick={() => {
                       if (loginRef.current) {
                         loginRef.current.value = u.id;
@@ -105,7 +158,9 @@ export function LoginForm(props: { users: UserRow[]; dbUnavailable?: boolean }) 
                     {u.id}
                   </button>
                 ))}
-                {items.length > 8 ? <span className="text-xs text-gray-600">и ещё {items.length - 8}…</span> : null}
+                {items.length > 8 ? (
+                  <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>и ещё {items.length - 8}…</span>
+                ) : null}
               </div>
             </div>
           ))}
