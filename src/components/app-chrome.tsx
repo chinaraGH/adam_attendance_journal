@@ -12,7 +12,7 @@ export function AppChrome() {
 
   return (
     <div style={{ position: "fixed", top: 16, left: 16, zIndex: 50 }}>
-      <ExitButton label="Выход (chrome)" />
+      <ExitButton label="Назад" />
     </div>
   );
 }

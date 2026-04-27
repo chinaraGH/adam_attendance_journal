@@ -25,7 +25,7 @@ export function ExitButton(props: {
 }) {
   const router = useRouter();
   const disabled = Boolean(props.disabled);
-  const label = props.label ?? "Выход";
+  const label = props.label ?? "Назад";
 
   return (
     <button
