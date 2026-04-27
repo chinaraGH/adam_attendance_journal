@@ -35,3 +35,16 @@ const toggleAttendance = (studentId: string) => {
     record.studentId === studentId ? { ...record, status: 'present' } : record
   ));
 };
+
+### Token Efficiency & Cost Saving (CRITICAL)
+- **Extreme Brevity:** Respond strictly with code or short bullet points. Skip all "Here is the updated code...", "I hope this helps!", and other conversational filler.
+- **Incremental Edits:** DO NOT rewrite the entire file. Use comments like `// ... existing code ...` to show where changes should be inserted.
+- **Diff-Only Mode:** When using Inline Edit (Ctrl+K) or Composer, focus only on the lines that need change.
+- **One-Shot Perfection:** If the request is ambiguous, ask for clarification BEFORE generating a large block of code to avoid wasting a request.
+- **No Over-Engineering:** Don't add extra libraries, complex abstractions, or "just in case" features unless explicitly asked.
+- **Dry Run:** For complex logic, briefly outline the plan in 1-2 lines before writing the code.
+
+### Specific Project Constraints (Adam University)
+- **Timezone Logic:** Always use `Intl.DateTimeFormat` or `date-fns` with 'Asia/Bishkek' fixed. Never rely on the user's local system time to avoid sync issues in the journal.
+- **ShadcnUI Usage:** If a component from ShadcnUI is already in `@/components/ui`, reuse it. Don't re-create or suggest new UI libraries.
+- **I18n Efficiency:** Hardcode Russian strings first, but wrap them in a simple translation object/hook to allow easy English switching without refactoring the whole logic later.
