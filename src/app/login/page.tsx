@@ -19,20 +19,31 @@ export default async function LoginPage() {
   }
 
   return (
-    <main className="mx-auto max-w-[520px] p-6">
-      <h1 className="text-2xl font-black">Вход</h1>
-      <p className="mt-2 text-sm text-gray-600">Для тестирования используйте логины из seed.</p>
+    <main style={{ padding: 24, maxWidth: 520, margin: "0 auto" }}>
+      <h1 style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.02em" }}>Вход</h1>
+      <p style={{ marginTop: 8, fontSize: 13, color: "#6b7280", fontWeight: 700 }}>
+        Для тестирования используйте логины из seed.
+      </p>
 
       {dbError ? (
         <div
-          className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-900"
+          style={{
+            marginTop: 16,
+            borderRadius: 12,
+            border: "1px solid #fde68a",
+            background: "#fffbeb",
+            padding: "10px 12px",
+            fontSize: 13,
+            fontWeight: 800,
+            color: "#92400e",
+          }}
           role="alert"
         >
           {dbError}
         </div>
       ) : null}
 
-      <div className="mt-4">
+      <div style={{ marginTop: 16 }}>
         <LoginForm users={users} dbUnavailable={Boolean(dbError)} />
       </div>
     </main>
