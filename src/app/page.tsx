@@ -6,7 +6,6 @@ import { getEffectiveClassSessionStatus } from "@/lib/class-session/effective-st
 import { toZonedTime } from "date-fns-tz";
 import { formatClassSessionStatusLabel } from "@/lib/ui/labels";
 import { getBishkekDayRangeInstants } from "@/lib/time/bishkek-day-range";
-import { ExitButton } from "@/components/exit-button";
 
 function formatTimeRange(start: Date, end: Date) {
   const s = toZonedTime(start, BISHKEK_TIME_ZONE);
