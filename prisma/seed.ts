@@ -19,423 +19,314 @@ async function main() {
   await prisma.appUser.deleteMany({});
 
   const now = new Date();
-
   const dayMs = 24 * 60 * 60 * 1000;
   const startOfToday = new Date(now);
   startOfToday.setHours(0, 0, 0, 0);
 
-  const lockedSemester = await prisma.semester.create({
+  // Semester (required by ClassSession)
+  const semester = await prisma.semester.create({
     data: {
-      id: "SEMESTER_LOCKED",
-      name: "Осенний семестр (закрыт)",
-      startDate: new Date(startOfToday.getTime() - 140 * dayMs),
-      endDate: new Date(startOfToday.getTime() - 20 * dayMs),
-      isLocked: true,
-      lockedAt: new Date(startOfToday.getTime() - 19 * dayMs),
-    },
-    select: { id: true },
-  });
-
-  const activeSemester = await prisma.semester.create({
-    data: {
-      id: "SEMESTER_ACTIVE",
-      name: "Весенний семестр (активный)",
-      startDate: new Date(startOfToday.getTime() - 15 * dayMs),
-      endDate: new Date(startOfToday.getTime() + 60 * dayMs),
+      id: "SEM26SP",
+      name: "Весна 2026",
+      startDate: new Date(startOfToday.getTime() - 30 * dayMs),
+      endDate: new Date(startOfToday.getTime() + 120 * dayMs),
       isLocked: false,
       lockedAt: null,
     },
     select: { id: true },
   });
 
-  const faculty1 = await prisma.faculty.create({
-    data: { name: "Факультет информационных технологий", code: "FIT" },
+  // Faculties
+  const facEmt = await prisma.faculty.create({
+    data: { id: "FACEMT", name: "Экономика, менеджмент и туризм", code: "EMT" },
     select: { id: true },
   });
-  const faculty2 = await prisma.faculty.create({
-    data: { name: "Факультет экономики и управления", code: "FEU" },
+  const facIto = await prisma.faculty.create({
+    data: { id: "FACITO", name: "Информационные технологии и общеобразовательные дисциплины", code: "ITO" },
     select: { id: true },
   });
 
-  const departments = await prisma.$transaction([
-    prisma.department.create({
-      data: { facultyId: faculty1.id, name: "Кафедра ИТ", code: "IT" },
-      select: { id: true, facultyId: true, name: true, code: true },
+  // Departments (кафедры)
+  const depIto = await prisma.department.create({
+    data: { id: "DEPITO", facultyId: facIto.id, name: "Информационные технологии и общеобразовательные дисциплины", code: "ITO" },
+    select: { id: true },
+  });
+  const depEmt = await prisma.department.create({
+    data: { id: "DEPEMT", facultyId: facEmt.id, name: "Экономика, менеджмент и туризм", code: "EMT" },
+    select: { id: true },
+  });
+
+  // Programs (направления)
+  const prgEco = await prisma.program.create({
+    data: { id: "PRGECO", facultyId: facEmt.id, departmentId: depEmt.id, name: "Экономика", code: "ECO" },
+    select: { id: true },
+  });
+  const prgBiz = await prisma.program.create({
+    data: { id: "PRGBIZ", facultyId: facEmt.id, departmentId: depEmt.id, name: "Управление бизнесом", code: "BIZ" },
+    select: { id: true },
+  });
+  const prgIst = await prisma.program.create({
+    data: { id: "PRGIST", facultyId: facIto.id, departmentId: depIto.id, name: "Информационные системы и технологии", code: "IST" },
+    select: { id: true },
+  });
+
+  // Groups
+  const groups = await prisma.$transaction([
+    prisma.group.create({
+      data: { id: "GIST525", gaudiId: "GGIST25", programId: prgIst.id, name: "ИСТ-5-25", code: "ИСТ-5-25", isActive: true, deletedAt: null },
+      select: { id: true },
     }),
-    prisma.department.create({
-      data: { facultyId: faculty2.id, name: "Кафедра экономики", code: "ECO" },
-      select: { id: true, facultyId: true, name: true, code: true },
+    prisma.group.create({
+      data: { id: "GIST524", gaudiId: "GGIST24", programId: prgIst.id, name: "ИСТ-5-24", code: "ИСТ-5-24", isActive: true, deletedAt: null },
+      select: { id: true },
+    }),
+    prisma.group.create({
+      data: { id: "GUB423", gaudiId: "GGUB423", programId: prgBiz.id, name: "УБ-4-23", code: "УБ-4-23", isActive: true, deletedAt: null },
+      select: { id: true },
+    }),
+    prisma.group.create({
+      data: { id: "GE123", gaudiId: "GGE123", programId: prgEco.id, name: "Э-1-23", code: "Э-1-23", isActive: true, deletedAt: null },
+      select: { id: true },
+    }),
+    prisma.group.create({
+      data: { id: "GE124", gaudiId: "GGE124", programId: prgEco.id, name: "Э-1-24", code: "Э-1-24", isActive: true, deletedAt: null },
+      select: { id: true },
+    }),
+    prisma.group.create({
+      data: { id: "GM225", gaudiId: "GGM225", programId: prgBiz.id, name: "М-2-25", code: "М-2-25", isActive: true, deletedAt: null },
+      select: { id: true },
     }),
   ]);
 
-  const programs = await prisma.$transaction([
-    prisma.program.create({
-      data: { facultyId: faculty1.id, departmentId: departments[0]!.id, name: "Программная инженерия", code: "SE" },
-      select: { id: true, facultyId: true, departmentId: true, code: true },
-    }),
-    prisma.program.create({
-      data: { facultyId: faculty1.id, departmentId: departments[0]!.id, name: "Информационные системы", code: "IS" },
-      select: { id: true, facultyId: true, departmentId: true, code: true },
-    }),
-    prisma.program.create({
-      data: { facultyId: faculty2.id, departmentId: departments[1]!.id, name: "Финансы", code: "FIN" },
-      select: { id: true, facultyId: true, departmentId: true, code: true },
-    }),
-    prisma.program.create({
-      data: { facultyId: faculty2.id, departmentId: departments[1]!.id, name: "Менеджмент", code: "MGT" },
-      select: { id: true, facultyId: true, departmentId: true, code: true },
-    }),
+  const groupById = new Map(groups.map((g) => [g.id, g]));
+
+  // Teachers + Users (IDs <= 8)
+  const teachers: Array<{ id: string; name: string; gaudiId: string | null }> = [
+    { id: "TIVANOV", name: "Иванов Сергей Николаевич", gaudiId: "GAIVANV" },
+    { id: "TPETEV", name: "Петрова Елена Викторовна", gaudiId: "GAPETEV" },
+    { id: "TSIDAP", name: "Сидоров Алексей Петрович", gaudiId: "GASIDAP" },
+    { id: "TKUZOL", name: "Кузнецова Ольга Игоревна", gaudiId: "GAKUZOL" },
+    { id: "TMIKDA", name: "Михайлов Дмитрий Артемович", gaudiId: "GAMIKDA" },
+    { id: "TVASANS", name: "Васильева Анна Сергеевна", gaudiId: "GAVASAN" },
+    { id: "TBELMAX", name: "Белов Максим Александрович", gaudiId: "GABELMX" },
+    { id: "TSOKNV", name: "Соколова Наталья Владимировна", gaudiId: "GASOKNV" },
+    { id: "TDMITIG", name: "Дмитриев Игорь Борисович", gaudiId: "GADMTIG" },
+    { id: "TMOROEK", name: "Морозова Екатерина Дмитриевна", gaudiId: "GAMOREK" },
+    { id: "TVOLAND", name: "Волков Андрей Юрьевич", gaudiId: "GAVLAND" },
+    { id: "TNIKSV", name: "Николаева Светлана Юрьевна", gaudiId: "GANIKSV" },
+    { id: "TPAVLAS", name: "Павлов Артем Сергеевич", gaudiId: "GAPAVAS" },
+  ];
+
+  await prisma.appUser.createMany({
+    data: teachers.map((t) => ({ id: t.id, role: "TEACHER", isActive: true, deletedAt: null })),
+    skipDuplicates: true,
+  });
+  await prisma.teacher.createMany({
+    data: teachers.map((t) => ({ id: t.id, gaudiId: t.gaudiId, name: t.name, email: null, isActive: true, deletedAt: null })),
+    skipDuplicates: true,
+  });
+
+  // Disciplines (one "Информатика" record; different teachers -> different ClassSession rows)
+  const dInformat = await prisma.discipline.create({
+    data: { id: "DINF", name: "Информатика", code: "INF", departmentId: depIto.id, isActive: true, deletedAt: null },
+    select: { id: true },
+  });
+  const dHistEco = await prisma.discipline.create({
+    data: { id: "DHISECO", name: "История экономики", code: "HISECO", departmentId: depEmt.id, isActive: true, deletedAt: null },
+    select: { id: true },
+  });
+  const dMgmt = await prisma.discipline.create({
+    data: { id: "DMNG", name: "Менеджмент", code: "MNG", departmentId: depEmt.id, isActive: true, deletedAt: null },
+    select: { id: true },
+  });
+  const dDesign = await prisma.discipline.create({
+    data: { id: "DDESIGN", name: "Дизайн мышления", code: "DESIGN", departmentId: depIto.id, isActive: true, deletedAt: null },
+    select: { id: true },
+  });
+  const dDb = await prisma.discipline.create({
+    data: { id: "DDB", name: "Базы данных", code: "DB", departmentId: depIto.id, isActive: true, deletedAt: null },
+    select: { id: true },
+  });
+  const dEng = await prisma.discipline.create({
+    data: { id: "DENG", name: "Английский язык", code: "ENG", departmentId: depIto.id, isActive: true, deletedAt: null },
+    select: { id: true },
+  });
+
+  const dp: Array<{ id: string; disciplineId: string; programId: string }> = [
+    // Информатика: ECO + BIZ + IST
+    { id: "DP000001", disciplineId: dInformat.id, programId: prgEco.id },
+    { id: "DP000002", disciplineId: dInformat.id, programId: prgBiz.id },
+    { id: "DP000003", disciplineId: dInformat.id, programId: prgIst.id },
+    // История экономики: ECO + BIZ
+    { id: "DP000004", disciplineId: dHistEco.id, programId: prgEco.id },
+    { id: "DP000005", disciplineId: dHistEco.id, programId: prgBiz.id },
+    // Менеджмент: BIZ
+    { id: "DP000006", disciplineId: dMgmt.id, programId: prgBiz.id },
+    // Дизайн мышления: BIZ
+    { id: "DP000007", disciplineId: dDesign.id, programId: prgBiz.id },
+    // Базы данных: IST
+    { id: "DP000008", disciplineId: dDb.id, programId: prgIst.id },
+    // Английский язык: ECO + BIZ + IST
+    { id: "DP000009", disciplineId: dEng.id, programId: prgEco.id },
+    { id: "DP000010", disciplineId: dEng.id, programId: prgBiz.id },
+    { id: "DP000011", disciplineId: dEng.id, programId: prgIst.id },
+  ];
+  await prisma.disciplineProgram.createMany({ data: dp, skipDuplicates: true });
+
+  // Students (IDs + gaudiId <= 8)
+  const mkStudent = (n: number, groupId: string, name: string) => ({
+    id: `S${String(n).padStart(7, "0")}`.slice(0, 8),
+    gaudiId: `ST${String(n).padStart(6, "0")}`.slice(0, 8),
+    groupId,
+    name,
+    isActive: true,
+    deletedAt: null as null,
+  });
+
+  let s = 1;
+  const students: Array<{ id: string; gaudiId: string; groupId: string; name: string; isActive: boolean; deletedAt: null }> = [];
+
+  const addGroupStudents = (groupId: string, names: string[]) => {
+    for (const name of names) students.push(mkStudent(s++, groupId, name));
+  };
+
+  addGroupStudents("GIST525", [
+    "Абрамов Дмитрий Игоревич",
+    "Волков Артем Сергеевич",
+    "Денисова Алина Максимовна",
+    "Ермаков Кирилл Викторович",
+    "Иванова Дарья Алексеевна",
+    "Кузнецов Максим Андреевич",
+    "Лебедева Полина Витальевна",
+    "Морозов Илья Евгеньевич",
   ]);
 
-  const ensureUser = async (id: string, role: string) => {
-    await prisma.appUser.create({
-      data: { id, role, isActive: true, deletedAt: null },
+  addGroupStudents("GIST524", [
+    "Белов Антон Николаевич",
+    "Гаврилова Елена Сергеевна",
+    "Дмитриев Олег Петрович",
+    "Козлов Даниил Михайлович",
+    "Новикова Ксения Павловна",
+  ]);
+
+  addGroupStudents("GUB423", [
+    "Аксенова Вероника Юрьевна",
+    "Борисов Глеб Валерьевич",
+    "Васильев Роман Кириллович",
+    "Зайцева Анна Борисовна",
+    "Королев Никита Сергеевич",
+  ]);
+
+  addGroupStudents("GE123", [
+    "Беляев Егор Александрович",
+    "Виноградова Ольга Николаевна",
+    "Герасимов Владислав Игоревич",
+    "Жукова Татьяна Васильевна",
+    "Казаков Матвей Артемович",
+    "Лазарева София Михайловна",
+    "Макаров Андрей Петрович",
+  ]);
+
+  addGroupStudents("GE124", [
+    "Орлова Кристина Эдуардовна",
+    "Панкратов Денис Олегович",
+    "Романова Диана Игоревна",
+    "Савельев Тимофей Викторович",
+    "Тихонова Валерия Сергеевна",
+    "Ушаков Леонид Аркадьевич",
+    "Филиппова Надежда Юрьевна",
+  ]);
+
+  addGroupStudents("GM225", [
+    "Шашкова Милана Алексеевна",
+    "Щербаков Марк Григорьевич",
+    "Юдина Мария Дмитриевна",
+    "Яковлев Александр Сергеевич",
+    "Белоусов Иван Геннадьевич",
+  ]);
+
+  await prisma.student.createMany({ data: students, skipDuplicates: true });
+
+  // Class sessions to represent "предмет + преподаватель + группа"
+  const mkTime = (dayOffset: number, hour: number) => {
+    const start = new Date(startOfToday.getTime() + dayOffset * dayMs);
+    start.setHours(hour, 0, 0, 0);
+    const end = new Date(start.getTime() + 90 * 60 * 1000);
+    return { start, end };
+  };
+  let sc = 1;
+  const mkSched = () => `SC${String(sc++).padStart(6, "0")}`.slice(0, 8);
+
+  const makeSession = async (disciplineId: string, teacherId: string, groupId: string, dayOffset: number, hour: number) => {
+    const { start, end } = mkTime(dayOffset, hour);
+    await prisma.classSession.create({
+      data: {
+        id: `CS${String(sc).padStart(6, "0")}`.slice(0, 8),
+        scheduleExternalId: mkSched(),
+        gaudiId: null,
+        disciplineId,
+        groupId,
+        teacherId,
+        semesterId: semester.id,
+        startTime: start,
+        endTime: end,
+        status: "scheduled",
+        statusV2: "scheduled",
+        openedAt: null,
+        flagLateTeacher: false,
+        isActive: true,
+        deletedAt: null,
+      },
       select: { id: true },
     });
   };
 
-  await ensureUser("CURATOR_TEST", "CURATOR");
-  await ensureUser("TEACHER_TEST", "TEACHER");
-  await ensureUser("TEACHER_2", "TEACHER");
-  await ensureUser("TEACHER_3", "TEACHER");
-  await ensureUser("TEACHER_4", "TEACHER");
-  await ensureUser("ACADEMIC_OFFICE_TEST", "ACADEMIC_OFFICE");
-  await ensureUser("ADMIN_TEST", "ADMIN");
-  await ensureUser("LEADERSHIP_TEST", "LEADERSHIP");
-  await ensureUser("STUDENT_TEST", "STUDENT");
+  const G = {
+    IST25: "GIST525",
+    IST24: "GIST524",
+    UB423: "GUB423",
+    E123: "GE123",
+    E124: "GE124",
+    M225: "GM225",
+  } as const;
 
-  await prisma.teacher.createMany({
-    data: [
-      { id: "TEACHER_TEST", gaudiId: "GAUDI_TEACHER_001", name: "Алиев Азамат" },
-      { id: "TEACHER_2", gaudiId: "GAUDI_TEACHER_002", name: "Садыкова Айжан" },
-      { id: "TEACHER_3", gaudiId: "GAUDI_TEACHER_003", name: "Иванов Сергей" },
-      { id: "TEACHER_4", gaudiId: "GAUDI_TEACHER_004", name: "Ким Диана" },
-    ],
-  });
+  // 1) Информатика — Иванов — ИСТ-5-24; УБ-4-23; Э-1-23
+  await makeSession(dInformat.id, "TIVANOV", G.IST24, 1, 9);
+  await makeSession(dInformat.id, "TIVANOV", G.UB423, 1, 11);
+  await makeSession(dInformat.id, "TIVANOV", G.E123, 1, 13);
 
-  const disciplines = await prisma.$transaction([
-    prisma.discipline.create({ data: { name: "Базы данных", code: "DB", departmentId: departments[0]!.id }, select: { id: true } }),
-    prisma.discipline.create({ data: { name: "Веб-разработка", code: "WEB", departmentId: departments[0]!.id }, select: { id: true } }),
-    prisma.discipline.create({ data: { name: "Алгоритмы", code: "ALG", departmentId: departments[0]!.id }, select: { id: true } }),
-    prisma.discipline.create({ data: { name: "Эконометрика", code: "ECM", departmentId: departments[1]!.id }, select: { id: true } }),
-    prisma.discipline.create({ data: { name: "Основы менеджмента", code: "MGT101", departmentId: departments[1]!.id }, select: { id: true } }),
-  ]);
+  // 2) История экономики — Белов — УБ-4-23; Э-1-23; Э-1-24; М-2-25
+  await makeSession(dHistEco.id, "TBELMAX", G.UB423, 2, 9);
+  await makeSession(dHistEco.id, "TBELMAX", G.E123, 2, 11);
+  await makeSession(dHistEco.id, "TBELMAX", G.E124, 2, 13);
+  await makeSession(dHistEco.id, "TBELMAX", G.M225, 2, 15);
 
-  // Link disciplines to programs (many-to-many).
-  await prisma.disciplineProgram.createMany({
-    data: [
-      // IT dept programs share DB/WEB/ALG
-      { disciplineId: disciplines[0]!.id, programId: programs[0]!.id },
-      { disciplineId: disciplines[1]!.id, programId: programs[0]!.id },
-      { disciplineId: disciplines[2]!.id, programId: programs[0]!.id },
-      { disciplineId: disciplines[0]!.id, programId: programs[1]!.id },
-      { disciplineId: disciplines[1]!.id, programId: programs[1]!.id },
-      { disciplineId: disciplines[2]!.id, programId: programs[1]!.id },
-      // Econ dept programs
-      { disciplineId: disciplines[3]!.id, programId: programs[2]!.id },
-      { disciplineId: disciplines[4]!.id, programId: programs[3]!.id },
-    ],
-  });
+  // 3) Менеджмент — Соколова — М-2-25
+  await makeSession(dMgmt.id, "TSOKNV", G.M225, 3, 9);
 
-  // 10–15 групп, распределим по программам.
-  const groupCount = 12;
-  const groups = [];
-  for (let i = 0; i < groupCount; i++) {
-    const program = programs[i % programs.length]!;
-    const year = 2023 + (i % 3);
-    const code = `${program.code}-${String(i + 1).padStart(2, "0")}`;
-    const g = await prisma.group.create({
-      data: {
-        gaudiId: `GAUDI_GROUP_${code}`,
-        name: `Группа ${code}`,
-        code,
-        programId: program.id,
-        isActive: true,
-        deletedAt: null,
-      },
-      select: { id: true, code: true },
-    });
-    groups.push(g);
-  }
+  // 4) Дизайн мышления — Иванов — (направление УБ) групп не указано
+  await makeSession(dDesign.id, "TIVANOV", G.UB423, 3, 11);
 
-  // Привяжем куратора к части групп (для реалистики).
-  await prisma.userGroupCurator.createMany({
-    data: groups.slice(0, 6).map((g) => ({
-      userId: "CURATOR_TEST",
-      groupId: g.id,
-      isActive: true,
-      deletedAt: null,
-    })),
-  });
+  // 5) Базы данных — Кузнецова — ИСТ-5-25; ИСТ-5-24
+  await makeSession(dDb.id, "TKUZOL", G.IST25, 4, 9);
+  await makeSession(dDb.id, "TKUZOL", G.IST24, 4, 11);
 
-  // ~300 студентов.
-  const lastNames = [
-    "Асанов",
-    "Иванова",
-    "Султанов",
-    "Ким",
-    "Абдрахманов",
-    "Петрова",
-    "Осмонова",
-    "Турсунов",
-    "Садыков",
-    "Муратова",
-    "Жумабеков",
-    "Насырова",
-  ];
-  const firstNames = [
-    "Азамат",
-    "Алина",
-    "Нурбек",
-    "Диана",
-    "Бектур",
-    "Софья",
-    "Айжан",
-    "Сергей",
-    "Айбек",
-    "Мээрим",
-    "Каныкей",
-    "Тимур",
-  ];
+  // 6) Английский язык — Сидоров — УБ-4-23; Э-1-23; Э-1-24; ИСТ-5-25; ИСТ-5-24
+  await makeSession(dEng.id, "TSIDAP", G.UB423, 5, 9);
+  await makeSession(dEng.id, "TSIDAP", G.E123, 5, 11);
+  await makeSession(dEng.id, "TSIDAP", G.E124, 5, 13);
+  await makeSession(dEng.id, "TSIDAP", G.IST25, 5, 15);
+  await makeSession(dEng.id, "TSIDAP", G.IST24, 6, 9);
 
-  const studentsToCreate: Array<{ gaudiId: string; groupId: string; name: string; isActive: boolean; deletedAt: null }> = [];
-  for (let i = 0; i < 300; i++) {
-    const g = groups[i % groups.length]!;
-    const ln = lastNames[i % lastNames.length]!;
-    const fn = firstNames[(i * 7) % firstNames.length]!;
-    const name = `${ln} ${fn}`;
-    studentsToCreate.push({
-      gaudiId: `GAUDI_STUDENT_${String(i + 1).padStart(4, "0")}`,
-      groupId: g.id,
-      name,
-      isActive: true,
-      deletedAt: null,
-    });
-  }
-  await prisma.student.createMany({ data: studentsToCreate });
+  // 7) Информатика — Кузнецова — ИСТ-5-25; Э-1-24
+  await makeSession(dInformat.id, "TKUZOL", G.IST25, 6, 11);
+  await makeSession(dInformat.id, "TKUZOL", G.E124, 6, 13);
 
-  // Special test student account tied to the first group.
-  await prisma.student.create({
-    data: {
-      id: "STUDENT_TEST",
-      gaudiId: "GAUDI_STUDENT_TEST",
-      groupId: groups[0]!.id,
-      name: "Тестов Тест",
-      isActive: true,
-      deletedAt: null,
-    },
-    select: { id: true },
-  });
+  // 8) Информатика — Петрова — М-2-25
+  await makeSession(dInformat.id, "TPETEV", G.M225, 7, 9);
 
-  // Календарь текущей недели: создадим занятия на 5 рабочих дней.
-  // Упрощение: используем локальное время окружения, но в проекте вся логика далее завязана на UTC+6.
-  const weekdayStart = new Date(startOfToday);
-  const day = weekdayStart.getDay(); // 0=Sun
-  const diffToMon = (day + 6) % 7;
-  weekdayStart.setDate(weekdayStart.getDate() - diffToMon);
-
-  const teacherIds = ["TEACHER_TEST", "TEACHER_2", "TEACHER_3", "TEACHER_4"] as const;
-
-  const sessions: Array<{ id: string; groupId: string; semesterId: string }> = [];
-
-  let seq = 0;
-  for (let d = 0; d < 5; d++) {
-    for (let slot = 0; slot < 3; slot++) {
-      const start = new Date(weekdayStart.getTime() + d * dayMs);
-      start.setHours(9 + slot * 2, 0, 0, 0);
-      const end = new Date(start.getTime() + 90 * 60 * 1000);
-
-      const group = groups[(d * 3 + slot) % groups.length]!;
-      const teacherId = teacherIds[(d + slot) % teacherIds.length]!;
-      const discipline = disciplines[(d + slot) % disciplines.length]!;
-
-      const scheduleExternalId = `SCHEDULE_${d}_${slot}_${group.code}`;
-      const cs = await prisma.classSession.create({
-        data: {
-          scheduleExternalId,
-          gaudiId: null,
-          disciplineId: discipline.id,
-          groupId: group.id,
-          teacherId,
-          semesterId: activeSemester.id,
-          startTime: start,
-          endTime: end,
-          status: "scheduled",
-          statusV2: "scheduled",
-          openedAt: null,
-          flagLateTeacher: false,
-          isActive: true,
-          deletedAt: null,
-        },
-        select: { id: true, groupId: true, semesterId: true },
-      });
-      sessions.push(cs);
-      seq++;
-    }
-  }
-
-  // Специальные кейсы:
-  // 1) Активное занятие "прямо сейчас".
-  const activeSession = await prisma.classSession.create({
-    data: {
-      scheduleExternalId: "SCHEDULE_ACTIVE_NOW",
-      gaudiId: null,
-      disciplineId: disciplines[0]!.id,
-      groupId: groups[0]!.id,
-      teacherId: "TEACHER_TEST",
-      semesterId: activeSemester.id,
-      startTime: new Date(now.getTime() - 20 * 60 * 1000),
-      endTime: new Date(now.getTime() + 40 * 60 * 1000),
-      status: "scheduled",
-      statusV2: "scheduled",
-      openedAt: new Date(now.getTime() - 10 * 60 * 1000),
-      flagLateTeacher: false,
-      isActive: true,
-      deletedAt: null,
-    },
-    select: { id: true, groupId: true, semesterId: true },
-  });
-
-  // 2) Завершённое занятие с B_PENDING (нужно подтверждение куратора).
-  const pendingSession = await prisma.classSession.create({
-    data: {
-      scheduleExternalId: "SCHEDULE_FINISHED_WITH_B_PENDING",
-      gaudiId: null,
-      disciplineId: disciplines[1]!.id,
-      groupId: groups[1]!.id,
-      teacherId: "TEACHER_2",
-      semesterId: activeSemester.id,
-      startTime: new Date(now.getTime() - 3 * 60 * 60 * 1000),
-      endTime: new Date(now.getTime() - 2 * 60 * 60 * 1000),
-      status: "scheduled",
-      statusV2: "scheduled",
-      openedAt: new Date(now.getTime() - 3 * 60 * 60 * 1000 + 5 * 60 * 1000),
-      flagLateTeacher: false,
-      isActive: true,
-      deletedAt: null,
-    },
-    select: { id: true, groupId: true, semesterId: true },
-  });
-
-  // 3) Занятие в закрытом семестре с любыми статусами (любые правки запрещены).
-  const lockedSemesterSession = await prisma.classSession.create({
-    data: {
-      scheduleExternalId: "SCHEDULE_LOCKED_SEMESTER",
-      gaudiId: null,
-      disciplineId: disciplines[2]!.id,
-      groupId: groups[2]!.id,
-      teacherId: "TEACHER_3",
-      semesterId: lockedSemester.id,
-      startTime: new Date(startOfToday.getTime() - 30 * dayMs),
-      endTime: new Date(startOfToday.getTime() - 30 * dayMs + 90 * 60 * 1000),
-      status: "finished",
-      statusV2: "finished",
-      openedAt: new Date(startOfToday.getTime() - 30 * dayMs + 5 * 60 * 1000),
-      flagLateTeacher: false,
-      isActive: true,
-      deletedAt: null,
-    },
-    select: { id: true, groupId: true, semesterId: true },
-  });
-
-  // Attendance rows: проставим для 3 ключевых занятий + немного для недельных.
-  const group0Students = await prisma.student.findMany({
-    where: { groupId: groups[0]!.id, isActive: true, deletedAt: null },
-    select: { id: true },
-    take: 25,
-  });
-  const group1Students = await prisma.student.findMany({
-    where: { groupId: groups[1]!.id, isActive: true, deletedAt: null },
-    select: { id: true },
-    take: 25,
-  });
-  const group2Students = await prisma.student.findMany({
-    where: { groupId: groups[2]!.id, isActive: true, deletedAt: null },
-    select: { id: true },
-    take: 25,
-  });
-
-  await prisma.attendance.createMany({
-    data: group0Students.map((st, idx) => ({
-      classSessionId: activeSession.id,
-      studentId: st.id,
-      semesterId: activeSession.semesterId,
-      status: idx % 10 === 0 ? "O" : "P",
-      statusV2: idx % 10 === 0 ? "O" : "P",
-      updatedBy: "seed",
-      isActive: true,
-      deletedAt: null,
-    })),
-  });
-
-  await prisma.attendance.createMany({
-    data: group1Students.map((st, idx) => ({
-      classSessionId: pendingSession.id,
-      studentId: st.id,
-      semesterId: pendingSession.semesterId,
-      status: idx % 12 === 0 ? "B_PENDING" : idx % 7 === 0 ? "NB" : "P",
-      statusV2: idx % 12 === 0 ? "B_PENDING" : idx % 7 === 0 ? "NB" : "P",
-      updatedBy: "seed",
-      isActive: true,
-      deletedAt: null,
-    })),
-  });
-
-  await prisma.attendance.createMany({
-    data: group2Students.map((st, idx) => ({
-      classSessionId: lockedSemesterSession.id,
-      studentId: st.id,
-      semesterId: lockedSemesterSession.semesterId,
-      status: idx % 8 === 0 ? "A" : "P",
-      statusV2: idx % 8 === 0 ? "A" : "P",
-      updatedBy: "seed",
-      isActive: true,
-      deletedAt: null,
-    })),
-  });
-
-  // Немного недельных занятий, чтобы были данные для отчетов.
-  const weeklySeedSessions = sessions.slice(0, 10);
-  for (const s of weeklySeedSessions) {
-    const st = await prisma.student.findMany({
-      where: { groupId: s.groupId, isActive: true, deletedAt: null },
-      select: { id: true },
-      take: 20,
-    });
-    await prisma.attendance.createMany({
-      data: st.map((x, i) => ({
-        classSessionId: s.id,
-        studentId: x.id,
-        semesterId: s.semesterId,
-        status: i % 9 === 0 ? "NB" : "P",
-        statusV2: i % 9 === 0 ? "NB" : "P",
-        updatedBy: "seed",
-        isActive: true,
-        deletedAt: null,
-      })),
-    });
-  }
-
-  await prisma.semester.upsert({
-    where: { id: "SEMESTER_TEST" },
-    update: {
-      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      isLocked: false,
-      lockedAt: null,
-    },
-    create: {
-      id: "SEMESTER_TEST",
-      name: "Тестовый семестр",
-      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      isLocked: false,
-      lockedAt: null,
-    },
-    select: { id: true },
-  });
-
-  // Keep legacy test IDs out of the way (prototype-only seed now builds the whole structure above).
+  // 9) Английский язык — Михайлов — М-2-25
+  await makeSession(dEng.id, "TMIKDA", G.M225, 7, 11);
 }
 
 main()

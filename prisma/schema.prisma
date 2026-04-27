@@ -8,159 +8,128 @@ datasource db {
 }
 
 model Faculty {
-  id        String    @id @default(cuid())
-  name      String
-  code      String?   @unique
-  isActive  Boolean   @default(true) @map("is_active")
-  deletedAt DateTime? @map("deleted_at")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-
+  id          String       @id @default(cuid())
+  name        String
+  code        String?      @unique
+  isActive    Boolean      @default(true) @map("is_active")
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   departments Department[]
   programs    Program[]
 
-  @@index([updatedAt])
-  @@index([isActive])
-  @@index([deletedAt])
   @@map("faculties")
 }
 
 model Department {
-  id        String    @id @default(cuid())
-  facultyId String    @map("faculty_id")
-  name      String
-  code      String?
-  isActive  Boolean   @default(true) @map("is_active")
-  deletedAt DateTime? @map("deleted_at")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-
-  faculty     Faculty     @relation(fields: [facultyId], references: [id])
-  programs    Program[]
+  id          String       @id @default(cuid())
+  facultyId   String       @map("faculty_id")
+  name        String
+  code        String?
+  isActive    Boolean      @default(true) @map("is_active")
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  faculty     Faculty      @relation(fields: [facultyId], references: [id])
   disciplines Discipline[]
+  programs    Program[]
 
   @@unique([facultyId, name])
-  @@index([facultyId])
-  @@index([updatedAt])
-  @@index([isActive])
-  @@index([deletedAt])
   @@map("departments")
 }
 
 model Program {
-  id           String    @id @default(cuid())
-  facultyId    String    @map("faculty_id")
-  departmentId String    @map("department_id")
-  name         String
-  code         String?
-  isActive     Boolean   @default(true) @map("is_active")
-  deletedAt    DateTime? @map("deleted_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-
-  faculty    Faculty    @relation(fields: [facultyId], references: [id])
-  department Department @relation(fields: [departmentId], references: [id])
-  groups     Group[]
+  id              String              @id @default(cuid())
+  facultyId       String              @map("faculty_id")
+  departmentId    String              @map("department_id")
+  name            String
+  code            String?
+  isActive        Boolean             @default(true) @map("is_active")
+  deletedAt       DateTime?           @map("deleted_at") @db.Timestamptz(6)
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
   disciplineLinks DisciplineProgram[]
+  groups          Group[]
+  department      Department          @relation(fields: [departmentId], references: [id])
+  faculty         Faculty             @relation(fields: [facultyId], references: [id])
 
-  // Variant B: allow same program name across faculties and also inside faculty across departments.
-  @@unique([facultyId, departmentId, name])
-  @@index([facultyId])
-  @@index([departmentId])
-  @@index([updatedAt])
-  @@index([isActive])
-  @@index([deletedAt])
+  @@unique([facultyId, departmentId, name], map: "programs_faculty_department_name_key")
   @@map("programs")
 }
 
 model Discipline {
-  id        String    @id @default(cuid())
-  departmentId String? @map("department_id")
-  name      String
-  code      String?   @unique
-  isActive  Boolean   @default(true) @map("is_active")
-  deletedAt DateTime? @map("deleted_at")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-
-  department    Department?        @relation(fields: [departmentId], references: [id])
+  id            String              @id @default(cuid())
+  departmentId  String?             @map("department_id")
+  name          String
+  code          String?             @unique
+  isActive      Boolean             @default(true) @map("is_active")
+  deletedAt     DateTime?           @map("deleted_at") @db.Timestamptz(6)
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
   classSessions ClassSession[]
   programLinks  DisciplineProgram[]
+  department    Department?         @relation(fields: [departmentId], references: [id])
 
-  @@unique([departmentId, name])
+  @@unique([departmentId, name], map: "disciplines_department_name_key")
   @@index([departmentId])
-  @@index([updatedAt])
-  @@index([isActive])
-  @@index([deletedAt])
   @@map("disciplines")
 }
 
 model DisciplineProgram {
-  id           String   @id @default(cuid())
-  disciplineId String   @map("discipline_id")
-  programId    String   @map("program_id")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id           String     @id @default(cuid())
+  disciplineId String     @map("discipline_id")
+  programId    String     @map("program_id")
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  discipline   Discipline @relation(fields: [disciplineId], references: [id])
+  program      Program    @relation(fields: [programId], references: [id])
 
-  discipline Discipline @relation(fields: [disciplineId], references: [id])
-  program    Program    @relation(fields: [programId], references: [id])
-
-  @@unique([disciplineId, programId])
+  @@unique([disciplineId, programId], map: "discipline_programs_discipline_program_key")
   @@index([disciplineId])
   @@index([programId])
   @@map("discipline_programs")
 }
 
 model Teacher {
-  // Use same ID space as `User` for now (mock auth uses userId like TEACHER_TEST).
-  id        String    @id
-  gaudiId   String?   @unique @map("gaudi_id")
-  name      String
-  email     String?
-  isActive  Boolean   @default(true) @map("is_active")
-  deletedAt DateTime? @map("deleted_at")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-
+  id            String         @id
+  gaudiId       String?        @unique @map("gaudi_id")
+  name          String
+  email         String?
+  isActive      Boolean        @default(true) @map("is_active")
+  deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
   classSessions ClassSession[]
 
-  @@index([updatedAt])
-  @@index([isActive])
-  @@index([deletedAt])
   @@map("teachers")
 }
 
 model Group {
-  id        String    @id @default(cuid())
-  gaudiId   String    @unique @map("gaudi_id")
-  programId String?   @map("program_id")
-  name      String
-  code      String?
-  isActive  Boolean   @default(true) @map("is_active")
-  deletedAt DateTime? @map("deleted_at")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-
-  program Program? @relation(fields: [programId], references: [id])
-  students      Student[]
+  id            String             @id @default(cuid())
+  gaudiId       String             @unique @map("gaudi_id")
+  programId     String?            @map("program_id")
+  name          String
+  code          String?
+  isActive      Boolean            @default(true) @map("is_active")
+  deletedAt     DateTime?          @map("deleted_at") @db.Timestamptz(6)
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
   classSessions ClassSession[]
+  program       Program?           @relation(fields: [programId], references: [id])
+  students      Student[]
   curatorLinks  UserGroupCurator[]
 
-  @@unique([programId, code])
+  @@unique([programId, code], map: "groups_program_code_key")
   @@index([programId])
-  @@index([updatedAt])
-  @@index([isActive])
-  @@index([deletedAt])
   @@map("groups")
 }
 
 model AppUser {
-  id        String   @id
-  role      String   @map("role")
-  isActive  Boolean  @default(true) @map("is_active")
-  deletedAt DateTime? @map("deleted_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
+  id            String             @id
+  role          String             @map("role")
+  isActive      Boolean            @default(true) @map("is_active")
+  deletedAt     DateTime?          @map("deleted_at")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
   curatorGroups UserGroupCurator[]
 
   @@index([role])
@@ -170,18 +139,17 @@ model AppUser {
 }
 
 model UserGroupCurator {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  groupId   String   @map("group_id")
-  isActive  Boolean  @default(true) @map("is_active")
-  deletedAt DateTime? @map("deleted_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  groupId   String    @map("group_id")
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamp(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  group     Group     @relation(fields: [groupId], references: [id])
+  user      AppUser   @relation(fields: [userId], references: [id])
 
-  user AppUser @relation(fields: [userId], references: [id])
-  group Group @relation(fields: [groupId], references: [id])
-
-  @@unique([userId, groupId])
+  @@unique([userId, groupId], map: "user_group_curators_user_group_key")
   @@index([userId])
   @@index([groupId])
   @@index([isActive])
@@ -190,150 +158,104 @@ model UserGroupCurator {
 }
 
 model Student {
-  id        String    @id @default(cuid())
-  gaudiId   String    @unique @map("gaudi_id")
-  groupId   String    @map("group_id")
-  name      String
-  isActive  Boolean   @default(true) @map("is_active")
-  deletedAt DateTime? @map("deleted_at")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-
-  group       Group        @relation(fields: [groupId], references: [id])
+  id          String       @id @default(cuid())
+  gaudiId     String       @unique @map("gaudi_id")
+  groupId     String       @map("group_id")
+  name        String
+  isActive    Boolean      @default(true) @map("is_active")
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   attendances Attendance[]
+  group       Group        @relation(fields: [groupId], references: [id])
 
   @@index([groupId])
-  @@index([updatedAt])
-  @@index([isActive])
-  @@index([deletedAt])
   @@map("students")
 }
 
 model ClassSession {
-  id                   String    @id @default(cuid())
-  scheduleExternalId   String    @unique @map("schedule_external_id")
-  gaudiId              String?   @unique @map("gaudi_id")
-  disciplineId         String    @map("discipline_id")
-  groupId              String    @map("group_id")
-  teacherId            String    @map("teacher_id")
-  semesterId           String    @map("semester_id")
-  startTime            DateTime  @map("start_time")
-  endTime              DateTime  @map("end_time")
-  status               String    @default("scheduled")
-  // Soft migration status field (enums not supported by current SQLite connector).
-  statusV2             String?   @map("status_v2")
-  openedAt             DateTime? @map("opened_at")
-  flagLateTeacher      Boolean   @default(false) @map("flag_late_teacher")
-  isActive             Boolean   @default(true) @map("is_active")
-  deletedAt            DateTime? @map("deleted_at")
-  createdAt            DateTime  @default(now()) @map("created_at")
-  updatedAt            DateTime  @updatedAt @map("updated_at")
+  id                 String       @id @default(cuid())
+  scheduleExternalId String       @unique @map("schedule_external_id")
+  gaudiId            String?      @unique @map("gaudi_id")
+  disciplineId       String       @map("discipline_id")
+  groupId            String       @map("group_id")
+  teacherId          String       @map("teacher_id")
+  semesterId         String       @map("semester_id")
+  startTime          DateTime     @map("start_time") @db.Timestamptz(6)
+  endTime            DateTime     @map("end_time") @db.Timestamptz(6)
+  status             String       @default("scheduled")
+  statusV2           String?      @map("status_v2")
+  openedAt           DateTime?    @map("opened_at") @db.Timestamptz(6)
+  flagLateTeacher    Boolean      @default(false) @map("flag_late_teacher")
+  isActive           Boolean      @default(true) @map("is_active")
+  deletedAt          DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  attendances        Attendance[]
+  discipline         Discipline   @relation(fields: [disciplineId], references: [id])
+  group              Group        @relation(fields: [groupId], references: [id])
+  semester           Semester     @relation(fields: [semesterId], references: [id])
+  teacher            Teacher      @relation(fields: [teacherId], references: [id])
 
-  discipline  Discipline   @relation(fields: [disciplineId], references: [id])
-  group       Group        @relation(fields: [groupId], references: [id])
-  teacher     Teacher      @relation(fields: [teacherId], references: [id])
-  semester    Semester?    @relation(fields: [semesterId], references: [id])
-  attendances Attendance[]
-
-  @@index([disciplineId])
-  @@index([groupId])
-  @@index([groupId, startTime])
-  @@index([teacherId])
-  @@index([teacherId, startTime])
-  @@index([semesterId])
-  @@index([startTime])
-  @@index([endTime])
-  @@index([status])
-  @@index([statusV2])
-  @@index([updatedAt])
-  @@index([isActive])
-  @@index([deletedAt])
   @@map("class_sessions")
 }
 
 model Attendance {
-  id             String    @id @default(cuid())
-  classSessionId String    @map("class_session_id")
-  studentId      String    @map("student_id")
-  semesterId     String    @map("semester_id")
+  id             String       @id @default(cuid())
+  classSessionId String       @map("class_session_id")
+  studentId      String       @map("student_id")
+  semesterId     String       @map("semester_id")
   status         String?
-  // Soft migration status field (enums not supported by current SQLite connector).
-  statusV2       String?   @map("status_v2")
-  gaudiId        String?   @unique @map("gaudi_id")
-  isActive       Boolean   @default(true) @map("is_active")
-  deletedAt      DateTime? @map("deleted_at")
-  updatedBy      String?   @map("updated_by")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
-
-  classSession ClassSession @relation(fields: [classSessionId], references: [id])
-  student      Student      @relation(fields: [studentId], references: [id])
-  semester     Semester     @relation(fields: [semesterId], references: [id])
+  statusV2       String?      @map("status_v2")
+  gaudiId        String?      @unique @map("gaudi_id")
+  isActive       Boolean      @default(true) @map("is_active")
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  updatedBy      String?      @map("updated_by")
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  classSession   ClassSession @relation(fields: [classSessionId], references: [id])
+  semester       Semester     @relation(fields: [semesterId], references: [id])
+  student        Student      @relation(fields: [studentId], references: [id])
 
   @@unique([classSessionId, studentId])
-  @@index([studentId])
-  @@index([classSessionId])
-  @@index([semesterId])
-  @@index([status])
-  @@index([statusV2])
-  @@index([updatedAt])
-  @@index([classSessionId, statusV2])
-  @@index([isActive])
-  @@index([deletedAt])
   @@map("attendances")
 }
 
 model IntegrationLog {
   id        String   @id @default(cuid())
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  provider  String   @map("provider")
+  status    String   @map("status")
+  details   Json?    @map("details")
 
-  provider  String   @map("provider") // "gaudi" | "schedule"
-  status    String   @map("status")   // "success" | "error"
-
-  details   Json?    @map("details") // summary/errors payload
-
-  @@index([provider, createdAt])
-  @@index([status, createdAt])
   @@map("integration_logs")
 }
 
 model Semester {
-  id        String    @id @default(cuid())
-  name      String?
-  startDate DateTime  @map("start_date")
-  endDate   DateTime  @map("end_date")
-  isLocked  Boolean   @default(false) @map("is_locked")
-  lockedAt  DateTime? @map("locked_at")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-
-  classSessions ClassSession[]
+  id            String         @id @default(cuid())
+  name          String?
+  startDate     DateTime       @map("start_date") @db.Timestamptz(6)
+  endDate       DateTime       @map("end_date") @db.Timestamptz(6)
+  isLocked      Boolean        @default(false) @map("is_locked")
+  lockedAt      DateTime?      @map("locked_at") @db.Timestamptz(6)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
   attendances   Attendance[]
+  classSessions ClassSession[]
 
-  @@index([startDate])
-  @@index([endDate])
-  @@index([isLocked])
   @@map("semesters")
 }
 
 model AuditTrail {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now()) @map("created_at")
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  actorType  String   @map("actor_type")
+  actorId    String?  @map("actor_id")
+  action     String   @map("action")
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  beforeJson String?  @map("before_json")
+  afterJson  String?  @map("after_json")
 
-  actorType String   @map("actor_type")
-  actorId   String?  @map("actor_id")
-
-  action     String @map("action")
-  entityType String @map("entity_type")
-  entityId   String @map("entity_id")
-
-  // Store JSON as string (Prisma Json not supported by current SQLite connector).
-  beforeJson String? @map("before_json")
-  afterJson  String? @map("after_json")
-
-  @@index([createdAt])
-  @@index([actorType, createdAt])
-  @@index([entityType, entityId, createdAt])
-  @@index([action, createdAt])
   @@map("audit_trail")
 }
