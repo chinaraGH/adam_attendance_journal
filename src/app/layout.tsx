@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { headers } from "next/headers";
 
 import { Navbar } from "@/components/navbar";
+import { ExitButton } from "@/components/exit-button";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -26,7 +27,14 @@ async function AuthNavbar() {
 
   try {
     const user = await getCurrentUser();
-    return <Navbar user={user} />;
+    return (
+      <>
+        <div style={{ position: "fixed", top: 16, left: 16, zIndex: 50 }}>
+          <ExitButton />
+        </div>
+        <Navbar user={user} />
+      </>
+    );
   } catch {
     return null;
   }
