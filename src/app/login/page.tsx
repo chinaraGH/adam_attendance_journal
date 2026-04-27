@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 
 import { LoginForm } from "./login-form";
 
+export const dynamic = "force-dynamic";
+
 export default async function LoginPage() {
   let users: { id: string; role: string }[] = [];
   let dbError: string | null = null;
