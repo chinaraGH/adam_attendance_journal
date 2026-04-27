@@ -9,8 +9,10 @@ async function main() {
   await prisma.student.deleteMany({});
   await prisma.userGroupCurator.deleteMany({});
   await prisma.group.deleteMany({});
+  await prisma.disciplineProgram.deleteMany({});
   await prisma.discipline.deleteMany({});
   await prisma.teacher.deleteMany({});
+  await prisma.program.deleteMany({});
   await prisma.department.deleteMany({});
   await prisma.faculty.deleteMany({});
   await prisma.semester.deleteMany({});
@@ -57,20 +59,31 @@ async function main() {
 
   const departments = await prisma.$transaction([
     prisma.department.create({
-      data: { facultyId: faculty1.id, name: "Программная инженерия", code: "SE" },
-      select: { id: true, facultyId: true, code: true },
+      data: { facultyId: faculty1.id, name: "Кафедра ИТ", code: "IT" },
+      select: { id: true, facultyId: true, name: true, code: true },
     }),
     prisma.department.create({
-      data: { facultyId: faculty1.id, name: "Информационные системы", code: "IS" },
-      select: { id: true, facultyId: true, code: true },
+      data: { facultyId: faculty2.id, name: "Кафедра экономики", code: "ECO" },
+      select: { id: true, facultyId: true, name: true, code: true },
     }),
-    prisma.department.create({
-      data: { facultyId: faculty2.id, name: "Финансы", code: "FIN" },
-      select: { id: true, facultyId: true, code: true },
+  ]);
+
+  const programs = await prisma.$transaction([
+    prisma.program.create({
+      data: { facultyId: faculty1.id, departmentId: departments[0]!.id, name: "Программная инженерия", code: "SE" },
+      select: { id: true, facultyId: true, departmentId: true, code: true },
     }),
-    prisma.department.create({
-      data: { facultyId: faculty2.id, name: "Менеджмент", code: "MGT" },
-      select: { id: true, facultyId: true, code: true },
+    prisma.program.create({
+      data: { facultyId: faculty1.id, departmentId: departments[0]!.id, name: "Информационные системы", code: "IS" },
+      select: { id: true, facultyId: true, departmentId: true, code: true },
+    }),
+    prisma.program.create({
+      data: { facultyId: faculty2.id, departmentId: departments[1]!.id, name: "Финансы", code: "FIN" },
+      select: { id: true, facultyId: true, departmentId: true, code: true },
+    }),
+    prisma.program.create({
+      data: { facultyId: faculty2.id, departmentId: departments[1]!.id, name: "Менеджмент", code: "MGT" },
+      select: { id: true, facultyId: true, departmentId: true, code: true },
     }),
   ]);
 
@@ -101,26 +114,42 @@ async function main() {
   });
 
   const disciplines = await prisma.$transaction([
-    prisma.discipline.create({ data: { name: "Базы данных", code: "DB", departmentId: departments[0].id }, select: { id: true } }),
-    prisma.discipline.create({ data: { name: "Веб-разработка", code: "WEB", departmentId: departments[0].id }, select: { id: true } }),
-    prisma.discipline.create({ data: { name: "Алгоритмы", code: "ALG", departmentId: departments[1].id }, select: { id: true } }),
-    prisma.discipline.create({ data: { name: "Эконометрика", code: "ECM", departmentId: departments[2].id }, select: { id: true } }),
-    prisma.discipline.create({ data: { name: "Основы менеджмента", code: "MGT101", departmentId: departments[3].id }, select: { id: true } }),
+    prisma.discipline.create({ data: { name: "Базы данных", code: "DB", departmentId: departments[0]!.id }, select: { id: true } }),
+    prisma.discipline.create({ data: { name: "Веб-разработка", code: "WEB", departmentId: departments[0]!.id }, select: { id: true } }),
+    prisma.discipline.create({ data: { name: "Алгоритмы", code: "ALG", departmentId: departments[0]!.id }, select: { id: true } }),
+    prisma.discipline.create({ data: { name: "Эконометрика", code: "ECM", departmentId: departments[1]!.id }, select: { id: true } }),
+    prisma.discipline.create({ data: { name: "Основы менеджмента", code: "MGT101", departmentId: departments[1]!.id }, select: { id: true } }),
   ]);
+
+  // Link disciplines to programs (many-to-many).
+  await prisma.disciplineProgram.createMany({
+    data: [
+      // IT dept programs share DB/WEB/ALG
+      { disciplineId: disciplines[0]!.id, programId: programs[0]!.id },
+      { disciplineId: disciplines[1]!.id, programId: programs[0]!.id },
+      { disciplineId: disciplines[2]!.id, programId: programs[0]!.id },
+      { disciplineId: disciplines[0]!.id, programId: programs[1]!.id },
+      { disciplineId: disciplines[1]!.id, programId: programs[1]!.id },
+      { disciplineId: disciplines[2]!.id, programId: programs[1]!.id },
+      // Econ dept programs
+      { disciplineId: disciplines[3]!.id, programId: programs[2]!.id },
+      { disciplineId: disciplines[4]!.id, programId: programs[3]!.id },
+    ],
+  });
 
   // 10–15 групп, распределим по программам.
   const groupCount = 12;
   const groups = [];
   for (let i = 0; i < groupCount; i++) {
-    const department = departments[i % departments.length];
+    const program = programs[i % programs.length]!;
     const year = 2023 + (i % 3);
-    const code = `${department.code}-${String(i + 1).padStart(2, "0")}`;
+    const code = `${program.code}-${String(i + 1).padStart(2, "0")}`;
     const g = await prisma.group.create({
       data: {
         gaudiId: `GAUDI_GROUP_${code}`,
         name: `Группа ${code}`,
         code,
-        departmentId: department.id,
+        programId: program.id,
         isActive: true,
         deletedAt: null,
       },
