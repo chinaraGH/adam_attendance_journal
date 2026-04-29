@@ -1,9 +1,8 @@
-import Link from "next/link";
-
 import { prisma } from "@/lib/prisma";
 import { getEffectiveClassSessionStatus } from "@/lib/class-session/effective-status";
 import { openJournal } from "@/app/actions/class-session-actions";
 import { formatClassSessionStatusLabel, formatDisciplineLabel } from "@/lib/ui/labels";
+import { ExitButton } from "@/components/exit-button";
 
 import { AttendanceClient } from "../attendance-client";
 
@@ -41,9 +40,9 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
       <main style={{ padding: 24, maxWidth: 820, margin: "0 auto" }}>
         <h1 style={{ fontSize: 24, fontWeight: 800 }}>Журнал</h1>
         <p style={{ marginTop: 12 }}>Занятие не найдено.</p>
-        <p style={{ marginTop: 12 }}>
-          <Link href="/">Назад</Link>
-        </p>
+        <div style={{ marginTop: 12 }}>
+          <ExitButton />
+        </div>
       </main>
     );
   }

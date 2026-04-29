@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
+import { StudentAttendanceFilters } from "@/components/student-attendance-filters";
 
 function toDateInputValue(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -13,7 +14,13 @@ function parseDate(param: string | undefined): Date | null {
 }
 
 export default async function StudentPage(props: {
-  searchParams: { view?: string; disciplineId?: string; day?: string; from?: string; to?: string };
+  searchParams: {
+    view?: string;
+    disciplineId?: string | string[];
+    day?: string | string[];
+    from?: string;
+    to?: string;
+  };
 }) {
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "STUDENT") {
@@ -93,17 +100,24 @@ export default async function StudentPage(props: {
     new Map(sessions.map((s) => [s.discipline.id, s.discipline] as const)).values(),
   ).sort((a, b) => a.name.localeCompare(b.name));
 
-  const selectedDisciplineId = props.searchParams.disciplineId ?? "";
-  const selectedDay = props.searchParams.day ?? "";
+  const toArray = (value?: string | string[]) => {
+    if (!value) return [];
+    return (Array.isArray(value) ? value : [value]).filter(Boolean);
+  };
+
+  const selectedDisciplineIds = toArray(props.searchParams.disciplineId);
+  const selectedDays = toArray(props.searchParams.day);
 
   const filtered =
     view === "days"
       ? sessions.filter((s) => {
-          if (!selectedDay) return true;
+          if (selectedDays.length === 0) return true;
           const iso = s.startTime.toISOString().slice(0, 10);
-          return iso === selectedDay;
+          return selectedDays.includes(iso);
         })
-      : sessions.filter((s) => (selectedDisciplineId ? s.discipline.id === selectedDisciplineId : true));
+      : sessions.filter((s) =>
+          selectedDisciplineIds.length > 0 ? selectedDisciplineIds.includes(s.discipline.id) : true,
+        );
 
   const total = filtered.length;
   const counts = { P: 0, O: 0, NB: 0, B_PENDING: 0, B_CONFIRMED: 0, A: 0, S: 0, OTHER: 0, NULL: 0 };
@@ -137,92 +151,15 @@ export default async function StudentPage(props: {
 
       <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>
         <div style={{ fontWeight: 900, marginBottom: 10 }}>Фильтры</div>
-
-        <form style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-          <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
-            С
-            <input
-              type="date"
-              name="from"
-              defaultValue={toDateInputValue(from)}
-              style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", fontWeight: 800 }}
-            />
-          </label>
-
-          <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
-            По
-            <input
-              type="date"
-              name="to"
-              defaultValue={toDateInputValue(to)}
-              style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", fontWeight: 800 }}
-            />
-          </label>
-
-          <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
-            Вид
-            <select
-              name="view"
-              defaultValue={view}
-              style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", fontWeight: 800 }}
-            >
-              <option value="disciplines">По дисциплинам</option>
-              <option value="days">По дням</option>
-            </select>
-          </label>
-
-          {view === "days" ? (
-            <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
-              День
-              <select
-                name="day"
-                defaultValue={selectedDay}
-                style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", fontWeight: 800 }}
-              >
-                <option value="">Все</option>
-                {dayOptions.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
-              Дисциплина
-              <select
-                name="disciplineId"
-                defaultValue={selectedDisciplineId}
-                style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", fontWeight: 800 }}
-              >
-                <option value="">Все</option>
-                {disciplineOptions.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-
-          <div style={{ display: "flex", alignItems: "end" }}>
-            <button
-              type="submit"
-              style={{
-                width: "100%",
-                border: "1px solid #111827",
-                background: "#111827",
-                color: "white",
-                padding: "10px 14px",
-                borderRadius: 12,
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              Применить
-            </button>
-          </div>
-        </form>
+        <StudentAttendanceFilters
+          initialFrom={toDateInputValue(from)}
+          initialTo={toDateInputValue(to)}
+          initialView={view === "days" ? "days" : "disciplines"}
+          dayOptions={dayOptions.map((d) => ({ value: d, label: d }))}
+          disciplineOptions={disciplineOptions.map((d) => ({ value: d.id, label: d.name }))}
+          selectedDays={selectedDays}
+          selectedDisciplineIds={selectedDisciplineIds}
+        />
       </div>
 
       <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>

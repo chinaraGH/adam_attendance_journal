@@ -40,15 +40,11 @@ export function ExitButton(props: {
       }}
       onClick={() => {
         if (disabled) return;
-        if (props.to && props.to.trim().length > 0) {
-          router.push(props.to);
-          return;
-        }
         // Go to previous screen; fallback to home.
         if (typeof window !== "undefined" && window.history.length > 1) {
           router.back();
         } else {
-          router.push("/");
+          router.push(props.to && props.to.trim().length > 0 ? props.to : "/");
         }
       }}
     >
