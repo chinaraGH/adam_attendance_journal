@@ -3,7 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getEffectiveClassSessionStatus } from "@/lib/class-session/effective-status";
 import { openJournal } from "@/app/actions/class-session-actions";
-import { formatClassSessionStatusLabel } from "@/lib/ui/labels";
+import { formatClassSessionStatusLabel, formatDisciplineLabel } from "@/lib/ui/labels";
 
 import { AttendanceClient } from "../attendance-client";
 
@@ -20,6 +20,7 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
       openedAt: true,
       status: true,
       statusV2: true,
+      discipline: { select: { name: true } },
       semester: { select: { isLocked: true } },
       group: {
         select: {
@@ -111,7 +112,7 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
         <div>
           <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 6 }}>Журнал посещаемости</h1>
           <div style={{ color: "#111827", fontWeight: 900, fontSize: 18, marginTop: 4 }}>
-            {session.disciplineId}
+            {formatDisciplineLabel({ disciplineId: session.disciplineId, disciplineName: session.discipline?.name })}
           </div>
           <div style={{ color: "#374151", fontWeight: 900, fontSize: 16, marginTop: 2 }}>{session.group.name}</div>
           <div style={{ color: "#6b7280", marginTop: 4 }}>

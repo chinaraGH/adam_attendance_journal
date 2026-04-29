@@ -32,7 +32,16 @@ export async function getPendingSickAttendances() {
       statusV2: true,
       updatedAt: true,
       student: { select: { id: true, name: true, gaudiId: true, group: { select: { id: true, name: true } } } },
-      classSession: { select: { id: true, disciplineId: true, startTime: true, endTime: true, semester: { select: { isLocked: true } } } },
+      classSession: {
+        select: {
+          id: true,
+          disciplineId: true,
+          startTime: true,
+          endTime: true,
+          discipline: { select: { name: true } },
+          semester: { select: { isLocked: true } },
+        },
+      },
     },
   });
 
