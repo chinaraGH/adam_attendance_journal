@@ -92,7 +92,7 @@ export function AttendanceClient(props: {
     return false;
   }, [statusByStudentId, students]);
 
-  const isLogoutDisabled = !!readOnly || isSaving || isDirty;
+  const isLogoutDisabled = isSaving || (!readOnly && isDirty);
 
   function setStatus(studentId: string, status: string) {
     setSaveMessage("");

@@ -100,6 +100,11 @@ async function main() {
 
   const groupById = new Map(groups.map((g) => [g.id, g]));
 
+  const TEST_CURATOR_ID = "CURTEST1";
+  const TEST_ACADEMIC_OFFICE_ID = "UCHTEST1";
+  const TEST_LEADERSHIP_ID = "LEADTS01";
+  const TEST_STUDENT_ID = "STUDTST1";
+
   // Teachers + Users (IDs <= 8)
   const teachers: Array<{ id: string; name: string; gaudiId: string | null }> = [
     { id: "TIVANOV", name: "Иванов Сергей Николаевич", gaudiId: "GAIVANV" },
@@ -118,7 +123,13 @@ async function main() {
   ];
 
   await prisma.appUser.createMany({
-    data: teachers.map((t) => ({ id: t.id, role: "TEACHER", isActive: true, deletedAt: null })),
+    data: [
+      ...teachers.map((t) => ({ id: t.id, role: "TEACHER", isActive: true, deletedAt: null })),
+      { id: TEST_CURATOR_ID, role: "CURATOR", isActive: true, deletedAt: null },
+      { id: TEST_ACADEMIC_OFFICE_ID, role: "ACADEMIC_OFFICE", isActive: true, deletedAt: null },
+      { id: TEST_LEADERSHIP_ID, role: "LEADERSHIP", isActive: true, deletedAt: null },
+      { id: TEST_STUDENT_ID, role: "STUDENT", isActive: true, deletedAt: null },
+    ],
     skipDuplicates: true,
   });
   await prisma.teacher.createMany({
@@ -244,8 +255,25 @@ async function main() {
     "Яковлев Александр Сергеевич",
     "Белоусов Иван Геннадьевич",
   ]);
+  students.push({
+    id: TEST_STUDENT_ID,
+    gaudiId: "STUTEST1",
+    groupId: "GE123",
+    name: "Тестовый Студент",
+    isActive: true,
+    deletedAt: null,
+  });
 
   await prisma.student.createMany({ data: students, skipDuplicates: true });
+
+  await prisma.userGroupCurator.createMany({
+    data: [
+      { userId: TEST_CURATOR_ID, groupId: "GIST524", isActive: true, deletedAt: null },
+      { userId: TEST_CURATOR_ID, groupId: "GIST525", isActive: true, deletedAt: null },
+      { userId: TEST_CURATOR_ID, groupId: "GE123", isActive: true, deletedAt: null },
+    ],
+    skipDuplicates: true,
+  });
 
   // Class sessions to represent "предмет + преподаватель + группа"
   const mkTime = (dayOffset: number, hour: number) => {
