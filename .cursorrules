@@ -23,6 +23,7 @@ You are an expert in Full-stack web development, specialized in Next.js, TypeScr
 - Use relational data structures: University -> Faculties -> Groups -> Students.
 - Ensure correct handling of dates and timezones (Bishkek, UTC+6).
 - Implement role-based access control (RBAC): Admin, Teacher, Student.
+- When editing schema.prisma, maintain existing relations unless changes are explicitly requested. Never remove fields without warning.
 
 ### Naming Conventions
 - Favor named exports for components and functions.
@@ -37,12 +38,12 @@ const toggleAttendance = (studentId: string) => {
 };
 
 ### Token Efficiency & Cost Saving (CRITICAL)
-- **Extreme Brevity:** Respond strictly with code or short bullet points. Skip all "Here is the updated code...", "I hope this helps!", and other conversational filler.
-- **Incremental Edits:** DO NOT rewrite the entire file. Use comments like `// ... existing code ...` to show where changes should be inserted.
-- **Diff-Only Mode:** When using Inline Edit (Ctrl+K) or Composer, focus only on the lines that need change.
-- **One-Shot Perfection:** If the request is ambiguous, ask for clarification BEFORE generating a large block of code to avoid wasting a request.
-- **No Over-Engineering:** Don't add extra libraries, complex abstractions, or "just in case" features unless explicitly asked.
-- **Dry Run:** For complex logic, briefly outline the plan in 1-2 lines before writing the code.
+- **Extreme Brevity:** Always use Markdown for code blocks. Respond strictly with code or short bullet points. Skip all conversational filler. Never repeat my instructions or provide summaries of what you are about to do.
+- **Incremental Edits:** DO NOT rewrite the entire file. Use `// ... existing code ...` for context.
+- **Context Priority:** Use open tabs first. Don't perform full codebase search (@codebase) unless essential.
+- **Dependency Guard:** Never suggest new npm packages if the task can be solved with existing stack (Next.js, Tailwind, Lucide).
+- **Plan First:** For tasks involving >3 files, provide a 1-sentence plan and wait for "go" before writing code.
+- For inline edits (Ctrl+K), provide ONLY the code to be inserted or replaced.
 
 ### Specific Project Constraints (Adam University)
 - **Timezone Logic:** Always use `Intl.DateTimeFormat` or `date-fns` with 'Asia/Bishkek' fixed. Never rely on the user's local system time to avoid sync issues in the journal.

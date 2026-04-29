@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { decideSickRequestForm, getCuratorGroupSummary, getPendingSickAttendances, setAForm } from "./actions";
+import { formatDisciplineLabel } from "@/lib/ui/labels";
 
 export default async function CuratorDashboardPage() {
   const result = await getPendingSickAttendances();
@@ -96,7 +97,12 @@ export default async function CuratorDashboardPage() {
                     Группа: {item.student.group.name}
                   </div>
                   <div style={{ marginTop: 4, color: "#6b7280" }}>
-                    Занятие: {item.classSession.disciplineId} • {new Date(item.classSession.startTime).toLocaleString("ru-RU")}
+                    Занятие:{" "}
+                    {formatDisciplineLabel({
+                      disciplineId: item.classSession.disciplineId,
+                      disciplineName: item.classSession.discipline?.name,
+                    })}{" "}
+                    • {new Date(item.classSession.startTime).toLocaleString("ru-RU")}
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>

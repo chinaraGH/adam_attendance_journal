@@ -18,3 +18,20 @@ export function formatClassSessionStatusLabel(status: string) {
   if (s === "cancelled") return "Отменено";
   return status;
 }
+
+const DISCIPLINE_FALLBACK_BY_ID: Record<string, string> = {
+  DINF: "Информатика",
+  DENG: "Английский язык",
+  DHISECO: "История экономики",
+  DMNG: "Менеджмент",
+  DDESIGN: "Дизайн мышления",
+  DDB: "Базы данных",
+};
+
+export function formatDisciplineLabel(input: { disciplineId: string; disciplineName?: string | null }) {
+  const name = input.disciplineName?.trim();
+  if (name) return name;
+  const disciplineId = String(input.disciplineId ?? "").trim();
+  const normalized = disciplineId.toUpperCase();
+  return DISCIPLINE_FALLBACK_BY_ID[normalized] ?? disciplineId;
+}

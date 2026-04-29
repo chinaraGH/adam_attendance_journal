@@ -1,4 +1,5 @@
 import { decideSickRequestForm, getPendingSickAttendances } from "@/app/curator/dashboard/actions";
+import { formatDisciplineLabel } from "@/lib/ui/labels";
 
 export default async function CuratorBRequestsPage() {
   const result = await getPendingSickAttendances();
@@ -24,7 +25,12 @@ export default async function CuratorBRequestsPage() {
                 <div>
                   <div className="font-black">{item.student.name}</div>
                   <div className="mt-1 text-sm text-gray-600">
-                    Группа: {item.student.group.name} • Занятие: {item.classSession.disciplineId} •{" "}
+                    Группа: {item.student.group.name} • Занятие:{" "}
+                    {formatDisciplineLabel({
+                      disciplineId: item.classSession.disciplineId,
+                      disciplineName: item.classSession.discipline?.name,
+                    })}{" "}
+                    •{" "}
                     {new Date(item.classSession.startTime).toLocaleString("ru-RU")}
                   </div>
                 </div>

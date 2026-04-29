@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { BISHKEK_TIME_ZONE, getBishkekNow } from "@/lib/time/bishkek-now";
 import { getEffectiveClassSessionStatus } from "@/lib/class-session/effective-status";
 import { toZonedTime } from "date-fns-tz";
-import { formatClassSessionStatusLabel } from "@/lib/ui/labels";
+import { formatClassSessionStatusLabel, formatDisciplineLabel } from "@/lib/ui/labels";
 import { getBishkekDayRangeInstants } from "@/lib/time/bishkek-day-range";
 
 function formatTimeRange(start: Date, end: Date) {
@@ -39,6 +39,11 @@ export default async function HomePage() {
           id: true,
           name: true,
           _count: { select: { students: true } },
+        },
+      },
+      discipline: {
+        select: {
+          name: true,
         },
       },
     },
@@ -115,7 +120,9 @@ export default async function HomePage() {
               >
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                   <div>
-                    <div style={{ fontWeight: 900, fontSize: 16 }}>{session.disciplineId}</div>
+                    <div style={{ fontWeight: 900, fontSize: 16 }}>
+                      {formatDisciplineLabel({ disciplineId: session.disciplineId, disciplineName: session.discipline?.name })}
+                    </div>
                     <div style={{ marginTop: 4, color: "#374151", fontWeight: 700 }}>{session.group.name}</div>
                     <div style={{ marginTop: 4, color: "#6b7280" }}>{timeRange}</div>
                   </div>

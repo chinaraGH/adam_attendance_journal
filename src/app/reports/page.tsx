@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
+import { formatDisciplineLabel } from "@/lib/ui/labels";
 
 const LOW_ATTENDANCE_THRESHOLD = 70;
 
@@ -54,6 +55,16 @@ export default async function ReportsPage(props: {
         orderBy: { disciplineId: "asc" },
       })
     : [];
+  const disciplineNameById = new Map(
+    (
+      disciplines.length === 0
+        ? []
+        : await prisma.discipline.findMany({
+            where: { id: { in: disciplines.map((d) => d.disciplineId) }, isActive: true, deletedAt: null },
+            select: { id: true, name: true },
+          })
+    ).map((d) => [d.id, d.name]),
+  );
   const disciplineId = props.searchParams.disciplineId ?? "";
 
   const students =
@@ -148,7 +159,10 @@ export default async function ReportsPage(props: {
               <option value="">Все</option>
               {disciplines.map((d) => (
                 <option key={d.disciplineId} value={d.disciplineId}>
-                  {d.disciplineId}
+                  {formatDisciplineLabel({
+                    disciplineId: d.disciplineId,
+                    disciplineName: disciplineNameById.get(d.disciplineId) ?? null,
+                  })}
                 </option>
               ))}
             </select>
