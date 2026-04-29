@@ -20,6 +20,7 @@ const baseStyle: React.CSSProperties = {
 export function ExitButton(props: {
   disabled?: boolean;
   label?: string;
+  to?: string;
   className?: string;
   style?: React.CSSProperties;
 }) {
@@ -39,6 +40,10 @@ export function ExitButton(props: {
       }}
       onClick={() => {
         if (disabled) return;
+        if (props.to && props.to.trim().length > 0) {
+          router.push(props.to);
+          return;
+        }
         // Go to previous screen; fallback to home.
         if (typeof window !== "undefined" && window.history.length > 1) {
           router.back();
