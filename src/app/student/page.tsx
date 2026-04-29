@@ -13,6 +13,18 @@ function parseDate(param: string | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function toStartOfDay(d: Date) {
+  const next = new Date(d);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function toEndOfDay(d: Date) {
+  const next = new Date(d);
+  next.setHours(23, 59, 59, 999);
+  return next;
+}
+
 export default async function StudentPage(props: {
   searchParams: {
     view?: string;
@@ -60,8 +72,8 @@ export default async function StudentPage(props: {
   const defaultTo = new Date(now);
   defaultTo.setHours(23, 59, 59, 999);
 
-  const from = parseDate(props.searchParams.from) ?? defaultFrom;
-  const to = parseDate(props.searchParams.to) ?? defaultTo;
+  const from = toStartOfDay(parseDate(props.searchParams.from) ?? defaultFrom);
+  const to = toEndOfDay(parseDate(props.searchParams.to) ?? defaultTo);
 
   // Find sessions in period for this student's group, then join attendances.
   const sessions = await prisma.classSession.findMany({
