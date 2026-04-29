@@ -106,7 +106,8 @@ export default async function HomePage() {
             const isActive = effective === "active";
             const isReadOnly = effective === "finished" || effective === "auto_closed" || effective === "cancelled";
 
-            const statusLabel = isFilled ? "Журнал заполнен" : isActive ? "Требуется заполнение" : null;
+            const hasSavedAttendance = markedCount > 0;
+            const statusLabel = isActive ? (hasSavedAttendance ? "Заполнено" : "Требуется заполнение") : isFilled ? "Заполнено" : null;
 
             const CardInner = (
               <div
@@ -130,7 +131,9 @@ export default async function HomePage() {
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontWeight: 900 }}>{formatClassSessionStatusLabel(effective)}</div>
                     {statusLabel ? (
-                      <div style={{ marginTop: 6, color: isFilled ? "#16a34a" : "#b45309", fontWeight: 800 }}>{statusLabel}</div>
+                      <div style={{ marginTop: 6, color: hasSavedAttendance || isFilled ? "#16a34a" : "#b45309", fontWeight: 800 }}>
+                        {statusLabel}
+                      </div>
                     ) : null}
                     <div style={{ marginTop: 4, color: "#6b7280" }}>
                       {markedCount}/{totalStudents}

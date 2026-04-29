@@ -29,7 +29,7 @@ export function AppChrome() {
 
   return (
     <div style={{ position: "fixed", top: 16, left: 16, zIndex: 50 }}>
-      <ExitButton label="Назад" to={fallbackPath} />
+      <ExitButton label="Назад" to={fallbackPath} preferTo={pathname.startsWith("/student")} />
     </div>
   );
 }
