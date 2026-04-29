@@ -14,7 +14,7 @@ export function formatClassSessionStatusLabel(status: string) {
   if (s === "finished") return "Занятие завершено";
   if (s === "active") return "Идет занятие";
   if (s === "scheduled") return "Запланировано";
-  if (s === "auto_closed") return "Авто-закрыто";
+  if (s === "auto_closed") return "Только просмотр";
   if (s === "cancelled") return "Отменено";
   return status;
 }

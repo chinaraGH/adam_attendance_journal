@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { saveAttendances } from "./actions";
 import { ExitButton } from "@/components/exit-button";
@@ -16,6 +17,14 @@ const STATUS = {
 
 function isValidTeacherStatus(input: unknown): input is (typeof STATUS)[keyof typeof STATUS] {
   return input === STATUS.P || input === STATUS.O || input === STATUS.NB || input === STATUS.B;
+}
+
+function normalizeToTeacherStatus(input: unknown): (typeof STATUS)[keyof typeof STATUS] | null {
+  if (typeof input !== "string") return null;
+  const normalized = input.trim().toUpperCase();
+  if (normalized === "B_PENDING" || normalized === "B_CONFIRMED" || normalized === "B") return STATUS.B;
+  if (normalized === STATUS.P || normalized === STATUS.O || normalized === STATUS.NB) return normalized;
+  return null;
 }
 
 function getButtonStyle(params: { kind: "p" | "o" | "nb" | "b"; isActive: boolean }) {
@@ -48,6 +57,7 @@ export function AttendanceClient(props: {
   readOnly?: boolean;
 }) {
   const { students, initialStatusByStudentId, classSessionId, readOnly } = props;
+  const router = useRouter();
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string>("");
@@ -55,13 +65,8 @@ export function AttendanceClient(props: {
   const [statusByStudentId, setStatusByStudentId] = useState<Record<string, string | null>>(() => {
     const next: Record<string, string | null> = {};
     for (const s of students) {
-      const initial = initialStatusByStudentId[s.id];
-      const normalized = typeof initial === "string" ? initial.trim().toUpperCase() : null;
-      if (normalized && isValidTeacherStatus(normalized)) {
-        next[s.id] = normalized;
-      } else {
-        next[s.id] = null;
-      }
+      const normalized = normalizeToTeacherStatus(initialStatusByStudentId[s.id]);
+      next[s.id] = normalized;
     }
     return next;
   });
@@ -87,7 +92,7 @@ export function AttendanceClient(props: {
     return false;
   }, [statusByStudentId, students]);
 
-  const isLogoutDisabled = !readOnly && (isSaving || isDirty);
+  const isLogoutDisabled = !!readOnly || isSaving || isDirty;
 
   function setStatus(studentId: string, status: string) {
     setSaveMessage("");
@@ -114,6 +119,11 @@ export function AttendanceClient(props: {
           setSaveMessage(msg);
           initialSnapshotRef.current = snapshot;
           console.log(msg);
+          if (typeof window !== "undefined" && window.history.length > 1) {
+            router.back();
+          } else {
+            router.push("/");
+          }
         } else {
           setErrorMessage(result.error);
           console.log(result.error);
@@ -242,7 +252,6 @@ export function AttendanceClient(props: {
         >
           {isSaving ? "Сохранение..." : "Сохранить"}
         </button>
-        <ExitButton disabled={isLogoutDisabled} />
         <div style={{ color: "#374151", fontWeight: 600 }}>
           {remainingCount > 0 ? `Осталось отметить: ${remainingCount}` : "Все студенты отмечены"}
         </div>

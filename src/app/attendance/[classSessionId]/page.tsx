@@ -117,7 +117,6 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
           <div style={{ color: "#374151", fontWeight: 900, fontSize: 16, marginTop: 2 }}>{session.group.name}</div>
           <div style={{ color: "#6b7280", marginTop: 4 }}>
             Статус: <span style={{ fontWeight: 800 }}>{formatClassSessionStatusLabel(effective)}</span>
-            {isReadOnly ? " (только просмотр)" : ""}
           </div>
           {session.semester?.isLocked ? (
             <div style={{ marginTop: 6, color: "#991b1b", fontWeight: 900 }}>
