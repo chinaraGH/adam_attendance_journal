@@ -23,6 +23,32 @@ const COLORS = [
   "#b45309",
 ];
 
+/** Как у кнопки «Назад» в `ExitButton`. */
+const outlineNavStyle: React.CSSProperties = {
+  appearance: "none",
+  border: "1px solid #111827",
+  borderRadius: 12,
+  padding: "10px 12px",
+  fontWeight: 900,
+  fontFamily: "inherit",
+  fontSize: "inherit",
+  lineHeight: "inherit",
+  textDecoration: "none",
+  color: "#111827",
+  background: "white",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+};
+
+const primaryBuildStyle: React.CSSProperties = {
+  ...outlineNavStyle,
+  background: "#111827",
+  color: "white",
+  borderColor: "#111827",
+};
+
 type Series = { id: string; label: string; points: (number | null)[] };
 
 function parseSeriesKey(id: string): { prefix: string; course: number } | null {
@@ -31,6 +57,36 @@ function parseSeriesKey(id: string): { prefix: string; course: number } | null {
   const course = Number(id.slice(i + 3));
   if (!Number.isFinite(course)) return null;
   return { prefix: id.slice(0, i), course };
+}
+
+function applyDateSlice(
+  weekKeys: string[],
+  weekLabels: string[],
+  series: Series[],
+  fromIso: string,
+  toIso: string,
+): { weekLabels: string[]; series: Series[] } {
+  if (weekKeys.length === 0) {
+    return { weekLabels: [], series: series.map((s) => ({ ...s, points: [] })) };
+  }
+  let from = (fromIso || weekKeys[0]).trim();
+  let to = (toIso || weekKeys[weekKeys.length - 1]).trim();
+  if (from > to) {
+    const t = from;
+    from = to;
+    to = t;
+  }
+  const start = weekKeys.findIndex((k) => k >= from);
+  if (start < 0) {
+    return { weekLabels: [], series: series.map((s) => ({ ...s, points: [] })) };
+  }
+  let end = start;
+  for (let i = start; i < weekKeys.length; i++) {
+    if (weekKeys[i] <= to) end = i;
+  }
+  const wl = weekLabels.slice(start, end + 1);
+  const sr = series.map((s) => ({ ...s, points: s.points.slice(start, end + 1) }));
+  return { weekLabels: wl, series: sr };
 }
 
 function LineChartBlock(props: { title: string; weekLabels: string[]; series: Series[]; emptyHint: string | null }) {
@@ -49,9 +105,9 @@ function LineChartBlock(props: { title: string; weekLabels: string[]; series: Se
 
   if (n === 0) {
     return (
-      <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-        <h2 className="text-lg font-black text-gray-900">{title}</h2>
-        <p className="mt-3 text-sm text-gray-600">{emptyHint ?? "Нет данных для графика."}</p>
+      <section style={{ marginTop: 16, borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
+        <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0 }}>{title}</h2>
+        <p style={{ marginTop: 12, fontSize: 14, color: "#6b7280" }}>{emptyHint ?? "Нет данных для графика в выбранном диапазоне дат."}</p>
       </section>
     );
   }
@@ -59,22 +115,15 @@ function LineChartBlock(props: { title: string; weekLabels: string[]; series: Se
   const gridYs = [0, 25, 50, 75, 100];
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <h2 className="text-lg font-black text-gray-900">{title}</h2>
-      {emptyHint ? <p className="mt-1 text-sm text-amber-800">{emptyHint}</p> : null}
+    <section style={{ marginTop: 16, borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
+      <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0 }}>{title}</h2>
+      {emptyHint ? <p style={{ marginTop: 6, fontSize: 14, color: "#92400e" }}>{emptyHint}</p> : null}
 
-      <div className="mt-4 w-full overflow-x-auto">
-        <svg viewBox={`0 0 ${W} ${H}`} className="h-[min(360px,70vw)] w-full min-w-[520px]" preserveAspectRatio="xMidYMid meet">
+      <div style={{ marginTop: 16, width: "100%", overflowX: "auto" }}>
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ height: "min(360px, 70vw)", width: "100%", minWidth: 520 }} preserveAspectRatio="xMidYMid meet">
           {gridYs.map((g) => (
             <g key={g}>
-              <line
-                x1={padL}
-                y1={yAt(g)}
-                x2={W - padR}
-                y2={yAt(g)}
-                stroke="#e5e7eb"
-                strokeWidth={g === 0 || g === 100 ? 1.5 : 1}
-              />
+              <line x1={padL} y1={yAt(g)} x2={W - padR} y2={yAt(g)} stroke="#e5e7eb" strokeWidth={g === 0 || g === 100 ? 1.5 : 1} />
               <text x={8} y={yAt(g) + 4} fontSize={12} fill="#6b7280" fontWeight={700}>
                 {g}%
               </text>
@@ -132,103 +181,233 @@ function LineChartBlock(props: { title: string; weekLabels: string[]; series: Se
       </div>
 
       {series.length > 0 ? (
-        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-gray-100 pt-3 text-xs font-bold text-gray-800">
+        <div
+          style={{
+            marginTop: 16,
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "8px 16px",
+            borderTop: "1px solid #f3f4f6",
+            paddingTop: 12,
+            fontSize: 12,
+            fontWeight: 700,
+            color: "#111827",
+          }}
+        >
           {series.map((s, si) => (
-            <span key={s.id} className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-2 w-3 rounded-sm" style={{ background: COLORS[si % COLORS.length] }} />
+            <span key={s.id} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span style={{ display: "inline-block", height: 8, width: 12, borderRadius: 2, background: COLORS[si % COLORS.length] }} />
               {s.label}
             </span>
           ))}
         </div>
       ) : (
-        <p className="mt-3 text-sm text-gray-600">Нет рядов для отображения — выберите фильтры или проверьте данные.</p>
+        <p style={{ marginTop: 12, fontSize: 14, color: "#6b7280" }}>Нет рядов — выберите фильтры или расширьте диапазон дат.</p>
       )}
     </section>
   );
 }
 
-function CheckboxGrid(props: {
-  title: string;
+function useDropdownClose(open: boolean, setOpen: (v: boolean) => void) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!open) return;
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [open, setOpen]);
+  return ref;
+}
+
+function MultiSelectDropdown(props: {
+  label: string;
   options: AcadepartmentFilterOption[];
   selectedIds: Set<string>;
   onToggle: (id: string) => void;
   onSelectAll: () => void;
   onClear: () => void;
 }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = useDropdownClose(open, setOpen);
+
   if (props.options.length === 0) {
-    return <p className="text-sm text-gray-500">{props.title}: нет вариантов в данных.</p>;
+    return <p style={{ fontSize: 14, color: "#6b7280" }}>{props.label}: нет вариантов в данных.</p>;
   }
+
+  const n = props.selectedIds.size;
+  const summary =
+    n === 0 ? "ничего не выбрано" : n === props.options.length ? `все (${n})` : `выбрано: ${n}`;
+
   return (
-    <div className="grid gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-black text-gray-800">{props.title}</span>
-        <button
-          type="button"
-          className="text-xs font-bold text-blue-700 underline"
-          onClick={props.onSelectAll}
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        style={{
+          ...outlineNavStyle,
+          width: "100%",
+          justifyContent: "space-between",
+          textAlign: "left",
+          cursor: "pointer",
+        }}
+      >
+        <span>
+          {props.label}: {summary}
+        </span>
+        <span style={{ marginLeft: 8, opacity: 0.7 }}>{open ? "▲" : "▼"}</span>
+      </button>
+      {open ? (
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            zIndex: 40,
+            marginTop: 6,
+            maxHeight: 280,
+            overflowY: "auto",
+            borderRadius: 12,
+            border: "1px solid #e5e7eb",
+            background: "white",
+            boxShadow: "0 10px 40px rgba(15, 23, 42, 0.12)",
+            padding: 12,
+          }}
         >
-          все
-        </button>
-        <button type="button" className="text-xs font-bold text-gray-600 underline" onClick={props.onClear}>
-          снять
-        </button>
-      </div>
-      <div className="flex max-h-36 flex-wrap gap-x-4 gap-y-2 overflow-y-auto rounded-lg border border-gray-100 bg-gray-50/80 p-3">
-        {props.options.map((o) => (
-          <label key={o.id} className="inline-flex cursor-pointer items-center gap-2 text-sm font-bold text-gray-800">
-            <input
-              type="checkbox"
-              checked={props.selectedIds.has(o.id)}
-              onChange={() => props.onToggle(o.id)}
-              className="h-4 w-4 rounded border-gray-400"
-            />
-            {o.name}
-          </label>
-        ))}
-      </div>
+          <div style={{ display: "flex", gap: 12, marginBottom: 10, fontSize: 12, fontWeight: 800 }}>
+            <button type="button" style={{ background: "none", border: "none", color: "#2563eb", cursor: "pointer", padding: 0 }} onClick={props.onSelectAll}>
+              все
+            </button>
+            <button type="button" style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", padding: 0 }} onClick={props.onClear}>
+              снять
+            </button>
+          </div>
+          <div style={{ display: "grid", gap: 10 }}>
+            {props.options.map((o) => (
+              <label
+                key={o.id}
+                style={{
+                  display: "flex",
+                  cursor: "pointer",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: "#111827",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={props.selectedIds.has(o.id)}
+                  onChange={() => props.onToggle(o.id)}
+                  style={{ marginTop: 2, width: 16, height: 16 }}
+                />
+                <span>{o.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function CourseCheckboxes(props: {
+function CourseMultiSelectDropdown(props: {
   courses: number[];
   selected: Set<number>;
   onToggle: (c: number) => void;
   onSelectAll: () => void;
   onClear: () => void;
 }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = useDropdownClose(open, setOpen);
+
   if (props.courses.length === 0) {
-    return <p className="text-sm text-gray-500">Курсы: нет в данных.</p>;
+    return <p style={{ fontSize: 14, color: "#6b7280" }}>Курсы: нет в данных.</p>;
   }
+
+  const n = props.selected.size;
+  const summary =
+    n === 0 ? "ничего не выбрано" : n === props.courses.length ? `все (${n})` : `выбрано: ${n}`;
+
   return (
-    <div className="grid gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-black text-gray-800">Курс</span>
-        <button type="button" className="text-xs font-bold text-blue-700 underline" onClick={props.onSelectAll}>
-          все
-        </button>
-        <button type="button" className="text-xs font-bold text-gray-600 underline" onClick={props.onClear}>
-          снять
-        </button>
-      </div>
-      <div className="flex flex-wrap gap-3 rounded-lg border border-gray-100 bg-gray-50/80 p-3">
-        {props.courses.map((c) => (
-          <label key={c} className="inline-flex cursor-pointer items-center gap-2 text-sm font-bold text-gray-800">
-            <input
-              type="checkbox"
-              checked={props.selected.has(c)}
-              onChange={() => props.onToggle(c)}
-              className="h-4 w-4 rounded border-gray-400"
-            />
-            {c}
-          </label>
-        ))}
-      </div>
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        style={{
+          ...outlineNavStyle,
+          width: "100%",
+          justifyContent: "space-between",
+          textAlign: "left",
+          cursor: "pointer",
+        }}
+      >
+        <span>
+          Курс: {summary}
+        </span>
+        <span style={{ marginLeft: 8, opacity: 0.7 }}>{open ? "▲" : "▼"}</span>
+      </button>
+      {open ? (
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            zIndex: 40,
+            marginTop: 6,
+            borderRadius: 12,
+            border: "1px solid #e5e7eb",
+            background: "white",
+            boxShadow: "0 10px 40px rgba(15, 23, 42, 0.12)",
+            padding: 12,
+          }}
+        >
+          <div style={{ display: "flex", gap: 12, marginBottom: 10, fontSize: 12, fontWeight: 800 }}>
+            <button type="button" style={{ background: "none", border: "none", color: "#2563eb", cursor: "pointer", padding: 0 }} onClick={props.onSelectAll}>
+              все
+            </button>
+            <button type="button" style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", padding: 0 }} onClick={props.onClear}>
+              снять
+            </button>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+            {props.courses.map((c) => (
+              <label
+                key={c}
+                style={{ display: "inline-flex", cursor: "pointer", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 800, color: "#111827" }}
+              >
+                <input
+                  type="checkbox"
+                  checked={props.selected.has(c)}
+                  onChange={() => props.onToggle(c)}
+                  style={{ width: 16, height: 16 }}
+                />
+                {c}
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
+const dateLabelStyle: React.CSSProperties = { display: "grid", gap: 6, fontWeight: 800, fontSize: 14, color: "#374151" };
+const dateInputStyle: React.CSSProperties = {
+  border: "1px solid #d1d5db",
+  borderRadius: 12,
+  padding: "10px 12px",
+  fontWeight: 700,
+  fontSize: 14,
+  color: "#111827",
+};
+
 export function AcadepartmentChartsWithFilters(props: {
+  weekKeys: string[];
   weekLabels: string[];
   emptyHint: string | null;
   facultyCourseSeries: Series[];
@@ -236,13 +415,34 @@ export function AcadepartmentChartsWithFilters(props: {
   facultyOptions: AcadepartmentFilterOption[];
   programOptions: AcadepartmentFilterOption[];
   courseOptions: number[];
+  semesterStartIso: string | null;
+  semesterEndIso: string | null;
 }) {
-  const { facultyOptions, programOptions, courseOptions } = props;
+  const {
+    facultyOptions,
+    programOptions,
+    courseOptions,
+    weekKeys,
+    weekLabels,
+    semesterStartIso,
+    semesterEndIso,
+  } = props;
+
+  const defaultFrom = semesterStartIso ?? "";
+  const defaultTo = semesterEndIso ?? "";
 
   const [facSelected, setFacSelected] = React.useState<Set<string>>(() => new Set(facultyOptions.map((f) => f.id)));
   const [progSelected, setProgSelected] = React.useState<Set<string>>(() => new Set(programOptions.map((p) => p.id)));
   const [fcCourses, setFcCourses] = React.useState<Set<number>>(() => new Set(courseOptions));
   const [pcCourses, setPcCourses] = React.useState<Set<number>>(() => new Set(courseOptions));
+
+  const [fcFrom, setFcFrom] = React.useState(defaultFrom);
+  const [fcTo, setFcTo] = React.useState(defaultTo);
+  const [pcFrom, setPcFrom] = React.useState(defaultFrom);
+  const [pcTo, setPcTo] = React.useState(defaultTo);
+
+  const [showFacultyChart, setShowFacultyChart] = React.useState(false);
+  const [showProgramChart, setShowProgramChart] = React.useState(false);
 
   React.useEffect(() => {
     setFacSelected(new Set(facultyOptions.map((f) => f.id)));
@@ -257,7 +457,16 @@ export function AcadepartmentChartsWithFilters(props: {
     setPcCourses(new Set(courseOptions));
   }, [courseOptions]);
 
-  const chart1 = React.useMemo(() => {
+  React.useEffect(() => {
+    const f = semesterStartIso ?? "";
+    const t = semesterEndIso ?? "";
+    setFcFrom(f);
+    setFcTo(t);
+    setPcFrom(f);
+    setPcTo(t);
+  }, [semesterStartIso, semesterEndIso]);
+
+  const chart1SeriesFiltered = React.useMemo(() => {
     return props.facultyCourseSeries.filter((s) => {
       const p = parseSeriesKey(s.id);
       if (!p) return false;
@@ -265,13 +474,23 @@ export function AcadepartmentChartsWithFilters(props: {
     });
   }, [props.facultyCourseSeries, facSelected, fcCourses]);
 
-  const chart2 = React.useMemo(() => {
+  const chart2SeriesFiltered = React.useMemo(() => {
     return props.programCourseSeries.filter((s) => {
       const p = parseSeriesKey(s.id);
       if (!p) return false;
       return progSelected.has(p.prefix) && pcCourses.has(p.course);
     });
   }, [props.programCourseSeries, progSelected, pcCourses]);
+
+  const chart1Display = React.useMemo(
+    () => applyDateSlice(weekKeys, weekLabels, chart1SeriesFiltered, fcFrom, fcTo),
+    [weekKeys, weekLabels, chart1SeriesFiltered, fcFrom, fcTo],
+  );
+
+  const chart2Display = React.useMemo(
+    () => applyDateSlice(weekKeys, weekLabels, chart2SeriesFiltered, pcFrom, pcTo),
+    [weekKeys, weekLabels, chart2SeriesFiltered, pcFrom, pcTo],
+  );
 
   const toggleFac = (id: string) => {
     setFacSelected((prev) => {
@@ -309,81 +528,171 @@ export function AcadepartmentChartsWithFilters(props: {
     });
   };
 
+  const hint =
+    props.emptyHint ??
+    (weekKeys.length === 0 ? "Нет недельного интервала для графика в текущем семестре." : null);
+
   return (
-    <div className="grid gap-10">
-      <div className="grid gap-4">
-        <div className="grid gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-sm font-black text-gray-900">Фильтры первой диаграммы (факультет и курс)</div>
-          <CheckboxGrid
-            title="Факультет"
+    <div style={{ display: "grid", gap: 28 }}>
+      <div
+        style={{
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 16,
+          background: "white",
+        }}
+      >
+        <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 14 }}>Диаграмма: факультеты и курсы</div>
+
+        <div style={{ display: "grid", gap: 14 }}>
+          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+            <label style={dateLabelStyle}>
+              С
+              <input
+                type="date"
+                value={fcFrom}
+                min={semesterStartIso ?? undefined}
+                max={semesterEndIso ?? undefined}
+                onChange={(e) => setFcFrom(e.target.value)}
+                style={dateInputStyle}
+              />
+            </label>
+            <label style={dateLabelStyle}>
+              По
+              <input
+                type="date"
+                value={fcTo}
+                min={semesterStartIso ?? undefined}
+                max={semesterEndIso ?? undefined}
+                onChange={(e) => setFcTo(e.target.value)}
+                style={dateInputStyle}
+              />
+            </label>
+          </div>
+
+          <MultiSelectDropdown
+            label="Факультеты"
             options={facultyOptions}
             selectedIds={facSelected}
             onToggle={toggleFac}
             onSelectAll={() => setFacSelected(new Set(facultyOptions.map((f) => f.id)))}
             onClear={() => setFacSelected(new Set())}
           />
-          <CourseCheckboxes
+
+          <CourseMultiSelectDropdown
             courses={courseOptions}
             selected={fcCourses}
             onToggle={toggleFcCourse}
             onSelectAll={() => setFcCourses(new Set(courseOptions))}
             onClear={() => setFcCourses(new Set())}
           />
-        </div>
 
-        <LineChartBlock
-          title="Динамика посещаемости по факультетам и курсам"
-          weekLabels={props.weekLabels}
-          series={chart1}
-          emptyHint={props.emptyHint}
-        />
+          <div>
+            <button type="button" style={primaryBuildStyle} onClick={() => setShowFacultyChart(true)}>
+              Построить
+            </button>
+          </div>
+
+          {!showFacultyChart ? (
+            <p style={{ margin: 0, fontSize: 14, color: "#6b7280", fontWeight: 600 }}>
+              Диаграмма скрыта. Настройте фильтры и нажмите «Построить».
+            </p>
+          ) : (
+            <LineChartBlock
+              title="Динамика посещаемости по факультетам и курсам"
+              weekLabels={chart1Display.weekLabels}
+              series={chart1Display.series}
+              emptyHint={hint}
+            />
+          )}
+        </div>
       </div>
 
-      <div className="grid gap-4">
-        <div className="grid gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-sm font-black text-gray-900">Фильтры второй диаграммы (направление и курс)</div>
-          <CheckboxGrid
-            title="Направление"
+      <div
+        style={{
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 16,
+          background: "white",
+        }}
+      >
+        <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 14 }}>Диаграмма: направления и курсы</div>
+
+        <div style={{ display: "grid", gap: 14 }}>
+          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+            <label style={dateLabelStyle}>
+              С
+              <input
+                type="date"
+                value={pcFrom}
+                min={semesterStartIso ?? undefined}
+                max={semesterEndIso ?? undefined}
+                onChange={(e) => setPcFrom(e.target.value)}
+                style={dateInputStyle}
+              />
+            </label>
+            <label style={dateLabelStyle}>
+              По
+              <input
+                type="date"
+                value={pcTo}
+                min={semesterStartIso ?? undefined}
+                max={semesterEndIso ?? undefined}
+                onChange={(e) => setPcTo(e.target.value)}
+                style={dateInputStyle}
+              />
+            </label>
+          </div>
+
+          <MultiSelectDropdown
+            label="Направления"
             options={programOptions}
             selectedIds={progSelected}
             onToggle={toggleProg}
             onSelectAll={() => setProgSelected(new Set(programOptions.map((p) => p.id)))}
             onClear={() => setProgSelected(new Set())}
           />
-          <CourseCheckboxes
+
+          <CourseMultiSelectDropdown
             courses={courseOptions}
             selected={pcCourses}
             onToggle={togglePcCourse}
             onSelectAll={() => setPcCourses(new Set(courseOptions))}
             onClear={() => setPcCourses(new Set())}
           />
-        </div>
 
-        <LineChartBlock
-          title="Динамика посещаемости по направлениям подготовки и курсам"
-          weekLabels={props.weekLabels}
-          series={chart2}
-          emptyHint={props.emptyHint}
-        />
+          <div>
+            <button type="button" style={primaryBuildStyle} onClick={() => setShowProgramChart(true)}>
+              Построить
+            </button>
+          </div>
+
+          {!showProgramChart ? (
+            <p style={{ margin: 0, fontSize: 14, color: "#6b7280", fontWeight: 600 }}>
+              Диаграмма скрыта. Настройте фильтры и нажмите «Построить».
+            </p>
+          ) : (
+            <LineChartBlock
+              title="Динамика посещаемости по направлениям подготовки и курсам"
+              weekLabels={chart2Display.weekLabels}
+              series={chart2Display.series}
+              emptyHint={hint}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-/** Кнопки навигации (вид кнопок, не текстовые ссылки). */
+/** Кнопки навигации в стиле «Назад» (`ExitButton`). */
 export function AcadepartmentNavButtons() {
   return (
-    <div className="flex flex-wrap gap-2">
-      <Link
-        href="/acadepartment/ratings"
-        className="inline-flex items-center justify-center rounded-lg border-2 border-gray-900 bg-gray-900 px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-gray-800"
-      >
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      <Link href="/acadepartment/ratings" style={outlineNavStyle}>
         Рейтинг
       </Link>
-      <Link
-        href="/admin/semester"
-        className="inline-flex items-center justify-center rounded-lg border-2 border-gray-900 bg-white px-5 py-2.5 text-sm font-black text-gray-900 shadow-sm transition hover:bg-gray-50"
-      >
+      <Link href="/admin/semester" style={outlineNavStyle}>
         Семестр
       </Link>
     </div>

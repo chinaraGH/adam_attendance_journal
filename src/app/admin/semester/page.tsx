@@ -1,13 +1,16 @@
-import Link from "next/link";
-
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { getAllSemesters, getCurrentSemester, lockSemester, upsertSemester } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 function toDateInputValue(d: Date) {
-  // YYYY-MM-DD
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+
+function formatSemesterDateRu(d: Date) {
+  return d.toLocaleDateString("ru-RU", { timeZone: "UTC" });
 }
 
 export default async function SemesterAdminPage() {
@@ -134,8 +137,8 @@ export default async function SemesterAdminPage() {
               {semesters.map((s) => (
                 <tr key={s.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
                   <td style={{ padding: "10px 8px", fontWeight: 900 }}>{s.name ?? "—"}</td>
-                  <td style={{ padding: "10px 8px" }}>{new Date(s.startDate).toLocaleDateString("ru-RU")}</td>
-                  <td style={{ padding: "10px 8px" }}>{new Date(s.endDate).toLocaleDateString("ru-RU")}</td>
+                  <td style={{ padding: "10px 8px" }}>{formatSemesterDateRu(new Date(s.startDate))}</td>
+                  <td style={{ padding: "10px 8px" }}>{formatSemesterDateRu(new Date(s.endDate))}</td>
                   <td style={{ padding: "10px 8px" }}>{s.isLocked ? "Да" : "Нет"}</td>
                 </tr>
               ))}

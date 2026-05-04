@@ -1,8 +1,20 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { lockSemesterAndConvertPendingToNb } from "@/lib/semester/lock-semester";
+
+/** Календарная дата из поля type=date (YYYY-MM-DD) → UTC 00:00 этой даты, без сдвига при отображении через timeZone: UTC. */
+function parseYmdToUtcDate(ymd: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd.trim());
+  if (!m) throw new Error("Некорректная дата.");
+  const y = Number(m[1]);
+  const mo = Number(m[2]) - 1;
+  const d = Number(m[3]);
+  return new Date(Date.UTC(y, mo, d, 0, 0, 0, 0));
+}
 
 async function requireAcademicOffice() {
   const actor = await getCurrentUserOrRedirect();
@@ -50,8 +62,8 @@ export async function upsertSemester(formData: FormData) {
   if (typeof startDate !== "string" || !startDate) throw new Error("startDate is required");
   if (typeof endDate !== "string" || !endDate) throw new Error("endDate is required");
 
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const start = parseYmdToUtcDate(startDate);
+  const end = parseYmdToUtcDate(endDate);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) throw new Error("Некорректные даты.");
 
   const row = semesterId
@@ -77,6 +89,8 @@ export async function upsertSemester(formData: FormData) {
     },
     select: { id: true },
   });
+
+  revalidatePath("/admin/semester");
 }
 
 export async function lockSemester(formData: FormData) {
@@ -93,5 +107,7 @@ export async function lockSemester(formData: FormData) {
     nowBishkekIso: new Date().toISOString(),
     reason: "manual",
   });
+
+  revalidatePath("/admin/semester");
 }
 

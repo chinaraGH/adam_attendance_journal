@@ -14,9 +14,9 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "ADMIN" && actor.role !== "ACADEMIC_OFFICE") {
     return (
-      <main className="mx-auto max-w-[1000px] p-6">
-        <h1 className="text-2xl font-black">Учебная часть</h1>
-        <p className="mt-3 text-sm text-gray-600">Недостаточно прав.</p>
+      <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
+        <h1 style={{ fontSize: 28, fontWeight: 900 }}>Учебная часть</h1>
+        <p style={{ marginTop: 12, fontSize: 14, color: "#6b7280", fontWeight: 600 }}>Недостаточно прав.</p>
       </main>
     );
   }
@@ -97,27 +97,41 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
   }
 
   return (
-    <main className="mx-auto max-w-[1100px] p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
         <div>
-          <h1 className="text-2xl font-black text-gray-900">Учебная часть</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Семестр: <span className="font-bold">{charts.semesterName ?? "—"}</span>
+          <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0, color: "#111827" }}>Учебная часть</h1>
+          <p style={{ marginTop: 8, fontSize: 14, color: "#6b7280", fontWeight: 600 }}>
+            Семестр: <span style={{ fontWeight: 800, color: "#111827" }}>{charts.semesterName ?? "—"}</span>
             {" · "}
             GAUDI:{" "}
-            <span className="font-bold">{gaudiLastSuccess ? new Date(gaudiLastSuccess.createdAt).toLocaleString("ru-RU") : "—"}</span>
+            <span style={{ fontWeight: 800, color: "#111827" }}>
+              {gaudiLastSuccess ? new Date(gaudiLastSuccess.createdAt).toLocaleString("ru-RU") : "—"}
+            </span>
           </p>
         </div>
         <AcadepartmentNavButtons />
       </div>
 
-      <div className="mt-8">
+      <div style={{ marginTop: 20 }}>
         {charts.emptyMessage ? (
-          <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
+          <p
+            style={{
+              marginBottom: 16,
+              borderRadius: 12,
+              border: "1px solid #fde68a",
+              background: "#fffbeb",
+              padding: "12px 16px",
+              fontSize: 14,
+              fontWeight: 800,
+              color: "#92400e",
+            }}
+          >
             {charts.emptyMessage}
           </p>
         ) : null}
         <AcadepartmentChartsWithFilters
+          weekKeys={charts.weekKeys}
           weekLabels={charts.weekLabels}
           emptyHint={null}
           facultyCourseSeries={charts.facultyCourse}
@@ -125,69 +139,113 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
           facultyOptions={charts.facultyOptions}
           programOptions={charts.programOptions}
           courseOptions={charts.courseOptions}
+          semesterStartIso={charts.semesterStartIso}
+          semesterEndIso={charts.semesterEndIso}
         />
       </div>
 
-      <section className="mt-12 border-t border-gray-200 pt-10">
-        <h2 className="text-lg font-black text-gray-900">Поиск</h2>
-        <form className="mt-4 flex flex-wrap gap-2">
+      <section style={{ marginTop: 36, borderTop: "1px solid #e5e7eb", paddingTop: 28 }}>
+        <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0, color: "#111827" }}>Поиск</h2>
+        <form style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: 8 }}>
           <input
             name="q"
             defaultValue={q}
             placeholder="ФИО / код / ID"
-            className="min-w-[260px] flex-1 rounded-lg border border-gray-300 px-3 py-2 font-bold"
+            style={{
+              minWidth: 260,
+              flex: 1,
+              borderRadius: 12,
+              border: "1px solid #d1d5db",
+              padding: "10px 12px",
+              fontWeight: 700,
+              fontSize: 14,
+            }}
           />
-          <button type="submit" className="rounded-lg border border-gray-900 bg-gray-900 px-3 py-2 text-sm font-black text-white">
+          <button
+            type="submit"
+            style={{
+              borderRadius: 12,
+              border: "1px solid #111827",
+              background: "#111827",
+              color: "white",
+              padding: "10px 16px",
+              fontSize: 14,
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
             Найти
           </button>
         </form>
 
         {q.length === 0 ? (
-          <div className="mt-4 text-sm text-gray-600">Введите запрос: студент / преподаватель / группа.</div>
+          <div style={{ marginTop: 16, fontSize: 14, color: "#6b7280", fontWeight: 600 }}>Введите запрос: студент / преподаватель / группа.</div>
         ) : (
-          <div className="mt-5 grid gap-4">
-            <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <div className="font-black">Студенты</div>
+          <div style={{ marginTop: 20, display: "grid", gap: 16 }}>
+            <section style={{ borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
+              <div style={{ fontWeight: 900 }}>Студенты</div>
               {students.length === 0 ? (
-                <div className="mt-2 text-sm text-gray-600">Нет результатов.</div>
+                <div style={{ marginTop: 8, fontSize: 14, color: "#6b7280" }}>Нет результатов.</div>
               ) : (
-                <ul className="mt-2 grid gap-2">
+                <ul style={{ marginTop: 12, display: "grid", gap: 8, padding: 0, listStyle: "none" }}>
                   {students.map((s) => (
-                    <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-100 p-3">
+                    <li
+                      key={s.id}
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        borderRadius: 12,
+                        border: "1px solid #f3f4f6",
+                        padding: 12,
+                      }}
+                    >
                       <div>
-                        <div className="font-black">
-                          <Link className="text-blue-800 underline" href={`/admin/students/${s.id}`}>
+                        <div style={{ fontWeight: 900 }}>
+                          <Link style={{ color: "#1e40af", fontWeight: 900 }} href={`/admin/students/${s.id}`}>
                             {s.name}
                           </Link>
-                          <span className="ml-2 text-xs font-black text-blue-700">
+                          <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 900, color: "#1d4ed8" }}>
                             Б*: {sickCountByStudent.get(s.id) ?? 0}
                           </span>
                         </div>
-                        <div className="text-sm text-gray-600">
+                        <div style={{ marginTop: 4, fontSize: 14, color: "#6b7280" }}>
                           {s.gaudiId} •{" "}
-                          <Link className="font-bold text-blue-800 underline" href={`/admin/groups/${s.group.id}`}>
+                          <Link style={{ fontWeight: 800, color: "#1e40af" }} href={`/admin/groups/${s.group.id}`}>
                             {s.group.code ?? s.group.name}
                           </Link>
                         </div>
                       </div>
-                      <div className="text-xs text-gray-600">{s.id}</div>
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>{s.id}</div>
                     </li>
                   ))}
                 </ul>
               )}
             </section>
 
-            <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <div className="font-black">Преподаватели</div>
+            <section style={{ borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
+              <div style={{ fontWeight: 900 }}>Преподаватели</div>
               {teachers.length === 0 ? (
-                <div className="mt-2 text-sm text-gray-600">Нет результатов.</div>
+                <div style={{ marginTop: 8, fontSize: 14, color: "#6b7280" }}>Нет результатов.</div>
               ) : (
-                <ul className="mt-2 grid gap-2">
+                <ul style={{ marginTop: 12, display: "grid", gap: 8, padding: 0, listStyle: "none" }}>
                   {teachers.map((t) => (
-                    <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-100 p-3">
-                      <div className="font-black">{t.name}</div>
-                      <div className="text-sm text-gray-600">
-                        {t.gaudiId ?? "—"} • <span className="text-xs">{t.id}</span>
+                    <li
+                      key={t.id}
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        borderRadius: 12,
+                        border: "1px solid #f3f4f6",
+                        padding: 12,
+                      }}
+                    >
+                      <div style={{ fontWeight: 900 }}>{t.name}</div>
+                      <div style={{ fontSize: 14, color: "#6b7280" }}>
+                        {t.gaudiId ?? "—"} • <span style={{ fontSize: 12 }}>{t.id}</span>
                       </div>
                     </li>
                   ))}
@@ -195,20 +253,31 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
               )}
             </section>
 
-            <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <div className="font-black">Группы</div>
+            <section style={{ borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
+              <div style={{ fontWeight: 900 }}>Группы</div>
               {groups.length === 0 ? (
-                <div className="mt-2 text-sm text-gray-600">Нет результатов.</div>
+                <div style={{ marginTop: 8, fontSize: 14, color: "#6b7280" }}>Нет результатов.</div>
               ) : (
-                <ul className="mt-2 grid gap-2">
+                <ul style={{ marginTop: 12, display: "grid", gap: 8, padding: 0, listStyle: "none" }}>
                   {groups.map((g) => (
-                    <li key={g.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-100 p-3">
-                      <div className="font-black">
-                        <Link className="text-blue-800 underline" href={`/admin/groups/${g.id}`}>
+                    <li
+                      key={g.id}
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        borderRadius: 12,
+                        border: "1px solid #f3f4f6",
+                        padding: 12,
+                      }}
+                    >
+                      <div style={{ fontWeight: 900 }}>
+                        <Link style={{ color: "#1e40af", fontWeight: 900 }} href={`/admin/groups/${g.id}`}>
                           {g.name}
                         </Link>
                       </div>
-                      <div className="text-sm text-gray-600">{g.code ?? "—"}</div>
+                      <div style={{ fontSize: 14, color: "#6b7280" }}>{g.code ?? "—"}</div>
                     </li>
                   ))}
                 </ul>

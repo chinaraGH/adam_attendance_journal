@@ -72,10 +72,13 @@ export type AcadepartmentFilterOption = { id: string; name: string };
  * Все ряды «факультет×курс» и «направление×курс» отдаются для фильтрации на клиенте.
  */
 export async function buildAcadepartmentAttendanceCharts(): Promise<{
+  weekKeys: string[];
   weekLabels: string[];
   facultyCourse: AcadepartmentChartSeries[];
   programCourse: AcadepartmentChartSeries[];
   semesterName: string | null;
+  semesterStartIso: string | null;
+  semesterEndIso: string | null;
   emptyMessage: string | null;
   facultyOptions: AcadepartmentFilterOption[];
   programOptions: AcadepartmentFilterOption[];
@@ -84,10 +87,13 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
   const semester = await resolveSemester();
   if (!semester) {
     return {
+      weekKeys: [],
       weekLabels: [],
       facultyCourse: [],
       programCourse: [],
       semesterName: null,
+      semesterStartIso: null,
+      semesterEndIso: null,
       emptyMessage: "В системе нет семестра — графики недоступны.",
       facultyOptions: [],
       programOptions: [],
@@ -146,12 +152,18 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
   const rangeEnd = dfMin([semester.endDate, now]);
   const rangeStart = semester.startDate;
 
+  const semesterStartIso = format(semester.startDate, "yyyy-MM-dd");
+  const semesterEndIso = format(semester.endDate, "yyyy-MM-dd");
+
   if (rangeStart > rangeEnd) {
     return {
+      weekKeys: [],
       weekLabels: [],
       facultyCourse: [],
       programCourse: [],
       semesterName: semester.name,
+      semesterStartIso,
+      semesterEndIso,
       emptyMessage: "Некорректный интервал семестра.",
       facultyOptions: [],
       programOptions: [],
@@ -168,10 +180,13 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
 
   if (weekKeys.length === 0) {
     return {
+      weekKeys: [],
       weekLabels: [],
       facultyCourse: [],
       programCourse: [],
       semesterName: semester.name,
+      semesterStartIso,
+      semesterEndIso,
       emptyMessage: "Нет интервала дат для отображения.",
       facultyOptions: [],
       programOptions: [],
@@ -285,10 +300,13 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
     attendances.length === 0 ? "За семестр пока нет отметок посещаемости для графиков." : null;
 
   return {
+    weekKeys,
     weekLabels,
     facultyCourse,
     programCourse,
     semesterName: semester.name,
+    semesterStartIso,
+    semesterEndIso,
     emptyMessage,
     facultyOptions,
     programOptions,
