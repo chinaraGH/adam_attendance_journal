@@ -41,7 +41,7 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
         <h1 style={{ fontSize: 24, fontWeight: 800 }}>Журнал</h1>
         <p style={{ marginTop: 12 }}>Занятие не найдено.</p>
         <div style={{ marginTop: 12 }}>
-          <ExitButton />
+          <ExitButton to="/" preferTo />
         </div>
       </main>
     );

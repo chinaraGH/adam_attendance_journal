@@ -142,7 +142,7 @@ export function AttendanceClient(props: {
   return (
     <>
       <div style={{ position: "fixed", top: 16, left: 16, zIndex: 50 }}>
-        <ExitButton disabled={isLogoutDisabled} />
+        <ExitButton disabled={isLogoutDisabled} to="/" preferTo />
       </div>
 
       {errorMessage ? (
