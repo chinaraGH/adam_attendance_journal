@@ -152,6 +152,10 @@ export async function saveAttendances(input: {
         const before = existingByStudentId.get(item.studentId) ?? null;
         const beforeStatusV2 = before ? getCanonicalAttendanceStatusV2(before) : null;
 
+        if (actor.role === "TEACHER" && beforeStatusV2 === "A") {
+          continue;
+        }
+
         const decision = decideAttendanceStatusChange({
           actorRole: actor.role,
           isSemesterLocked: Boolean(session.semester?.isLocked),

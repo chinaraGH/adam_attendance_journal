@@ -13,21 +13,30 @@ const STATUS = {
   O: "O",
   NB: "NB",
   B: "B",
+  /** Освобождение (А): только отображение; преподаватель не меняет. */
+  A: "A",
 } as const;
 
 function isValidTeacherStatus(input: unknown): input is (typeof STATUS)[keyof typeof STATUS] {
   return input === STATUS.P || input === STATUS.O || input === STATUS.NB || input === STATUS.B;
 }
 
+/** Отметка «закрыта» для счётчика: выбранные преподавателем статусы или А от куратора. */
+function isFilledAttendanceMark(input: unknown): boolean {
+  if (input === STATUS.A) return true;
+  return isValidTeacherStatus(input);
+}
+
 function normalizeToTeacherStatus(input: unknown): (typeof STATUS)[keyof typeof STATUS] | null {
   if (typeof input !== "string") return null;
   const normalized = input.trim().toUpperCase();
+  if (normalized === "A") return STATUS.A;
   if (normalized === "B_PENDING" || normalized === "B_CONFIRMED" || normalized === "B") return STATUS.B;
   if (normalized === STATUS.P || normalized === STATUS.O || normalized === STATUS.NB) return normalized;
   return null;
 }
 
-function getButtonStyle(params: { kind: "p" | "o" | "nb" | "b"; isActive: boolean }) {
+function getButtonStyle(params: { kind: "p" | "o" | "nb" | "b" | "a"; isActive: boolean }) {
   const { kind, isActive } = params;
 
   const base: React.CSSProperties = {
@@ -47,6 +56,7 @@ function getButtonStyle(params: { kind: "p" | "o" | "nb" | "b"; isActive: boolea
   if (kind === "p") return { ...base, background: "#16a34a", borderColor: "#16a34a", color: "white" }; // green
   if (kind === "o") return { ...base, background: "#f59e0b", borderColor: "#f59e0b", color: "#111827" }; // yellow
   if (kind === "nb") return { ...base, background: "#dc2626", borderColor: "#dc2626", color: "white" }; // red
+  if (kind === "a") return { ...base, background: "#15803d", borderColor: "#15803d", color: "white" }; // А — тёмно-зелёный
   return { ...base, background: "#2563eb", borderColor: "#2563eb", color: "white" }; // blue
 }
 
@@ -78,7 +88,7 @@ export function AttendanceClient(props: {
     let remaining = 0;
     for (const s of students) {
       const v = statusByStudentId[s.id];
-      if (!v || !isValidTeacherStatus(v)) remaining += 1;
+      if (!isFilledAttendanceMark(v)) remaining += 1;
     }
     return remaining;
   }, [statusByStudentId, students]);
@@ -99,6 +109,7 @@ export function AttendanceClient(props: {
     setSaveMessage("");
     setErrorMessage("");
     if (readOnly) return;
+    if (statusByStudentId[studentId] === STATUS.A) return;
     setStatusByStudentId((prev) => ({ ...prev, [studentId]: status }));
   }
 
@@ -106,7 +117,12 @@ export function AttendanceClient(props: {
     const snapshot = { ...statusByStudentId };
     const items = students.map((s) => ({
       studentId: s.id,
-      status: isValidTeacherStatus(snapshot[s.id]) ? (snapshot[s.id] as string) : "",
+      status:
+        snapshot[s.id] === STATUS.A
+          ? STATUS.A
+          : isValidTeacherStatus(snapshot[s.id])
+            ? (snapshot[s.id] as string)
+            : "",
     }));
 
     setIsSaving(true);
@@ -173,6 +189,7 @@ export function AttendanceClient(props: {
       <ul style={{ display: "grid", gap: 12, padding: 0, listStyle: "none" }}>
         {students.map((student, idx) => {
           const current = statusByStudentId[student.id] ?? null;
+          const lockedA = current === STATUS.A;
 
           return (
             <li
@@ -193,11 +210,11 @@ export function AttendanceClient(props: {
                 {idx + 1}. {student.name}
               </div>
 
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                 <button
                   type="button"
                   onClick={() => setStatus(student.id, STATUS.P)}
-                  disabled={isSaving || !!readOnly}
+                  disabled={isSaving || !!readOnly || lockedA}
                   style={getButtonStyle({ kind: "p", isActive: current === STATUS.P })}
                 >
                   П
@@ -206,7 +223,7 @@ export function AttendanceClient(props: {
                 <button
                   type="button"
                   onClick={() => setStatus(student.id, STATUS.O)}
-                  disabled={isSaving || !!readOnly}
+                  disabled={isSaving || !!readOnly || lockedA}
                   style={getButtonStyle({ kind: "o", isActive: current === STATUS.O })}
                 >
                   О
@@ -215,7 +232,7 @@ export function AttendanceClient(props: {
                 <button
                   type="button"
                   onClick={() => setStatus(student.id, STATUS.NB)}
-                  disabled={isSaving || !!readOnly}
+                  disabled={isSaving || !!readOnly || lockedA}
                   style={getButtonStyle({ kind: "nb", isActive: current === STATUS.NB })}
                 >
                   НБ
@@ -224,11 +241,26 @@ export function AttendanceClient(props: {
                 <button
                   type="button"
                   onClick={() => setStatus(student.id, STATUS.B)}
-                  disabled={isSaving || !!readOnly}
+                  disabled={isSaving || !!readOnly || lockedA}
                   style={getButtonStyle({ kind: "b", isActive: current === STATUS.B })}
                 >
                   Б
                 </button>
+
+                {lockedA ? (
+                  <button
+                    type="button"
+                    disabled
+                    title="Освобождение (А) установлено учебной частью; изменить может только куратор."
+                    style={{
+                      ...getButtonStyle({ kind: "a", isActive: true }),
+                      cursor: "not-allowed",
+                      opacity: 1,
+                    }}
+                  >
+                    А
+                  </button>
+                ) : null}
               </div>
             </li>
           );
