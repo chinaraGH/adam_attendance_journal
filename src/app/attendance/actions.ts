@@ -1,5 +1,7 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { prisma } from "@/lib/prisma";
 import { getEffectiveClassSessionStatus } from "@/lib/class-session/effective-status";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
@@ -205,6 +207,10 @@ export async function saveAttendances(input: {
         }
       }
     });
+
+    revalidatePath(`/attendance/${session.id}`);
+    revalidatePath("/attendance");
+    revalidatePath("/");
 
     return { ok: true as const, savedCount: items.length };
   } catch (e) {
