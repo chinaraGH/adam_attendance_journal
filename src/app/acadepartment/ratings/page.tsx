@@ -181,7 +181,7 @@ function Ul(props: { rows: RankRow[]; href: (id: string) => string; empty?: stri
             <Link className="text-blue-800 underline" href={props.href(r.id)}>
               {r.name}
             </Link>
-            {"  "}
+            {" - "}
             <span className="tabular-nums">{formatPctLine(r.pct, r.marks)}</span>
           </div>
         </li>
