@@ -10,14 +10,15 @@ const NAV_PREV_PATH_KEY = "ejp_prev_path";
 
 export function AppChrome() {
   const pathname = usePathname() ?? "";
-  const [fallbackPath, setFallbackPath] = useState("/");
+  const [parentPath, setParentPath] = useState("/");
 
   useEffect(() => {
     if (typeof window === "undefined" || !pathname) return;
     const current = window.sessionStorage.getItem(NAV_CURRENT_PATH_KEY);
-    const prev = window.sessionStorage.getItem(NAV_PREV_PATH_KEY);
-    if (prev && prev !== pathname) setFallbackPath(prev);
-    else setFallbackPath("/");
+    const clean = pathname.endsWith("/") && pathname.length > 1 ? pathname.slice(0, -1) : pathname;
+    const idx = clean.lastIndexOf("/");
+    if (idx <= 0) setParentPath("/");
+    else setParentPath(clean.slice(0, idx));
     if (current !== pathname) {
       if (current) window.sessionStorage.setItem(NAV_PREV_PATH_KEY, current);
       window.sessionStorage.setItem(NAV_CURRENT_PATH_KEY, pathname);
@@ -33,8 +34,8 @@ export function AppChrome() {
     <div style={{ position: "fixed", top: 16, left: 16, zIndex: 50 }}>
       <ExitButton
         label="Назад"
-        to={curatorExemptionsGroup ? "/curator/exemptions" : fallbackPath}
-        preferTo={pathname.startsWith("/student") || curatorExemptionsGroup}
+        to={curatorExemptionsGroup ? "/curator/exemptions" : parentPath}
+        preferTo
       />
     </div>
   );
