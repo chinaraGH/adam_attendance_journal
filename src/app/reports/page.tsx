@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { formatDisciplineLabel } from "@/lib/ui/labels";
+import { AutoSubmitDateInput, AutoSubmitSelect } from "./auto-submit-filters";
 
 const LOW_ATTENDANCE_THRESHOLD = 70;
 
@@ -133,29 +134,21 @@ export default async function ReportsPage(props: {
 
       <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>
         <div style={{ fontWeight: 900, marginBottom: 10 }}>Фильтры</div>
-        <form style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+        <form method="get" style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
           <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
             Группа
-            <select
-              name="groupId"
-              defaultValue={groupId}
-              style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", fontWeight: 800 }}
-            >
+            <AutoSubmitSelect name="groupId" defaultValue={groupId}>
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
                 </option>
               ))}
-            </select>
+            </AutoSubmitSelect>
           </label>
 
           <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
             Дисциплина
-            <select
-              name="disciplineId"
-              defaultValue={disciplineId}
-              style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", fontWeight: 800 }}
-            >
+            <AutoSubmitSelect name="disciplineId" defaultValue={disciplineId}>
               <option value="">Все</option>
               {disciplines.map((d) => (
                 <option key={d.disciplineId} value={d.disciplineId}>
@@ -165,46 +158,18 @@ export default async function ReportsPage(props: {
                   })}
                 </option>
               ))}
-            </select>
+            </AutoSubmitSelect>
           </label>
 
           <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
             С
-            <input
-              type="date"
-              name="from"
-              defaultValue={toDateInputValue(from)}
-              style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", fontWeight: 800 }}
-            />
+            <AutoSubmitDateInput name="from" defaultValue={toDateInputValue(from)} />
           </label>
 
           <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
             По
-            <input
-              type="date"
-              name="to"
-              defaultValue={toDateInputValue(to)}
-              style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", fontWeight: 800 }}
-            />
+            <AutoSubmitDateInput name="to" defaultValue={toDateInputValue(to)} />
           </label>
-
-          <div style={{ display: "flex", alignItems: "end" }}>
-            <button
-              type="submit"
-              style={{
-                width: "100%",
-                border: "1px solid #111827",
-                background: "#111827",
-                color: "white",
-                padding: "10px 14px",
-                borderRadius: 12,
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              Применить
-            </button>
-          </div>
         </form>
         <div style={{ marginTop: 10, color: "#6b7280", fontWeight: 700 }}>
           Формула: % = (П + О) / всего занятий за период • Порог: {LOW_ATTENDANCE_THRESHOLD}%
