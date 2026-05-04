@@ -1,7 +1,8 @@
 import Link from "next/link";
 
-import { decideSickRequestForm, getCuratorGroupSummary, getPendingSickAttendances, setAForm } from "./actions";
+import { getCuratorGroupSummary, getPendingSickAttendances } from "./actions";
 import { formatDisciplineLabel } from "@/lib/ui/labels";
+import { SickRequestActions } from "./sick-request-actions";
 
 export default async function CuratorDashboardPage() {
   const result = await getPendingSickAttendances();
@@ -11,14 +12,20 @@ export default async function CuratorDashboardPage() {
     <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
         <h1 style={{ fontSize: 28, fontWeight: 900 }}>Кабинет куратора</h1>
-        <div style={{ display: "flex", gap: 12 }}>
-          <Link href="/admin/search" style={{ fontWeight: 800 }}>
-            Поиск студентов
-          </Link>
-          <Link href="/admin/semester" style={{ fontWeight: 800 }}>
-            Семестр
-          </Link>
-        </div>
+        <Link
+          href="/curator/exemptions"
+          style={{
+            fontWeight: 900,
+            border: "1px solid #111827",
+            background: "#111827",
+            color: "white",
+            padding: "10px 16px",
+            borderRadius: 12,
+            textDecoration: "none",
+          }}
+        >
+          Освобождения
+        </Link>
       </div>
 
       <div style={{ marginTop: 16, border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>
@@ -111,67 +118,7 @@ export default async function CuratorDashboardPage() {
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                {/* actions are server actions via <form> to keep it dependency-free */}
-                <form action={decideSickRequestForm}>
-                  <input type="hidden" name="attendanceId" value={item.id} />
-                  <input type="hidden" name="decision" value="confirm" />
-                  <button
-                    type="submit"
-                    disabled={!!item.classSession.semester?.isLocked}
-                    style={{
-                      borderRadius: 12,
-                      padding: "10px 12px",
-                      border: "1px solid #16a34a",
-                      background: item.classSession.semester?.isLocked ? "#f3f4f6" : "#16a34a",
-                      color: item.classSession.semester?.isLocked ? "#6b7280" : "white",
-                      fontWeight: 900,
-                      cursor: item.classSession.semester?.isLocked ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    Подтвердить (B_CONFIRMED)
-                  </button>
-                </form>
-
-                <form action={decideSickRequestForm}>
-                  <input type="hidden" name="attendanceId" value={item.id} />
-                  <input type="hidden" name="decision" value="reject" />
-                  <button
-                    type="submit"
-                    disabled={!!item.classSession.semester?.isLocked}
-                    style={{
-                      borderRadius: 12,
-                      padding: "10px 12px",
-                      border: "1px solid #dc2626",
-                      background: item.classSession.semester?.isLocked ? "#f3f4f6" : "#dc2626",
-                      color: item.classSession.semester?.isLocked ? "#6b7280" : "white",
-                      fontWeight: 900,
-                      cursor: item.classSession.semester?.isLocked ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    Отклонить (NB)
-                  </button>
-                </form>
-
-                <form action={setAForm}>
-                  <input type="hidden" name="attendanceId" value={item.id} />
-                  <button
-                    type="submit"
-                    disabled={!!item.classSession.semester?.isLocked}
-                    style={{
-                      borderRadius: 12,
-                      padding: "10px 12px",
-                      border: "1px solid #111827",
-                      background: item.classSession.semester?.isLocked ? "#f3f4f6" : "white",
-                      color: item.classSession.semester?.isLocked ? "#6b7280" : "#111827",
-                      fontWeight: 900,
-                      cursor: item.classSession.semester?.isLocked ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    Поставить A
-                  </button>
-                </form>
-              </div>
+              <SickRequestActions attendanceId={item.id} semesterLocked={!!item.classSession.semester?.isLocked} />
             </li>
           ))}
         </ul>
