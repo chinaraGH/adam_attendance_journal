@@ -1,6 +1,19 @@
 "use client";
 
+import type { CSSProperties } from "react";
+
 type Primitive = string | number | boolean | null | undefined;
+
+const defaultButtonStyle: CSSProperties = {
+  border: "1px solid #111827",
+  borderRadius: 12,
+  background: "#111827",
+  color: "white",
+  padding: "10px 14px",
+  fontWeight: 900,
+  fontSize: 14,
+  cursor: "pointer",
+};
 
 function toCsvValue(v: Primitive) {
   const s = v === null || v === undefined ? "" : String(v);
@@ -12,8 +25,9 @@ export function ExportCsvButton(props: {
   filename: string;
   rows: Array<Record<string, Primitive>>;
   label?: string;
+  style?: CSSProperties;
 }) {
-  const { filename, rows, label } = props;
+  const { filename, rows, label, style } = props;
 
   const onClick = () => {
     const headers = rows.length > 0 ? Object.keys(rows[0]!) : [];
@@ -34,11 +48,7 @@ export function ExportCsvButton(props: {
   };
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-lg border border-gray-900 bg-gray-900 px-3 py-2 text-sm font-black text-white"
-    >
+    <button type="button" onClick={onClick} style={{ ...defaultButtonStyle, ...style }}>
       {label ?? "Скачать Excel (официальная ведомость)"}
     </button>
   );
