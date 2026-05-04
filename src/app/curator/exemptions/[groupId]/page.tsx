@@ -8,6 +8,7 @@ import { BISHKEK_TIME_ZONE, getBishkekNow } from "@/lib/time/bishkek-now";
 import { formatDisciplineLabel } from "@/lib/ui/labels";
 import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
 
+import { AutoSubmitDateInput } from "../auto-submit-date-input";
 import { ToggleExemptionsAButton } from "../toggle-exemptions-a-button";
 
 function parseYmd(param: string | undefined): string | null {
@@ -134,27 +135,8 @@ export default async function CuratorGroupExemptionsPage(props: {
       <form method="get" style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "end" }}>
         <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
           Дата
-          <input
-            type="date"
-            name="date"
-            defaultValue={selectedDate}
-            style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", fontWeight: 700 }}
-          />
+          <AutoSubmitDateInput defaultValue={selectedDate} />
         </label>
-        <button
-          type="submit"
-          style={{
-            borderRadius: 12,
-            padding: "10px 14px",
-            border: "1px solid #111827",
-            background: "#111827",
-            color: "white",
-            fontWeight: 900,
-            cursor: "pointer",
-          }}
-        >
-          Показать
-        </button>
       </form>
 
       {semester?.isLocked ? (

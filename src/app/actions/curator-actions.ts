@@ -71,22 +71,20 @@ export async function processSickRequest(input: {
     }
     nextStatus = input.decision === "confirm" ? "B_CONFIRMED" : "NB";
   } else   if (current === "B_CONFIRMED") {
-    if (input.decision === "confirm") {
-      return { ok: true as const, attendance: { id: row.id, statusV2: row.statusV2 } };
-    }
-    nextStatus = "NB";
+    nextStatus = input.decision === "confirm" ? "B_CONFIRMED" : "NB";
   } else if (current === "NB") {
     if (input.decision === "reject") {
-      return { ok: true as const, attendance: { id: row.id, statusV2: row.statusV2 } };
+      nextStatus = "NB";
+    } else {
+      const hadSickReject = await prisma.auditTrail.findFirst({
+        where: { entityType: "Attendance", entityId: row.id, action: "sick_reject" },
+        select: { id: true },
+      });
+      if (!hadSickReject) {
+        return { ok: false as const, error: "Подтвердить Б можно только для записей по справке (после отклонения)." };
+      }
+      nextStatus = "B_CONFIRMED";
     }
-    const hadSickReject = await prisma.auditTrail.findFirst({
-      where: { entityType: "Attendance", entityId: row.id, action: "sick_reject" },
-      select: { id: true },
-    });
-    if (!hadSickReject) {
-      return { ok: false as const, error: "Подтвердить Б можно только для записей по справке (после отклонения)." };
-    }
-    nextStatus = "B_CONFIRMED";
   } else {
     return { ok: false as const, error: "Для этой записи переключение Б / НБ недоступно." };
   }

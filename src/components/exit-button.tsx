@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 const baseStyle: React.CSSProperties = {
   appearance: "none",
@@ -26,8 +26,16 @@ export function ExitButton(props: {
   style?: React.CSSProperties;
 }) {
   const router = useRouter();
+  const pathname = usePathname() ?? "/";
   const disabled = Boolean(props.disabled);
   const label = props.label ?? "Назад";
+  const parentPath = (() => {
+    if (!pathname || pathname === "/") return "/";
+    const clean = pathname.endsWith("/") && pathname.length > 1 ? pathname.slice(0, -1) : pathname;
+    const idx = clean.lastIndexOf("/");
+    if (idx <= 0) return "/";
+    return clean.slice(0, idx);
+  })();
 
   return (
     <button
@@ -41,16 +49,12 @@ export function ExitButton(props: {
       }}
       onClick={() => {
         if (disabled) return;
-        if (props.preferTo && props.to && props.to.trim().length > 0) {
-          router.push(props.to);
+        const explicitTarget = props.to && props.to.trim().length > 0 ? props.to : null;
+        if (props.preferTo && explicitTarget) {
+          router.push(explicitTarget);
           return;
         }
-        // Go to previous screen; fallback to home.
-        if (typeof window !== "undefined" && window.history.length > 1) {
-          router.back();
-        } else {
-          router.push(props.to && props.to.trim().length > 0 ? props.to : "/");
-        }
+        router.push(explicitTarget ?? parentPath);
       }}
     >
       {label}
