@@ -3,7 +3,7 @@
 import Link from "next/link";
 import * as React from "react";
 
-import type { AcadepartmentFilterOption } from "@/lib/academic/build-acadepartment-charts";
+import type { AcadepartmentFilterOption, AcadepartmentWeeklySeries } from "@/lib/academic/build-acadepartment-charts";
 
 const COLORS = [
   "#2563eb",
@@ -49,8 +49,6 @@ const primaryBuildStyle: React.CSSProperties = {
   borderColor: "#111827",
 };
 
-type Series = { id: string; label: string; points: (number | null)[] };
-
 function parseSeriesKey(id: string): { prefix: string; course: number } | null {
   const i = id.lastIndexOf("__c");
   if (i < 0) return null;
@@ -59,151 +57,163 @@ function parseSeriesKey(id: string): { prefix: string; course: number } | null {
   return { prefix: id.slice(0, i), course };
 }
 
-function applyDateSlice(
+function weeklyById(list: AcadepartmentWeeklySeries[]): Map<string, AcadepartmentWeeklySeries> {
+  return new Map(list.map((s) => [s.id, s]));
+}
+
+function aggregateWeeklyRange(
+  s: AcadepartmentWeeklySeries,
   weekKeys: string[],
-  weekLabels: string[],
-  series: Series[],
   fromIso: string,
   toIso: string,
-): { weekLabels: string[]; series: Series[] } {
-  if (weekKeys.length === 0) {
-    return { weekLabels: [], series: series.map((s) => ({ ...s, points: [] })) };
-  }
+): { numer: number; denom: number } {
+  if (weekKeys.length === 0) return { numer: 0, denom: 0 };
   let from = (fromIso || weekKeys[0]).trim();
   let to = (toIso || weekKeys[weekKeys.length - 1]).trim();
   if (from > to) {
-    const t = from;
+    const x = from;
     from = to;
-    to = t;
+    to = x;
   }
-  const start = weekKeys.findIndex((k) => k >= from);
-  if (start < 0) {
-    return { weekLabels: [], series: series.map((s) => ({ ...s, points: [] })) };
+  let numer = 0;
+  let denom = 0;
+  for (let i = 0; i < weekKeys.length; i++) {
+    if (weekKeys[i] >= from && weekKeys[i] <= to) {
+      numer += s.weekNumer[i] ?? 0;
+      denom += s.weekDenom[i] ?? 0;
+    }
   }
-  let end = start;
-  for (let i = start; i < weekKeys.length; i++) {
-    if (weekKeys[i] <= to) end = i;
-  }
-  const wl = weekLabels.slice(start, end + 1);
-  const sr = series.map((s) => ({ ...s, points: s.points.slice(start, end + 1) }));
-  return { weekLabels: wl, series: sr };
+  return { numer, denom };
 }
 
-function LineChartBlock(props: { title: string; weekLabels: string[]; series: Series[]; emptyHint: string | null }) {
-  const { title, weekLabels, series, emptyHint } = props;
+function pctAgg(numer: number, denom: number): number | null {
+  if (denom <= 0) return null;
+  return Math.round((numer / denom) * 1000) / 10;
+}
+
+function truncateLabel(s: string, max = 36): string {
+  const t = s.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1)}…`;
+}
+
+function ClusteredHistogram(props: {
+  title: string;
+  categories: string[];
+  legendLabels: string[];
+  values: (number | null)[][];
+  emptyHint: string | null;
+}) {
+  const { title, categories, legendLabels, values, emptyHint } = props;
+  const K = categories.length;
+  const B = legendLabels.length;
+
+  const hasAny =
+    K > 0 &&
+    B > 0 &&
+    values.some((row) => row.some((v) => v !== null && v !== undefined && !Number.isNaN(v as number)));
+
   const W = 1000;
-  const H = 320;
-  const padL = 48;
+  const H = 380;
+  const padL = 52;
   const padR = 24;
-  const padT = 20;
-  const padB = 80;
+  const padT = 24;
+  const padB = 112;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
-  const n = weekLabels.length;
-  const xAt = (i: number) => (n <= 1 ? padL + innerW / 2 : padL + (innerW * i) / (n - 1));
   const yAt = (pct: number) => padT + innerH * (1 - pct / 100);
+  const gridYs = [0, 25, 50, 75, 100];
 
-  if (n === 0) {
+  if (!hasAny) {
     return (
       <section style={{ marginTop: 16, borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
         <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0 }}>{title}</h2>
-        <p style={{ marginTop: 12, fontSize: 14, color: "#6b7280" }}>{emptyHint ?? "Нет данных для графика в выбранном диапазоне дат."}</p>
+        <p style={{ marginTop: 12, fontSize: 14, color: "#6b7280" }}>
+          {emptyHint ?? "Нет данных за выбранный период и фильтры."}
+        </p>
       </section>
     );
   }
 
-  const gridYs = [0, 25, 50, 75, 100];
+  const catW = K > 0 ? innerW / K : innerW;
+  const clusterPad = 0.06;
+  const innerClusterW = catW * (1 - 2 * clusterPad);
+  const barGap = 3;
+  const barW = B > 0 ? Math.max(4, (innerClusterW - barGap * (B - 1)) / B) : 4;
 
   return (
     <section style={{ marginTop: 16, borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
       <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0 }}>{title}</h2>
-      {emptyHint ? <p style={{ marginTop: 6, fontSize: 14, color: "#92400e" }}>{emptyHint}</p> : null}
+      {emptyHint ? <p style={{ marginTop: 6, fontSize: 13, color: "#92400e" }}>{emptyHint}</p> : null}
 
-      <div style={{ marginTop: 16, width: "100%", overflowX: "auto" }}>
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ height: "min(360px, 70vw)", width: "100%", minWidth: 520 }} preserveAspectRatio="xMidYMid meet">
+      <div style={{ marginTop: 12, width: "100%", overflowX: "auto" }}>
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ height: "min(400px, 75vw)", width: "100%", minWidth: 480 }} preserveAspectRatio="xMidYMid meet">
           {gridYs.map((g) => (
             <g key={g}>
               <line x1={padL} y1={yAt(g)} x2={W - padR} y2={yAt(g)} stroke="#e5e7eb" strokeWidth={g === 0 || g === 100 ? 1.5 : 1} />
-              <text x={8} y={yAt(g) + 4} fontSize={12} fill="#6b7280" fontWeight={700}>
+              <text x={10} y={yAt(g) + 4} fontSize={12} fill="#6b7280" fontWeight={700}>
                 {g}%
               </text>
             </g>
           ))}
 
-          {weekLabels.map((_, i) => (
-            <text
-              key={weekLabels[i]}
-              x={xAt(i)}
-              y={H - 40}
-              fontSize={11}
-              fill="#374151"
-              fontWeight={600}
-              textAnchor="middle"
-              transform={`rotate(-35 ${xAt(i)} ${H - 40})`}
-            >
-              {weekLabels[i]}
-            </text>
-          ))}
-
-          {series.map((s, si) => {
-            const color = COLORS[si % COLORS.length];
-            const lines: React.ReactNode[] = [];
-            for (let i = 0; i < s.points.length - 1; i++) {
-              const a = s.points[i];
-              const b = s.points[i + 1];
-              if (a === null || b === null) continue;
-              lines.push(
-                <line
-                  key={`${s.id}-seg-${i}`}
-                  x1={xAt(i)}
-                  y1={yAt(a)}
-                  x2={xAt(i + 1)}
-                  y2={yAt(b)}
-                  stroke={color}
-                  strokeWidth={2.5}
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />,
-              );
+          {categories.map((_, k) => {
+            const baseX = padL + k * catW + catW * clusterPad;
+            const bars: React.ReactNode[] = [];
+            for (let b = 0; b < B; b++) {
+              const v = values[k]?.[b];
+              const pctVal = v === null || v === undefined ? null : Math.max(0, Math.min(100, v));
+              const col = COLORS[b % COLORS.length];
+              if (pctVal === null) continue;
+              const h = innerH * (pctVal / 100);
+              const x = baseX + b * (barW + barGap);
+              const y = padT + innerH - h;
+              bars.push(<rect key={`${k}-${b}`} x={x} y={y} width={barW} height={h} fill={col} rx={2} />);
             }
-            return <g key={s.id}>{lines}</g>;
+            return <g key={`cat-${k}`}>{bars}</g>;
           })}
 
-          {series.map((s, si) => {
-            const color = COLORS[si % COLORS.length];
-            return s.points.map((p, i) =>
-              p === null ? null : (
-                <circle key={`${s.id}-${i}`} cx={xAt(i)} cy={yAt(p)} r={3.5} fill={color} stroke="white" strokeWidth={1} />
-              ),
+          {categories.map((lab, k) => {
+            const cx = padL + k * catW + catW / 2;
+            const words = truncateLabel(lab, 40);
+            return (
+              <text
+                key={`xl-${k}`}
+                x={cx}
+                y={H - 72}
+                fontSize={10}
+                fill="#374151"
+                fontWeight={600}
+                textAnchor="middle"
+                transform={`rotate(-38 ${cx} ${H - 72})`}
+              >
+                {words}
+              </text>
             );
           })}
         </svg>
       </div>
 
-      {series.length > 0 ? (
-        <div
-          style={{
-            marginTop: 16,
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "8px 16px",
-            borderTop: "1px solid #f3f4f6",
-            paddingTop: 12,
-            fontSize: 12,
-            fontWeight: 700,
-            color: "#111827",
-          }}
-        >
-          {series.map((s, si) => (
-            <span key={s.id} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <span style={{ display: "inline-block", height: 8, width: 12, borderRadius: 2, background: COLORS[si % COLORS.length] }} />
-              {s.label}
-            </span>
-          ))}
-        </div>
-      ) : (
-        <p style={{ marginTop: 12, fontSize: 14, color: "#6b7280" }}>Нет рядов — выберите фильтры или расширьте диапазон дат.</p>
-      )}
+      <div
+        style={{
+          marginTop: 14,
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "8px 16px",
+          borderTop: "1px solid #f3f4f6",
+          paddingTop: 12,
+          fontSize: 12,
+          fontWeight: 700,
+          color: "#111827",
+        }}
+      >
+        {legendLabels.map((lab, b) => (
+          <span key={`${b}-${lab}`} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <span style={{ display: "inline-block", height: 10, width: 14, borderRadius: 2, background: COLORS[b % COLORS.length] }} />
+            {lab}
+          </span>
+        ))}
+      </div>
     </section>
   );
 }
@@ -406,27 +416,96 @@ const dateInputStyle: React.CSSProperties = {
   color: "#111827",
 };
 
+function buildFacultyCourseHistograms(params: {
+  facultyOptions: AcadepartmentFilterOption[];
+  facSelected: Set<string>;
+  fcCourses: Set<number>;
+  weekly: AcadepartmentWeeklySeries[];
+  weekKeys: string[];
+  fromIso: string;
+  toIso: string;
+}): {
+  byFaculty: { categories: string[]; legendLabels: string[]; values: (number | null)[][] };
+  byCourse: { categories: string[]; legendLabels: string[]; values: (number | null)[][] };
+} {
+  const { facultyOptions, facSelected, fcCourses, weekly, weekKeys, fromIso, toIso } = params;
+  const byId = weeklyById(weekly);
+  const facultiesSorted = facultyOptions.filter((f) => facSelected.has(f.id)).sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  const coursesSorted = [...fcCourses].sort((a, b) => a - b);
+
+  const seriesPct = (facultyId: string, course: number): number | null => {
+    const sid = facultyId === "nofac" ? `nofac__c${course}` : `${facultyId}__c${course}`;
+    const s = byId.get(sid);
+    if (!s) return null;
+    const { numer, denom } = aggregateWeeklyRange(s, weekKeys, fromIso, toIso);
+    return pctAgg(numer, denom);
+  };
+
+  const categoriesF = facultiesSorted.map((f) => f.name);
+  const legendCourses = coursesSorted.map((c) => `${c} курс`);
+  const valuesByFaculty = facultiesSorted.map((f) => coursesSorted.map((c) => seriesPct(f.id, c)));
+
+  const categoriesC = coursesSorted.map((c) => `${c} курс`);
+  const legendFac = facultiesSorted.map((f) => f.name);
+  const valuesByCourse = coursesSorted.map((c) => facultiesSorted.map((f) => seriesPct(f.id, c)));
+
+  return {
+    byFaculty: { categories: categoriesF, legendLabels: legendCourses, values: valuesByFaculty },
+    byCourse: { categories: categoriesC, legendLabels: legendFac, values: valuesByCourse },
+  };
+}
+
+function buildProgramCourseHistograms(params: {
+  programOptions: AcadepartmentFilterOption[];
+  progSelected: Set<string>;
+  pcCourses: Set<number>;
+  weekly: AcadepartmentWeeklySeries[];
+  weekKeys: string[];
+  fromIso: string;
+  toIso: string;
+}): {
+  byProgram: { categories: string[]; legendLabels: string[]; values: (number | null)[][] };
+  byCourse: { categories: string[]; legendLabels: string[]; values: (number | null)[][] };
+} {
+  const { programOptions, progSelected, pcCourses, weekly, weekKeys, fromIso, toIso } = params;
+  const byId = weeklyById(weekly);
+  const programsSorted = programOptions.filter((p) => progSelected.has(p.id)).sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  const coursesSorted = [...pcCourses].sort((a, b) => a - b);
+
+  const seriesPct = (programId: string, course: number): number | null => {
+    const sid = `${programId}__c${course}`;
+    const s = byId.get(sid);
+    if (!s) return null;
+    const { numer, denom } = aggregateWeeklyRange(s, weekKeys, fromIso, toIso);
+    return pctAgg(numer, denom);
+  };
+
+  const categoriesP = programsSorted.map((p) => p.name);
+  const legendCourses = coursesSorted.map((c) => `${c} курс`);
+  const valuesByProgram = programsSorted.map((p) => coursesSorted.map((c) => seriesPct(p.id, c)));
+
+  const categoriesC = coursesSorted.map((c) => `${c} курс`);
+  const legendProg = programsSorted.map((p) => p.name);
+  const valuesByCourse = coursesSorted.map((c) => programsSorted.map((p) => seriesPct(p.id, c)));
+
+  return {
+    byProgram: { categories: categoriesP, legendLabels: legendCourses, values: valuesByProgram },
+    byCourse: { categories: categoriesC, legendLabels: legendProg, values: valuesByCourse },
+  };
+}
+
 export function AcadepartmentChartsWithFilters(props: {
   weekKeys: string[];
-  weekLabels: string[];
   emptyHint: string | null;
-  facultyCourseSeries: Series[];
-  programCourseSeries: Series[];
+  facultyCourseWeekly: AcadepartmentWeeklySeries[];
+  programCourseWeekly: AcadepartmentWeeklySeries[];
   facultyOptions: AcadepartmentFilterOption[];
   programOptions: AcadepartmentFilterOption[];
   courseOptions: number[];
   semesterStartIso: string | null;
   semesterEndIso: string | null;
 }) {
-  const {
-    facultyOptions,
-    programOptions,
-    courseOptions,
-    weekKeys,
-    weekLabels,
-    semesterStartIso,
-    semesterEndIso,
-  } = props;
+  const { facultyOptions, programOptions, courseOptions, weekKeys, semesterStartIso, semesterEndIso } = props;
 
   const defaultFrom = semesterStartIso ?? "";
   const defaultTo = semesterEndIso ?? "";
@@ -441,8 +520,8 @@ export function AcadepartmentChartsWithFilters(props: {
   const [pcFrom, setPcFrom] = React.useState(defaultFrom);
   const [pcTo, setPcTo] = React.useState(defaultTo);
 
-  const [showFacultyChart, setShowFacultyChart] = React.useState(false);
-  const [showProgramChart, setShowProgramChart] = React.useState(false);
+  const [showFacultyBlock, setShowFacultyBlock] = React.useState(false);
+  const [showProgramBlock, setShowProgramBlock] = React.useState(false);
 
   React.useEffect(() => {
     setFacSelected(new Set(facultyOptions.map((f) => f.id)));
@@ -466,30 +545,48 @@ export function AcadepartmentChartsWithFilters(props: {
     setPcTo(t);
   }, [semesterStartIso, semesterEndIso]);
 
-  const chart1SeriesFiltered = React.useMemo(() => {
-    return props.facultyCourseSeries.filter((s) => {
+  const fcWeeklyFiltered = React.useMemo(() => {
+    return props.facultyCourseWeekly.filter((s) => {
       const p = parseSeriesKey(s.id);
       if (!p) return false;
       return facSelected.has(p.prefix) && fcCourses.has(p.course);
     });
-  }, [props.facultyCourseSeries, facSelected, fcCourses]);
+  }, [props.facultyCourseWeekly, facSelected, fcCourses]);
 
-  const chart2SeriesFiltered = React.useMemo(() => {
-    return props.programCourseSeries.filter((s) => {
+  const pcWeeklyFiltered = React.useMemo(() => {
+    return props.programCourseWeekly.filter((s) => {
       const p = parseSeriesKey(s.id);
       if (!p) return false;
       return progSelected.has(p.prefix) && pcCourses.has(p.course);
     });
-  }, [props.programCourseSeries, progSelected, pcCourses]);
+  }, [props.programCourseWeekly, progSelected, pcCourses]);
 
-  const chart1Display = React.useMemo(
-    () => applyDateSlice(weekKeys, weekLabels, chart1SeriesFiltered, fcFrom, fcTo),
-    [weekKeys, weekLabels, chart1SeriesFiltered, fcFrom, fcTo],
+  const facultyHist = React.useMemo(
+    () =>
+      buildFacultyCourseHistograms({
+        facultyOptions,
+        facSelected,
+        fcCourses,
+        weekly: fcWeeklyFiltered,
+        weekKeys,
+        fromIso: fcFrom,
+        toIso: fcTo,
+      }),
+    [facultyOptions, facSelected, fcCourses, fcWeeklyFiltered, weekKeys, fcFrom, fcTo],
   );
 
-  const chart2Display = React.useMemo(
-    () => applyDateSlice(weekKeys, weekLabels, chart2SeriesFiltered, pcFrom, pcTo),
-    [weekKeys, weekLabels, chart2SeriesFiltered, pcFrom, pcTo],
+  const programHist = React.useMemo(
+    () =>
+      buildProgramCourseHistograms({
+        programOptions,
+        progSelected,
+        pcCourses,
+        weekly: pcWeeklyFiltered,
+        weekKeys,
+        fromIso: pcFrom,
+        toIso: pcTo,
+      }),
+    [programOptions, progSelected, pcCourses, pcWeeklyFiltered, weekKeys, pcFrom, pcTo],
   );
 
   const toggleFac = (id: string) => {
@@ -530,7 +627,7 @@ export function AcadepartmentChartsWithFilters(props: {
 
   const hint =
     props.emptyHint ??
-    (weekKeys.length === 0 ? "Нет недельного интервала для графика в текущем семестре." : null);
+    (weekKeys.length === 0 ? "Нет недельных данных за семестр для построения гистограмм." : null);
 
   return (
     <div style={{ display: "grid", gap: 28 }}>
@@ -542,9 +639,13 @@ export function AcadepartmentChartsWithFilters(props: {
           background: "white",
         }}
       >
-        <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 14 }}>Диаграмма: факультеты и курсы</div>
+        <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 14 }}>Факультеты и курсы</div>
 
         <div style={{ display: "grid", gap: 14 }}>
+          <p style={{ margin: 0, fontSize: 13, color: "#6b7280", fontWeight: 600 }}>
+            Даты задают период агрегации (по неделям семестра); на оси X отображаются только факультеты или курсы.
+          </p>
+
           <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
             <label style={dateLabelStyle}>
               С
@@ -588,22 +689,32 @@ export function AcadepartmentChartsWithFilters(props: {
           />
 
           <div>
-            <button type="button" style={primaryBuildStyle} onClick={() => setShowFacultyChart(true)}>
+            <button type="button" style={primaryBuildStyle} onClick={() => setShowFacultyBlock(true)}>
               Построить
             </button>
           </div>
 
-          {!showFacultyChart ? (
+          {!showFacultyBlock ? (
             <p style={{ margin: 0, fontSize: 14, color: "#6b7280", fontWeight: 600 }}>
-              Диаграмма скрыта. Настройте фильтры и нажмите «Построить».
+              Две гистограммы скрыты. Настройте фильтры и нажмите «Построить».
             </p>
           ) : (
-            <LineChartBlock
-              title="Динамика посещаемости по факультетам и курсам"
-              weekLabels={chart1Display.weekLabels}
-              series={chart1Display.series}
-              emptyHint={hint}
-            />
+            <>
+              <ClusteredHistogram
+                title="Посещаемость по факультетам (столбцы — курсы)"
+                categories={facultyHist.byFaculty.categories}
+                legendLabels={facultyHist.byFaculty.legendLabels}
+                values={facultyHist.byFaculty.values}
+                emptyHint={hint}
+              />
+              <ClusteredHistogram
+                title="Посещаемость по курсам (столбцы — факультеты)"
+                categories={facultyHist.byCourse.categories}
+                legendLabels={facultyHist.byCourse.legendLabels}
+                values={facultyHist.byCourse.values}
+                emptyHint={hint}
+              />
+            </>
           )}
         </div>
       </div>
@@ -616,9 +727,13 @@ export function AcadepartmentChartsWithFilters(props: {
           background: "white",
         }}
       >
-        <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 14 }}>Диаграмма: направления и курсы</div>
+        <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 14 }}>Направления и курсы</div>
 
         <div style={{ display: "grid", gap: 14 }}>
+          <p style={{ margin: 0, fontSize: 13, color: "#6b7280", fontWeight: 600 }}>
+            Даты задают период агрегации; на оси X — направления или курсы.
+          </p>
+
           <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
             <label style={dateLabelStyle}>
               С
@@ -662,22 +777,32 @@ export function AcadepartmentChartsWithFilters(props: {
           />
 
           <div>
-            <button type="button" style={primaryBuildStyle} onClick={() => setShowProgramChart(true)}>
+            <button type="button" style={primaryBuildStyle} onClick={() => setShowProgramBlock(true)}>
               Построить
             </button>
           </div>
 
-          {!showProgramChart ? (
+          {!showProgramBlock ? (
             <p style={{ margin: 0, fontSize: 14, color: "#6b7280", fontWeight: 600 }}>
-              Диаграмма скрыта. Настройте фильтры и нажмите «Построить».
+              Две гистограммы скрыты. Настройте фильтры и нажмите «Построить».
             </p>
           ) : (
-            <LineChartBlock
-              title="Динамика посещаемости по направлениям подготовки и курсам"
-              weekLabels={chart2Display.weekLabels}
-              series={chart2Display.series}
-              emptyHint={hint}
-            />
+            <>
+              <ClusteredHistogram
+                title="Посещаемость по направлениям (столбцы — курсы)"
+                categories={programHist.byProgram.categories}
+                legendLabels={programHist.byProgram.legendLabels}
+                values={programHist.byProgram.values}
+                emptyHint={hint}
+              />
+              <ClusteredHistogram
+                title="Посещаемость по курсам (столбцы — направления)"
+                categories={programHist.byCourse.categories}
+                legendLabels={programHist.byCourse.legendLabels}
+                values={programHist.byCourse.values}
+                emptyHint={hint}
+              />
+            </>
           )}
         </div>
       </div>

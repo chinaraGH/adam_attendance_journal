@@ -65,6 +65,28 @@ function mapToSeries(
   });
 }
 
+/** Недельные числитель/знаменатель для агрегации П+О за произвольный диапазон дат на клиенте. */
+export type AcadepartmentWeeklySeries = {
+  id: string;
+  label: string;
+  weekNumer: number[];
+  weekDenom: number[];
+};
+
+function mapToWeeklySeries(
+  data: Map<string, Map<string, Agg>>,
+  weekKeys: string[],
+  labelById: Map<string, string>,
+): AcadepartmentWeeklySeries[] {
+  const keys = [...data.keys()].sort((a, b) => (labelById.get(a) ?? a).localeCompare(labelById.get(b) ?? b, "ru"));
+  return keys.map((id) => {
+    const wm = data.get(id)!;
+    const weekNumer = weekKeys.map((wk) => wm.get(wk)?.numer ?? 0);
+    const weekDenom = weekKeys.map((wk) => wm.get(wk)?.denom ?? 0);
+    return { id, label: labelById.get(id) ?? id, weekNumer, weekDenom };
+  });
+}
+
 export type AcadepartmentFilterOption = { id: string; name: string };
 
 /**
@@ -76,6 +98,8 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
   weekLabels: string[];
   facultyCourse: AcadepartmentChartSeries[];
   programCourse: AcadepartmentChartSeries[];
+  facultyCourseWeekly: AcadepartmentWeeklySeries[];
+  programCourseWeekly: AcadepartmentWeeklySeries[];
   semesterName: string | null;
   semesterStartIso: string | null;
   semesterEndIso: string | null;
@@ -91,6 +115,8 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
       weekLabels: [],
       facultyCourse: [],
       programCourse: [],
+      facultyCourseWeekly: [],
+      programCourseWeekly: [],
       semesterName: null,
       semesterStartIso: null,
       semesterEndIso: null,
@@ -161,6 +187,8 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
       weekLabels: [],
       facultyCourse: [],
       programCourse: [],
+      facultyCourseWeekly: [],
+      programCourseWeekly: [],
       semesterName: semester.name,
       semesterStartIso,
       semesterEndIso,
@@ -184,6 +212,8 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
       weekLabels: [],
       facultyCourse: [],
       programCourse: [],
+      facultyCourseWeekly: [],
+      programCourseWeekly: [],
       semesterName: semester.name,
       semesterStartIso,
       semesterEndIso,
@@ -280,6 +310,8 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
 
   const facultyCourse = mapToSeries(fcData, weekKeys, fcLabels);
   const programCourse = mapToSeries(pcData, weekKeys, pcLabels);
+  const facultyCourseWeekly = mapToWeeklySeries(fcData, weekKeys, fcLabels);
+  const programCourseWeekly = mapToWeeklySeries(pcData, weekKeys, pcLabels);
 
   const facultyOptions: AcadepartmentFilterOption[] = [...facultyIdsSeen.entries()]
     .map(([id, name]) => ({ id, name }))
@@ -304,6 +336,8 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
     weekLabels,
     facultyCourse,
     programCourse,
+    facultyCourseWeekly,
+    programCourseWeekly,
     semesterName: semester.name,
     semesterStartIso,
     semesterEndIso,

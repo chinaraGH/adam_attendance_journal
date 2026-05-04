@@ -111,7 +111,7 @@ export default async function AcadepartmentRatingsPage() {
     const d = sessionToDiscipline.get(r.classSessionId);
     if (!d) continue;
     denomByDiscipline.set(d.id, (denomByDiscipline.get(d.id) ?? 0) + r._count._all);
-    discName.set(d.id, d.code ? `${d.name} (${d.code})` : d.name);
+    discName.set(d.id, d.name);
   }
   for (const r of attendedBySession) {
     const d = sessionToDiscipline.get(r.classSessionId);
@@ -135,16 +135,11 @@ export default async function AcadepartmentRatingsPage() {
 
   return (
     <main className="mx-auto max-w-[1100px] p-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black text-gray-900">Рейтинги</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Топ и «проблемные» группы и дисциплины по доле отметок П+О (ниже {LOW_THRESHOLD}% — проблемная зона).
-          </p>
-        </div>
-        <Link className="rounded-lg border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-black text-white" href="/acadepartment">
-          Учебная часть
-        </Link>
+      <div>
+        <h1 className="text-2xl font-black text-gray-900">Рейтинги</h1>
+        <p className="mt-1 text-sm text-gray-600">
+          Топ и «проблемные» группы и дисциплины по доле отметок П+О (ниже {LOW_THRESHOLD}% — проблемная зона).
+        </p>
       </div>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-2">
@@ -169,20 +164,24 @@ export default async function AcadepartmentRatingsPage() {
   );
 }
 
+function formatPctLine(pct: number, marks: number) {
+  return `${pct} % (${marks})`;
+}
+
 function Ul(props: { rows: RankRow[]; href: (id: string) => string; empty?: string }) {
   if (props.rows.length === 0) {
     return <p className="mt-3 text-sm text-gray-600">{props.empty ?? "Нет данных."}</p>;
   }
   return (
-    <ol className="mt-3 grid gap-2 text-sm">
-      {props.rows.map((r, idx) => (
-        <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-gray-100 px-3 py-2">
-          <span className="font-black text-gray-500">{idx + 1}.</span>
-          <Link className="min-w-0 flex-1 font-black text-blue-800 underline" href={props.href(r.id)}>
-            {r.name}
-          </Link>
-          <span className="font-black">{r.pct}%</span>
-          <span className="text-xs text-gray-500">({r.marks})</span>
+    <ol className="mt-3 list-decimal space-y-2 pl-6 text-sm marker:font-black marker:text-gray-500">
+      {props.rows.map((r) => (
+        <li key={r.id} className="rounded-lg border border-gray-100 py-2 pl-1 pr-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <Link className="min-w-0 flex-1 font-black text-blue-800 underline" href={props.href(r.id)}>
+              {r.name}
+            </Link>
+            <span className="shrink-0 font-black tabular-nums">{formatPctLine(r.pct, r.marks)}</span>
+          </div>
         </li>
       ))}
     </ol>
@@ -197,18 +196,15 @@ function DiscTable(props: {
     return <p className="mt-3 text-sm text-gray-600">{props.empty ?? "Нет данных."}</p>;
   }
   return (
-    <ul className="mt-3 grid gap-2">
-      {props.rows.map((r, idx) => (
-        <li
-          key={r.id}
-          className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-gray-100 px-3 py-2 text-sm"
-        >
-          <span className="font-black text-gray-500">{idx + 1}.</span>
-          <span className="min-w-0 flex-1 font-black">{r.label}</span>
-          <span className="font-black">{r.pct}%</span>
-          <span className="text-xs text-gray-500">({r.marks})</span>
+    <ol className="mt-3 list-decimal space-y-2 pl-6 text-sm marker:font-black marker:text-gray-500">
+      {props.rows.map((r) => (
+        <li key={r.id} className="rounded-lg border border-gray-100 py-2 pl-1 pr-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <span className="min-w-0 flex-1 font-black">{r.label}</span>
+            <span className="shrink-0 font-black tabular-nums">{formatPctLine(r.pct, r.marks)}</span>
+          </div>
         </li>
       ))}
-    </ul>
+    </ol>
   );
 }
