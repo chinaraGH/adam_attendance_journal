@@ -9,8 +9,21 @@ function toDateInputValue(d: Date) {
 
 function parseDate(param: string | undefined): Date | null {
   if (!param) return null;
-  const d = new Date(param);
-  return Number.isNaN(d.getTime()) ? null : d;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(param);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const d = new Date(year, monthIndex, day);
+  if (
+    Number.isNaN(d.getTime()) ||
+    d.getFullYear() !== year ||
+    d.getMonth() !== monthIndex ||
+    d.getDate() !== day
+  ) {
+    return null;
+  }
+  return d;
 }
 
 function toStartOfDay(d: Date) {
