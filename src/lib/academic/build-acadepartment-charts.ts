@@ -49,44 +49,49 @@ function pct(a: Agg): number | null {
   return Math.round((a.numer / a.denom) * 1000) / 10;
 }
 
-function topSeriesByVolume(
-  seriesData: Map<string, Map<string, Agg>>,
+function mapToSeries(
+  data: Map<string, Map<string, Agg>>,
   weekKeys: string[],
-  limit: number,
-): string[] {
-  const totals = new Map<string, number>();
-  for (const [sk, wm] of seriesData) {
-    let t = 0;
-    for (const wk of weekKeys) {
-      t += wm.get(wk)?.denom ?? 0;
-    }
-    totals.set(sk, t);
-  }
-  return [...totals.entries()]
-    .filter(([, d]) => d > 0)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, limit)
-    .map(([k]) => k);
+  labelById: Map<string, string>,
+): AcadepartmentChartSeries[] {
+  const keys = [...data.keys()].sort((a, b) => (labelById.get(a) ?? a).localeCompare(labelById.get(b) ?? b, "ru"));
+  return keys.map((id) => {
+    const wm = data.get(id)!;
+    const points = weekKeys.map((wk) => {
+      const row = wm.get(wk);
+      return row ? pct(row) : null;
+    });
+    return { id, label: labelById.get(id) ?? id, points };
+  });
 }
+
+export type AcadepartmentFilterOption = { id: string; name: string };
 
 /**
  * Недельная динамика посещаемости (П+О / все отметки) по текущему семестру.
+ * Все ряды «факультет×курс» и «направление×курс» отдаются для фильтрации на клиенте.
  */
 export async function buildAcadepartmentAttendanceCharts(): Promise<{
   weekLabels: string[];
   facultyCourse: AcadepartmentChartSeries[];
-  byProgram: AcadepartmentChartSeries[];
+  programCourse: AcadepartmentChartSeries[];
   semesterName: string | null;
   emptyMessage: string | null;
+  facultyOptions: AcadepartmentFilterOption[];
+  programOptions: AcadepartmentFilterOption[];
+  courseOptions: number[];
 }> {
   const semester = await resolveSemester();
   if (!semester) {
     return {
       weekLabels: [],
       facultyCourse: [],
-      byProgram: [],
+      programCourse: [],
       semesterName: null,
       emptyMessage: "В системе нет семестра — графики недоступны.",
+      facultyOptions: [],
+      programOptions: [],
+      courseOptions: [],
     };
   }
 
@@ -145,9 +150,12 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
     return {
       weekLabels: [],
       facultyCourse: [],
-      byProgram: [],
+      programCourse: [],
       semesterName: semester.name,
       emptyMessage: "Некорректный интервал семестра.",
+      facultyOptions: [],
+      programOptions: [],
+      courseOptions: [],
     };
   }
 
@@ -162,9 +170,12 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
     return {
       weekLabels: [],
       facultyCourse: [],
-      byProgram: [],
+      programCourse: [],
       semesterName: semester.name,
       emptyMessage: "Нет интервала дат для отображения.",
+      facultyOptions: [],
+      programOptions: [],
+      courseOptions: [],
     };
   }
 
@@ -192,7 +203,7 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
   });
 
   const fcData = new Map<string, Map<string, Agg>>();
-  const progData = new Map<string, Map<string, Agg>>();
+  const pcData = new Map<string, Map<string, Agg>>();
 
   for (const a of attendances) {
     const gid = a.classSession.groupId;
@@ -216,15 +227,15 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
       addAgg(fcData.get(fk)!, wk, present);
     }
 
-    if (meta.programId && meta.programLabel) {
-      const pk = meta.programId;
-      if (!progData.has(pk)) progData.set(pk, new Map());
-      addAgg(progData.get(pk)!, wk, present);
+    if (meta.programId && meta.programLabel && meta.course !== null) {
+      const pk = `${meta.programId}__c${meta.course}`;
+      if (!pcData.has(pk)) pcData.set(pk, new Map());
+      addAgg(pcData.get(pk)!, wk, present);
     }
   }
 
-  const fcIds = topSeriesByVolume(fcData, weekKeys, 14);
   const fcLabels = new Map<string, string>();
+  const facultyIdsSeen = new Map<string, string>();
   for (const g of groups) {
     const meta = groupMeta.get(g.id);
     if (!meta || meta.course === null) continue;
@@ -232,39 +243,43 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
     if (!fcLabels.has(fk)) {
       fcLabels.set(fk, `${meta.facultyLabel} · ${meta.course} курс`);
     }
+    const fid = meta.facultyId ?? "nofac";
+    if (!facultyIdsSeen.has(fid)) {
+      facultyIdsSeen.set(fid, meta.facultyLabel);
+    }
   }
 
-  const facultyCourse: AcadepartmentChartSeries[] = fcIds.map((id) => {
-    const wm = fcData.get(id)!;
-    const points = weekKeys.map((wk) => {
-      const row = wm.get(wk);
-      return row ? pct(row) : null;
-    });
-    return { id, label: fcLabels.get(id) ?? id, points };
-  });
+  const pcLabels = new Map<string, string>();
+  const programIdsSeen = new Map<string, string>();
+  for (const g of groups) {
+    const meta = groupMeta.get(g.id);
+    if (!meta?.programId || meta.course === null || !meta.programLabel) continue;
+    const pk = `${meta.programId}__c${meta.course}`;
+    if (!pcLabels.has(pk)) {
+      pcLabels.set(pk, `${meta.programLabel} · ${meta.course} курс`);
+    }
+    if (!programIdsSeen.has(meta.programId)) {
+      programIdsSeen.set(meta.programId, meta.programLabel);
+    }
+  }
 
-  const progIds = topSeriesByVolume(progData, weekKeys, 12);
-  const programs =
-    progIds.length === 0
-      ? []
-      : await prisma.program.findMany({
-          where: { id: { in: progIds } },
-          select: { id: true, name: true },
-        });
-  const progLabelById = new Map(programs.map((p) => [p.id, p.name]));
+  const facultyCourse = mapToSeries(fcData, weekKeys, fcLabels);
+  const programCourse = mapToSeries(pcData, weekKeys, pcLabels);
 
-  const byProgram: AcadepartmentChartSeries[] = progIds.map((pid) => {
-    const wm = progData.get(pid)!;
-    const points = weekKeys.map((wk) => {
-      const row = wm.get(wk);
-      return row ? pct(row) : null;
-    });
-    return {
-      id: pid,
-      label: progLabelById.get(pid) ?? pid,
-      points,
-    };
-  });
+  const facultyOptions: AcadepartmentFilterOption[] = [...facultyIdsSeen.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+
+  const programOptions: AcadepartmentFilterOption[] = [...programIdsSeen.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+
+  const courseSet = new Set<number>();
+  for (const g of groups) {
+    const c = groupMeta.get(g.id)?.course;
+    if (c !== null && c !== undefined) courseSet.add(c);
+  }
+  const courseOptions = [...courseSet].sort((a, b) => a - b);
 
   const emptyMessage =
     attendances.length === 0 ? "За семестр пока нет отметок посещаемости для графиков." : null;
@@ -272,8 +287,11 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
   return {
     weekLabels,
     facultyCourse,
-    byProgram,
+    programCourse,
     semesterName: semester.name,
     emptyMessage,
+    facultyOptions,
+    programOptions,
+    courseOptions,
   };
 }

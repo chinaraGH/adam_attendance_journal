@@ -4,6 +4,8 @@ import { performance } from "node:perf_hooks";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { ExportCsvButton } from "@/components/export-csv-button";
+import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
+import { formatAttendanceStatusDisplay } from "@/lib/ui/labels";
 
 function fmtShort(d: Date) {
   return new Date(d).toLocaleDateString("ru-RU", { month: "2-digit", day: "2-digit" });
@@ -109,10 +111,12 @@ export default async function CuratorGroupReportPage(props: { params: { groupId:
   const t1 = performance.now();
   console.log(`[SLA] curator report groupId=${groupId} db_ms=${Math.round((t1 - t0) * 10) / 10}`);
 
-  const cell = new Map<string, string>();
+  const cellCanon = new Map<string, string>();
+  const cellDisplay = new Map<string, string>();
   for (const a of attendance) {
-    const st = (a.statusV2 ?? a.status ?? "").trim().toUpperCase();
-    cell.set(`${a.studentId}:${a.classSessionId}`, st);
+    const key = `${a.studentId}:${a.classSessionId}`;
+    cellCanon.set(key, getCanonicalAttendanceStatusV2({ statusV2: a.statusV2, status: a.status }) ?? "");
+    cellDisplay.set(key, formatAttendanceStatusDisplay({ statusV2: a.statusV2, status: a.status }));
   }
 
   const totalSessions = sessions.length;
@@ -145,14 +149,14 @@ export default async function CuratorGroupReportPage(props: { params: { groupId:
       ? []
       : await prisma.attendance.findMany({
           where: { classSessionId: { in: sessionIds28 }, isActive: true, deletedAt: null, statusV2: { not: null } },
-          select: { classSessionId: true, statusV2: true },
+          select: { classSessionId: true, statusV2: true, status: true },
         });
   const sessionStartById = new Map(sessions28.map((s) => [s.id, s.startTime]));
   const weekly = weekRanges.map((w) => {
     let denom = 0;
     let numer = 0;
     for (const a of att28) {
-      const st = (a.statusV2 ?? "").toUpperCase();
+      const st = getCanonicalAttendanceStatusV2({ statusV2: a.statusV2, status: a.status });
       const stime = sessionStartById.get(a.classSessionId);
       if (!stime) continue;
       if (stime < w.start || stime > w.end) continue;
@@ -228,8 +232,8 @@ export default async function CuratorGroupReportPage(props: { params: { groupId:
               {students.map((st) => {
                 let attended = 0;
                 for (const s of sessions) {
-                  const v = cell.get(`${st.id}:${s.id}`) ?? "";
-                  if (v === "P" || v === "О" || v === "O" || v === "П") attended += 1;
+                  const v = cellCanon.get(`${st.id}:${s.id}`) ?? "";
+                  if (v === "P" || v === "O") attended += 1;
                 }
                 const pct = totalSessions > 0 ? Math.round((attended / totalSessions) * 1000) / 10 : 0;
                 return (
@@ -237,10 +241,10 @@ export default async function CuratorGroupReportPage(props: { params: { groupId:
                     <td className="sticky left-0 z-10 bg-white px-3 py-2 font-bold">{st.name}</td>
                     <td className="px-3 py-2 font-black">{pct}%</td>
                     {sessions.map((s) => {
-                      const v = cell.get(`${st.id}:${s.id}`) ?? "";
+                      const v = cellDisplay.get(`${st.id}:${s.id}`) ?? "—";
                       return (
                         <td key={s.id} className="px-3 py-2">
-                          <span className="font-bold">{v || "—"}</span>
+                          <span className="font-bold">{v}</span>
                         </td>
                       );
                     })}

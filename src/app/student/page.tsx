@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
+import { formatAttendanceStatusDisplay } from "@/lib/ui/labels";
 import { StudentAttendanceFilters } from "@/components/student-attendance-filters";
 
 function toDateInputValue(d: Date) {
@@ -48,17 +49,6 @@ function toEndOfDay(d: Date) {
   const next = new Date(d);
   next.setHours(23, 59, 59, 999);
   return next;
-}
-
-/** Подписи статусов для экрана студента (не технические коды из БД). */
-function formatStudentAttendanceStatusLabel(raw: string | null | undefined): string {
-  if (raw == null || String(raw).trim() === "") return "—";
-  const canonical = getCanonicalAttendanceStatusV2({ statusV2: raw, status: null });
-  if (!canonical) return String(raw).trim();
-  if (canonical === "NB") return "НБ";
-  if (canonical === "B_PENDING") return "неподтверждённое Б";
-  if (canonical === "B_CONFIRMED") return "Б";
-  return String(raw).trim();
 }
 
 export default async function StudentPage(props: {
@@ -239,7 +229,7 @@ export default async function StudentPage(props: {
               filtered.map((s) => {
                 const date = s.startTime.toLocaleDateString("ru-RU");
                 const raw = bySessionId.get(s.id);
-                const statusLabel = formatStudentAttendanceStatusLabel(raw);
+                const statusLabel = formatAttendanceStatusDisplay(raw);
                 return (
                   <tr key={s.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
                     <td style={{ padding: "10px 8px", fontWeight: 800 }}>{date}</td>

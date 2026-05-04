@@ -1,5 +1,5 @@
 import { decideSickRequestForm, getPendingSickAttendances } from "@/app/curator/dashboard/actions";
-import { formatDisciplineLabel } from "@/lib/ui/labels";
+import { formatAttendanceStatusDisplay, formatDisciplineLabel } from "@/lib/ui/labels";
 
 export default async function CuratorBRequestsPage() {
   const result = await getPendingSickAttendances();
@@ -8,7 +8,7 @@ export default async function CuratorBRequestsPage() {
     <main className="mx-auto max-w-[1000px] p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black">Запросы по болезни (B_PENDING)</h1>
+          <h1 className="text-2xl font-black">Запросы по болезни (неподтверждённое Б)</h1>
           <div className="mt-1 text-sm text-gray-600">Подтверждение/отклонение справок кураторами.</div>
         </div>
       </div>
@@ -34,7 +34,9 @@ export default async function CuratorBRequestsPage() {
                     {new Date(item.classSession.startTime).toLocaleString("ru-RU")}
                   </div>
                 </div>
-                <div className="text-sm font-black">Статус: {item.statusV2}</div>
+                <div className="text-sm font-black">
+                  Статус: {formatAttendanceStatusDisplay(item.statusV2)}
+                </div>
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
@@ -46,7 +48,7 @@ export default async function CuratorBRequestsPage() {
                     disabled={!!item.classSession.semester?.isLocked}
                     className="rounded-lg border border-green-600 bg-green-600 px-3 py-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
                   >
-                    Подтвердить (B_CONFIRMED)
+                    Подтвердить (Б)
                   </button>
                 </form>
 
@@ -58,7 +60,7 @@ export default async function CuratorBRequestsPage() {
                     disabled={!!item.classSession.semester?.isLocked}
                     className="rounded-lg border border-red-600 bg-red-600 px-3 py-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
                   >
-                    Отклонить (NB)
+                    Отклонить (НБ)
                   </button>
                 </form>
               </div>
