@@ -42,9 +42,6 @@ export async function processSickRequest(input: {
   if (!row) return { ok: false as const, error: "Запись не найдена." };
 
   const current = getCanonicalAttendanceStatusV2({ statusV2: row.statusV2, status: row.status });
-  if (current !== "B_PENDING") {
-    return { ok: false as const, error: "Можно обработать только запросы со статусом B_PENDING." };
-  }
 
   // Curator can process only for own groups.
   const hasAccess = await prisma.userGroupCurator.findFirst({
@@ -62,14 +59,42 @@ export async function processSickRequest(input: {
     throw new Error("Семестр закрыт. Изменение посещаемости запрещено.");
   }
 
-  // Only after scheduled end time.
   const now = getBishkekNow();
   const endBishkek = toZonedTime(row.classSession.endTime, BISHKEK_TIME_ZONE);
-  if (!isAfter(now, endBishkek)) {
-    return { ok: false as const, error: "Обработка Б возможна только после окончания занятия." };
+  const afterClass = isAfter(now, endBishkek);
+
+  let nextStatus: "B_CONFIRMED" | "NB" | null = null;
+
+  if (current === "B_PENDING") {
+    if (!afterClass) {
+      return { ok: false as const, error: "Обработка Б возможна только после окончания занятия." };
+    }
+    nextStatus = input.decision === "confirm" ? "B_CONFIRMED" : "NB";
+  } else   if (current === "B_CONFIRMED") {
+    if (input.decision === "confirm") {
+      return { ok: true as const, attendance: { id: row.id, statusV2: row.statusV2 } };
+    }
+    nextStatus = "NB";
+  } else if (current === "NB") {
+    if (input.decision === "reject") {
+      return { ok: true as const, attendance: { id: row.id, statusV2: row.statusV2 } };
+    }
+    const hadSickReject = await prisma.auditTrail.findFirst({
+      where: { entityType: "Attendance", entityId: row.id, action: "sick_reject" },
+      select: { id: true },
+    });
+    if (!hadSickReject) {
+      return { ok: false as const, error: "Подтвердить Б можно только для записей по справке (после отклонения)." };
+    }
+    nextStatus = "B_CONFIRMED";
+  } else {
+    return { ok: false as const, error: "Для этой записи переключение Б / НБ недоступно." };
   }
 
-  const nextStatus = input.decision === "confirm" ? "B_CONFIRMED" : "NB";
+  if (!nextStatus) {
+    return { ok: false as const, error: "Некорректное действие." };
+  }
+
   const decision = decideAttendanceStatusChange({
     actorRole: actor.role,
     isSemesterLocked: Boolean(row.classSession.semester?.isLocked),
@@ -94,7 +119,7 @@ export async function processSickRequest(input: {
     data: {
       actorType: "curator",
       actorId: actor.id,
-      action: input.decision === "confirm" ? "sick_confirm" : "sick_reject",
+      action: nextStatus === "NB" ? "sick_reject" : "sick_confirm",
       entityType: "Attendance",
       entityId: updated.id,
       beforeJson: JSON.stringify({ statusV2: current }),
