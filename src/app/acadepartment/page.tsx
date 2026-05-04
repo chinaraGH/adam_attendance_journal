@@ -25,12 +25,6 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
 
   const charts = await buildAcadepartmentAttendanceCharts();
 
-  const gaudiLastSuccess = await prisma.integrationLog.findFirst({
-    where: { provider: "gaudi", status: "success" },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
-  });
-
   const students =
     q.length > 0
       ? await prisma.student.findMany({
@@ -103,11 +97,6 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
           <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0, color: "#111827" }}>Учебная часть</h1>
           <p style={{ marginTop: 8, fontSize: 14, color: "#6b7280", fontWeight: 600 }}>
             Семестр: <span style={{ fontWeight: 800, color: "#111827" }}>{charts.semesterName ?? "—"}</span>
-            {" · "}
-            GAUDI:{" "}
-            <span style={{ fontWeight: 800, color: "#111827" }}>
-              {gaudiLastSuccess ? new Date(gaudiLastSuccess.createdAt).toLocaleString("ru-RU") : "—"}
-            </span>
           </p>
         </div>
         <AcadepartmentNavButtons />
@@ -132,10 +121,9 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
         ) : null}
         <AcadepartmentChartsWithFilters
           weekKeys={charts.weekKeys}
-          weekLabels={charts.weekLabels}
           emptyHint={null}
-          facultyCourseSeries={charts.facultyCourse}
-          programCourseSeries={charts.programCourse}
+          facultyCourseWeekly={charts.facultyCourseWeekly}
+          programCourseWeekly={charts.programCourseWeekly}
           facultyOptions={charts.facultyOptions}
           programOptions={charts.programOptions}
           courseOptions={charts.courseOptions}
