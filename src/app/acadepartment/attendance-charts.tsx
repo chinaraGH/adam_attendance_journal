@@ -91,7 +91,7 @@ function pctAgg(numer: number, denom: number): number | null {
   return Math.round((numer / denom) * 1000) / 10;
 }
 
-function truncateLabel(s: string, max = 36): string {
+function truncateLabel(s: string, max = 48): string {
   const t = s.trim();
   if (t.length <= max) return t;
   return `${t.slice(0, max - 1)}…`;
@@ -108,23 +108,23 @@ function ClusteredHistogram(props: {
   const K = categories.length;
   const B = legendLabels.length;
 
-  const hasAny =
-    K > 0 &&
-    B > 0 &&
-    values.some((row) => row.some((v) => v !== null && v !== undefined && !Number.isNaN(v as number)));
+  const hasDataPoint = values.some((row) =>
+    row.some((v) => v !== null && v !== undefined && !Number.isNaN(v as number)),
+  );
 
   const W = 1000;
-  const H = 380;
+  const H = 400;
   const padL = 52;
   const padR = 24;
-  const padT = 24;
+  const padT = 36;
   const padB = 112;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
   const yAt = (pct: number) => padT + innerH * (1 - pct / 100);
   const gridYs = [0, 25, 50, 75, 100];
+  const baselineY = padT + innerH;
 
-  if (!hasAny) {
+  if (K === 0 || B === 0) {
     return (
       <section style={{ marginTop: 16, borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
         <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0 }}>{title}</h2>
@@ -135,19 +135,24 @@ function ClusteredHistogram(props: {
     );
   }
 
-  const catW = K > 0 ? innerW / K : innerW;
+  const catW = innerW / K;
   const clusterPad = 0.06;
   const innerClusterW = catW * (1 - 2 * clusterPad);
   const barGap = 3;
-  const barW = B > 0 ? Math.max(4, (innerClusterW - barGap * (B - 1)) / B) : 4;
+  const barW = Math.max(5, (innerClusterW - barGap * (B - 1)) / B);
 
   return (
     <section style={{ marginTop: 16, borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
       <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0 }}>{title}</h2>
       {emptyHint ? <p style={{ marginTop: 6, fontSize: 13, color: "#92400e" }}>{emptyHint}</p> : null}
+      {!hasDataPoint ? (
+        <p style={{ marginTop: 8, fontSize: 13, color: "#6b7280", fontWeight: 600 }}>
+          За выбранные даты нет отметок по этим фильтрам — столбцы показывают пустые слоты (—).
+        </p>
+      ) : null}
 
       <div style={{ marginTop: 12, width: "100%", overflowX: "auto" }}>
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ height: "min(400px, 75vw)", width: "100%", minWidth: 480 }} preserveAspectRatio="xMidYMid meet">
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ height: "min(420px, 78vw)", width: "100%", minWidth: 480 }} preserveAspectRatio="xMidYMid meet">
           {gridYs.map((g) => (
             <g key={g}>
               <line x1={padL} y1={yAt(g)} x2={W - padR} y2={yAt(g)} stroke="#e5e7eb" strokeWidth={g === 0 || g === 100 ? 1.5 : 1} />
@@ -159,36 +164,69 @@ function ClusteredHistogram(props: {
 
           {categories.map((_, k) => {
             const baseX = padL + k * catW + catW * clusterPad;
-            const bars: React.ReactNode[] = [];
+            const nodes: React.ReactNode[] = [];
             for (let b = 0; b < B; b++) {
               const v = values[k]?.[b];
               const pctVal = v === null || v === undefined ? null : Math.max(0, Math.min(100, v));
               const col = COLORS[b % COLORS.length];
-              if (pctVal === null) continue;
-              const h = innerH * (pctVal / 100);
               const x = baseX + b * (barW + barGap);
-              const y = padT + innerH - h;
-              bars.push(<rect key={`${k}-${b}`} x={x} y={y} width={barW} height={h} fill={col} rx={2} />);
+              const cx = x + barW / 2;
+
+              if (pctVal === null) {
+                nodes.push(
+                  <rect
+                    key={`${k}-${b}-empty`}
+                    x={x}
+                    y={baselineY - 3}
+                    width={barW}
+                    height={3}
+                    fill="#e5e7eb"
+                    stroke="#d1d5db"
+                    strokeWidth={1}
+                    rx={1}
+                  />,
+                );
+                nodes.push(
+                  <text key={`${k}-${b}-lbl`} x={cx} y={baselineY - 8} fontSize={10} fill="#9ca3af" fontWeight={700} textAnchor="middle">
+                    —
+                  </text>,
+                );
+              } else {
+                const hRaw = innerH * (pctVal / 100);
+                const h = pctVal <= 0 ? 3 : Math.max(hRaw, 3);
+                const y = baselineY - h;
+                nodes.push(<rect key={`${k}-${b}`} x={x} y={y} width={barW} height={h} fill={col} rx={2} />);
+                const pctLabel =
+                  pctVal === 0 ? "0 %" : Number.isInteger(pctVal) ? `${pctVal} %` : `${pctVal.toFixed(1)} %`;
+                const ty = y < padT + 16 ? padT + 12 : y - 6;
+                nodes.push(
+                  <text key={`${k}-${b}-lbl`} x={cx} y={ty} fontSize={11} fill="#111827" fontWeight={800} textAnchor="middle">
+                    {pctLabel}
+                  </text>,
+                );
+              }
             }
-            return <g key={`cat-${k}`}>{bars}</g>;
+            return <g key={`cat-${k}`}>{nodes}</g>;
           })}
 
           {categories.map((lab, k) => {
             const cx = padL + k * catW + catW / 2;
-            const words = truncateLabel(lab, 40);
+            const words = truncateLabel(lab, 52);
             return (
-              <text
-                key={`xl-${k}`}
-                x={cx}
-                y={H - 72}
-                fontSize={10}
-                fill="#374151"
-                fontWeight={600}
-                textAnchor="middle"
-                transform={`rotate(-38 ${cx} ${H - 72})`}
-              >
-                {words}
-              </text>
+              <g key={`xl-${k}`}>
+                <title>{lab}</title>
+                <text
+                  x={cx}
+                  y={H - 68}
+                  fontSize={10}
+                  fill="#374151"
+                  fontWeight={600}
+                  textAnchor="middle"
+                  transform={`rotate(-36 ${cx} ${H - 68})`}
+                >
+                  {words}
+                </text>
+              </g>
             );
           })}
         </svg>

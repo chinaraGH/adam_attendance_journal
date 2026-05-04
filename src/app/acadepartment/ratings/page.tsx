@@ -164,6 +164,7 @@ export default async function AcadepartmentRatingsPage() {
   );
 }
 
+/** Один пробел после «%», перед скобкой с числом отметок. */
 function formatPctLine(pct: number, marks: number) {
   return `${pct} % (${marks})`;
 }
@@ -176,11 +177,12 @@ function Ul(props: { rows: RankRow[]; href: (id: string) => string; empty?: stri
     <ol className="mt-3 list-decimal space-y-2 pl-6 text-sm marker:font-black marker:text-gray-500">
       {props.rows.map((r) => (
         <li key={r.id} className="rounded-lg border border-gray-100 py-2 pl-1 pr-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <Link className="min-w-0 flex-1 font-black text-blue-800 underline" href={props.href(r.id)}>
+          <div className="whitespace-pre-wrap text-left font-black leading-relaxed">
+            <Link className="text-blue-800 underline" href={props.href(r.id)}>
               {r.name}
             </Link>
-            <span className="shrink-0 font-black tabular-nums">{formatPctLine(r.pct, r.marks)}</span>
+            {"  "}
+            <span className="tabular-nums">{formatPctLine(r.pct, r.marks)}</span>
           </div>
         </li>
       ))}
@@ -199,9 +201,10 @@ function DiscTable(props: {
     <ol className="mt-3 list-decimal space-y-2 pl-6 text-sm marker:font-black marker:text-gray-500">
       {props.rows.map((r) => (
         <li key={r.id} className="rounded-lg border border-gray-100 py-2 pl-1 pr-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <span className="min-w-0 flex-1 font-black">{r.label}</span>
-            <span className="shrink-0 font-black tabular-nums">{formatPctLine(r.pct, r.marks)}</span>
+          <div className="whitespace-pre-wrap text-left font-black leading-relaxed">
+            <span>{r.label}</span>
+            {"  "}
+            <span className="tabular-nums">{formatPctLine(r.pct, r.marks)}</span>
           </div>
         </li>
       ))}
