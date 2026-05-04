@@ -7,9 +7,20 @@ function toDateInputValue(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function parseDate(param: string | undefined): Date | null {
-  if (!param) return null;
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(param);
+function toSingleParam(param: string | string[] | undefined): string | undefined {
+  if (!param) return undefined;
+  if (Array.isArray(param)) {
+    const first = param.find(Boolean);
+    return first?.trim() || undefined;
+  }
+  const value = param.trim();
+  return value || undefined;
+}
+
+function parseDate(param: string | string[] | undefined): Date | null {
+  const value = toSingleParam(param);
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return null;
   const year = Number(match[1]);
   const monthIndex = Number(match[2]) - 1;
@@ -43,8 +54,8 @@ export default async function StudentPage(props: {
     view?: string;
     disciplineId?: string | string[];
     day?: string | string[];
-    from?: string;
-    to?: string;
+    from?: string | string[];
+    to?: string | string[];
   };
 }) {
   const actor = await getCurrentUserOrRedirect();
