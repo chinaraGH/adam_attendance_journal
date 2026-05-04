@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { formatDisciplineLabel } from "@/lib/ui/labels";
 import { AutoSubmitDateInput, AutoSubmitDisciplineMultiSelect, AutoSubmitSelect } from "./auto-submit-filters";
+import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
 
 const LOW_ATTENDANCE_THRESHOLD = 70;
 
@@ -137,29 +138,27 @@ export default async function ReportsPage(props: {
   const sessionIds = sessions.map((s) => s.id);
   const totalSessions = sessionIds.length;
 
-  const agg =
+  const attendanceRows =
     sessionIds.length === 0 || students.length === 0
       ? []
-      : await prisma.attendance.groupBy({
-          by: ["studentId", "statusV2"],
+      : await prisma.attendance.findMany({
           where: {
             isActive: true,
             deletedAt: null,
             classSessionId: { in: sessionIds },
             studentId: { in: students.map((s) => s.id) },
-            statusV2: { not: null },
           },
-          _count: { _all: true },
+          select: { studentId: true, statusV2: true, status: true },
         });
 
   const byStudent = new Map<string, { NB: number; O: number; P: number }>();
   for (const s of students) byStudent.set(s.id, { NB: 0, O: 0, P: 0 });
-  for (const r of agg) {
+  for (const r of attendanceRows) {
     const rec = byStudent.get(r.studentId) ?? { NB: 0, O: 0, P: 0 };
-    const st = (r.statusV2 ?? "").toUpperCase();
-    if (st === "NB") rec.NB += r._count._all;
-    if (st === "O") rec.O += r._count._all;
-    if (st === "P") rec.P += r._count._all;
+    const st = (getCanonicalAttendanceStatusV2({ statusV2: r.statusV2, status: r.status }) ?? "").toUpperCase();
+    if (st === "NB") rec.NB += 1;
+    if (st === "O") rec.O += 1;
+    if (st === "P") rec.P += 1;
     byStudent.set(r.studentId, rec);
   }
 
