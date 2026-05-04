@@ -34,7 +34,7 @@ export default async function AdminAuditPage() {
     <main className="mx-auto max-w-[1100px] p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-2xl font-black">Audit Trail (последние 50)</h1>
-        <Link className="font-bold underline" href="/admin/search">
+        <Link className="font-bold underline" href="/acadepartment">
           ← Поиск
         </Link>
       </div>

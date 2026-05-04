@@ -34,7 +34,7 @@ export default async function AdminStudentPage(props: { params: { id: string } }
     <main className="mx-auto max-w-[900px] p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-2xl font-black">{student.name}</h1>
-        <Link className="font-bold underline" href="/admin/search">
+        <Link className="font-bold underline" href="/acadepartment">
           ← Поиск
         </Link>
       </div>

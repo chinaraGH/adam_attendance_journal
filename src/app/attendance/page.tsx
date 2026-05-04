@@ -51,22 +51,28 @@ export default async function AttendancePage() {
 
   return (
     <main style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 16 }}>Электронный журнал</h1>
-
       {!group ? (
-        <p>Тестовая группа не найдена.</p>
-      ) : !anySession ? (
-        <p>Нет ни одного занятия (ClassSession) в базе. Создайте тестовое занятие и обновите страницу.</p>
-      ) : (
         <>
-          <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>{group.name}</h2>
-
-          <AttendanceClient
-            students={group.students}
-            initialStatusByStudentId={initialStatusByStudentId}
-            classSessionId={anySession.id}
-          />
+          <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 16 }}>Электронный журнал</h1>
+          <p>Тестовая группа не найдена.</p>
         </>
+      ) : !anySession ? (
+        <>
+          <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 16 }}>Электронный журнал</h1>
+          <p>Нет ни одного занятия (ClassSession) в базе. Создайте тестовое занятие и обновите страницу.</p>
+        </>
+      ) : (
+        <AttendanceClient
+          header={
+            <>
+              <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 16 }}>Электронный журнал</h1>
+              <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>{group.name}</h2>
+            </>
+          }
+          students={group.students}
+          initialStatusByStudentId={initialStatusByStudentId}
+          classSessionId={anySession.id}
+        />
       )}
     </main>
   );

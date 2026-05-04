@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
-import { ExitButton } from "@/components/exit-button";
+import { BackToolbar, ExitButton } from "@/components/exit-button";
 
 const NAV_CURRENT_PATH_KEY = "ejp_current_path";
 const NAV_PREV_PATH_KEY = "ejp_prev_path";
@@ -32,18 +32,30 @@ export function AppChrome() {
   const backTarget =
     pathname === "/"
       ? "/login"
+      : pathname === "/teacher"
+      ? "/login"
       : pathname === "/student"
       ? "/login"
-      : pathname === "/curator/dashboard"
+      : pathname === "/reports"
+      ? "/teacher"
+      : pathname === "/teacher/reports"
+      ? "/teacher"
+      : pathname === "/curator" || pathname === "/curator/dashboard"
+      ? "/login"
+      : pathname.startsWith("/acadepartment/")
+      ? "/acadepartment"
+      : pathname === "/acadepartment"
+      ? "/login"
+      : pathname === "/leadership" || pathname === "/leadership/dashboard"
       ? "/login"
       : pathname === "/curator/exemptions" || curatorExemptionsGroup
-        ? "/curator/dashboard"
+        ? "/curator"
         : parentPath;
 
   return (
-    <div style={{ position: "fixed", top: 16, left: 16, zIndex: 50 }}>
+    <BackToolbar>
       <ExitButton label="Назад" to={backTarget} preferTo />
-    </div>
+    </BackToolbar>
   );
 }
 
