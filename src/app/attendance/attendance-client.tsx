@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { saveAttendances } from "./actions";
-import { ExitButton } from "@/components/exit-button";
+import { BackToolbar, ExitButton } from "@/components/exit-button";
 
 type Student = { id: string; name: string };
 
@@ -55,8 +55,9 @@ export function AttendanceClient(props: {
   initialStatusByStudentId: Record<string, string | null | undefined>;
   classSessionId: string;
   readOnly?: boolean;
+  header?: ReactNode;
 }) {
-  const { students, initialStatusByStudentId, classSessionId, readOnly } = props;
+  const { students, initialStatusByStudentId, classSessionId, readOnly, header } = props;
   const router = useRouter();
 
   const [isSaving, setIsSaving] = useState(false);
@@ -122,7 +123,7 @@ export function AttendanceClient(props: {
           if (typeof window !== "undefined" && window.history.length > 1) {
             router.back();
           } else {
-            router.push("/");
+            router.push("/teacher");
           }
         } else {
           setErrorMessage(result.error);
@@ -141,9 +142,11 @@ export function AttendanceClient(props: {
 
   return (
     <>
-      <div style={{ position: "fixed", top: 16, left: 16, zIndex: 50 }}>
-        <ExitButton disabled={isLogoutDisabled} to="/" preferTo />
-      </div>
+      <BackToolbar style={{ marginBottom: 16 }}>
+        <ExitButton disabled={isLogoutDisabled} to="/teacher" preferTo />
+      </BackToolbar>
+
+      {header ? <div>{header}</div> : null}
 
       {errorMessage ? (
         <div

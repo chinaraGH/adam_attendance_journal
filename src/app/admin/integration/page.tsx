@@ -24,7 +24,7 @@ export default async function AdminIntegrationPage() {
     <main className="mx-auto max-w-[1100px] p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-2xl font-black">Мониторинг интеграций</h1>
-        <Link className="font-bold underline" href="/admin/search">
+        <Link className="font-bold underline" href="/acadepartment">
           ← Поиск
         </Link>
       </div>

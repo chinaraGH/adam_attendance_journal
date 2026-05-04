@@ -82,7 +82,7 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
           <div className="mt-1 text-sm text-gray-600">Отчет группы (просмотр для учебной части/админа)</div>
         </div>
         <div className="flex items-center gap-3">
-          <Link className="font-bold underline" href="/admin/search">
+          <Link className="font-bold underline" href="/acadepartment">
             ← Поиск
           </Link>
           <ExportCsvButton filename={`group-${groupId}.csv`} rows={students.map((s) => ({ studentId: s.id, studentName: s.name }))} />

@@ -13,6 +13,7 @@ function isPublicPath(pathname: string) {
 }
 
 function roleAllowed(pathname: string, role: string) {
+  if (pathname.startsWith("/acadepartment")) return role === "ADMIN" || role === "ACADEMIC_OFFICE";
   if (pathname.startsWith("/admin")) return role === "ADMIN" || role === "ACADEMIC_OFFICE";
   if (pathname.startsWith("/leadership")) return role === "LEADERSHIP";
   if (pathname.startsWith("/curator")) return role === "CURATOR";

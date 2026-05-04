@@ -3,6 +3,36 @@
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 
+/** Sticky top bar: reserves vertical space so content is never covered by the back control. */
+export const backToolbarBaseStyle: React.CSSProperties = {
+  position: "sticky",
+  top: 0,
+  zIndex: 50,
+  display: "flex",
+  alignItems: "center",
+  minHeight: 48,
+  boxSizing: "border-box",
+  width: "100%",
+  background: "#ffffff",
+  borderBottom: "1px solid #e5e7eb",
+  boxShadow: "0 1px 0 rgba(15, 23, 42, 0.06)",
+};
+
+export function BackToolbar(props: {
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <header
+      className={props.className}
+      style={{ ...backToolbarBaseStyle, padding: "8px 16px", margin: 0, ...props.style }}
+    >
+      {props.children}
+    </header>
+  );
+}
+
 const baseStyle: React.CSSProperties = {
   appearance: "none",
   border: "1px solid #111827",
