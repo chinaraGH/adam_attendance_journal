@@ -4,7 +4,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { BISHKEK_TIME_ZONE } from "@/lib/time/bishkek-now";
-import { formatDisciplineLabel } from "@/lib/ui/labels";
+import { formatAttendanceStatusDisplay, formatDisciplineLabel } from "@/lib/ui/labels";
 import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
 
 import { AutoSubmitDateInput } from "../auto-submit-date-input";
@@ -164,7 +164,7 @@ export default async function CuratorGroupExemptionsPage(props: {
                 students.map((st) => {
                   const att = attendanceByKey.get(`${st.id}:${session.id}`) ?? null;
                   const canonical = att ? getCanonicalAttendanceStatusV2({ statusV2: att.statusV2, status: att.status }) : null;
-                  const statusLabel = canonical ?? "—";
+                  const statusLabel = att ? formatAttendanceStatusDisplay({ statusV2: att.statusV2, status: att.status }) : "—";
                   const semesterLocked = !!session.semester?.isLocked || !!semester?.isLocked;
                   const toggleDisabled = semesterLocked;
 

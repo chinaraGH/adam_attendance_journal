@@ -211,6 +211,21 @@ export function AttendanceClient(props: {
               </div>
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                {lockedA ? (
+                  <button
+                    type="button"
+                    disabled
+                    title="Освобождение (А) установлено учебной частью; изменить может только куратор."
+                    style={{
+                      ...getButtonStyle({ kind: "a", isActive: true }),
+                      cursor: "not-allowed",
+                      opacity: 1,
+                    }}
+                  >
+                    А
+                  </button>
+                ) : null}
+
                 <button
                   type="button"
                   onClick={() => setStatus(student.id, STATUS.P)}
@@ -246,21 +261,6 @@ export function AttendanceClient(props: {
                 >
                   Б
                 </button>
-
-                {lockedA ? (
-                  <button
-                    type="button"
-                    disabled
-                    title="Освобождение (А) установлено учебной частью; изменить может только куратор."
-                    style={{
-                      ...getButtonStyle({ kind: "a", isActive: true }),
-                      cursor: "not-allowed",
-                      opacity: 1,
-                    }}
-                  >
-                    А
-                  </button>
-                ) : null}
               </div>
             </li>
           );

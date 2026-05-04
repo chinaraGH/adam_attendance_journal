@@ -42,7 +42,7 @@ export default async function CuratorPage() {
                   <th style={{ padding: "10px 8px" }}>Группа</th>
                   <th style={{ padding: "10px 8px" }}>Всего занятий</th>
                   <th style={{ padding: "10px 8px" }}>% посещаемости</th>
-                  <th style={{ padding: "10px 8px" }}>NB</th>
+                  <th style={{ padding: "10px 8px" }}>НБ</th>
                   <th style={{ padding: "10px 8px" }}>Б</th>
                 </tr>
               </thead>

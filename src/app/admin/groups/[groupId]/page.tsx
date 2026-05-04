@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
+import { formatAttendanceStatusDisplay } from "@/lib/ui/labels";
 
 export default async function AdminGroupReportPage(props: { params: { groupId: string } }) {
   const actor = await getCurrentUserOrRedirect();
@@ -68,8 +69,10 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
 
   const cell = new Map<string, string>();
   for (const a of attendance) {
-    const st = (a.statusV2 ?? a.status ?? "").trim().toUpperCase();
-    cell.set(`${a.studentId}:${a.classSessionId}`, st);
+    cell.set(
+      `${a.studentId}:${a.classSessionId}`,
+      formatAttendanceStatusDisplay({ statusV2: a.statusV2, status: a.status }),
+    );
   }
 
   return (

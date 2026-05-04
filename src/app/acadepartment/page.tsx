@@ -4,7 +4,7 @@ import { buildAcadepartmentAttendanceCharts } from "@/lib/academic/build-acadepa
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 
-import { AttendanceDynamicsCharts } from "./attendance-charts";
+import { AcadepartmentChartsWithFilters, AcadepartmentNavButtons } from "./attendance-charts";
 
 function qNorm(v: string | undefined) {
   return (v ?? "").trim();
@@ -107,23 +107,8 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
             GAUDI:{" "}
             <span className="font-bold">{gaudiLastSuccess ? new Date(gaudiLastSuccess.createdAt).toLocaleString("ru-RU") : "—"}</span>
           </p>
-          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-gray-700">
-            <span className="font-black">Курс</span> определяется по последним цифрам кода или названия группы (год набора): самый большой такой
-            номер среди групп считается <span className="font-black">1 курсом</span>, остальные курсы — насколько год набора меньше максимума (например,
-            при максимуме 25 группа с 23 — 3-й курс).
-          </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            className="rounded-lg border border-gray-900 bg-white px-4 py-2 text-sm font-black text-gray-900 shadow-sm"
-            href="/acadepartment/ratings"
-          >
-            Рейтинг
-          </Link>
-          <Link className="rounded-lg border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-black text-white" href="/admin/semester">
-            Семестр →
-          </Link>
-        </div>
+        <AcadepartmentNavButtons />
       </div>
 
       <div className="mt-8">
@@ -132,11 +117,14 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
             {charts.emptyMessage}
           </p>
         ) : null}
-        <AttendanceDynamicsCharts
+        <AcadepartmentChartsWithFilters
           weekLabels={charts.weekLabels}
-          facultyCourse={charts.facultyCourse}
-          byProgram={charts.byProgram}
           emptyHint={null}
+          facultyCourseSeries={charts.facultyCourse}
+          programCourseSeries={charts.programCourse}
+          facultyOptions={charts.facultyOptions}
+          programOptions={charts.programOptions}
+          courseOptions={charts.courseOptions}
         />
       </div>
 

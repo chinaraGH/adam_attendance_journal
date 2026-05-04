@@ -1,3 +1,43 @@
+import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
+
+/**
+ * Единообразные подписи статусов посещаемости для пользовательского интерфейса
+ * (в БД остаются латинские коды: P, NB, B_PENDING, …).
+ */
+export function formatAttendanceStatusDisplay(
+  input: string | null | undefined | { statusV2: string | null; status: string | null },
+): string {
+  const row =
+    typeof input === "object" && input !== null && "statusV2" in input
+      ? input
+      : { statusV2: typeof input === "string" ? input : null, status: null };
+
+  const canonical = getCanonicalAttendanceStatusV2(row);
+  if (!canonical) {
+    if (typeof input === "string" && input.trim()) return input.trim();
+    return "—";
+  }
+
+  switch (canonical) {
+    case "P":
+      return "П";
+    case "O":
+      return "О";
+    case "NB":
+      return "НБ";
+    case "B_PENDING":
+      return "неподтверждённое Б";
+    case "B_CONFIRMED":
+      return "Б";
+    case "A":
+      return "А";
+    case "S":
+      return "С";
+    default:
+      return canonical;
+  }
+}
+
 export function formatRoleLabel(role: string) {
   const r = String(role).trim().toUpperCase();
   if (r === "TEACHER") return "Преподаватель";
