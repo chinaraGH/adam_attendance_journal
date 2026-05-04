@@ -131,11 +131,12 @@ export default async function ReportsPage(props: {
             startTime: { gte: from, lte: to },
             ...(disciplineIds.length > 0 ? { disciplineId: { in: disciplineIds } } : {}),
           },
-          select: { id: true },
+          select: { id: true, disciplineId: true },
         })
       : [];
 
   const sessionIds = sessions.map((s) => s.id);
+  const sessionDisciplineById = new Map(sessions.map((s) => [s.id, s.disciplineId]));
   const totalSessions = sessionIds.length;
 
   const attendanceRows =
@@ -148,7 +149,7 @@ export default async function ReportsPage(props: {
             classSessionId: { in: sessionIds },
             studentId: { in: students.map((s) => s.id) },
           },
-          select: { studentId: true, statusV2: true, status: true },
+          select: { studentId: true, classSessionId: true, statusV2: true, status: true },
         });
 
   const byStudent = new Map<string, { NB: number; O: number; P: number }>();
@@ -166,6 +167,45 @@ export default async function ReportsPage(props: {
     const c = byStudent.get(s.id) ?? { NB: 0, O: 0, P: 0 };
     const pct = totalSessions > 0 ? Math.round(((c.P + c.O) / totalSessions) * 1000) / 10 : 0;
     return { studentId: s.id, studentName: s.name, nb: c.NB, o: c.O, pct };
+  });
+
+  const selectedDisciplineSet = new Set(disciplineIds);
+  const disciplineOrder: string[] =
+    disciplineIds.length > 0
+      ? disciplineIds
+      : disciplines
+          .map((d) => d.disciplineId)
+          .filter((id) =>
+            sessions.some((s) => s.disciplineId === id) &&
+            (selectedDisciplineSet.size === 0 || selectedDisciplineSet.has(id)),
+          );
+
+  const sessionsCountByDiscipline = new Map<string, number>();
+  for (const s of sessions) {
+    sessionsCountByDiscipline.set(s.disciplineId, (sessionsCountByDiscipline.get(s.disciplineId) ?? 0) + 1);
+  }
+
+  const byStudentDiscipline = new Map<string, { NB: number; O: number; P: number }>();
+  for (const r of attendanceRows) {
+    const discipline = sessionDisciplineById.get(r.classSessionId);
+    if (!discipline) continue;
+    const key = `${r.studentId}:${discipline}`;
+    const rec = byStudentDiscipline.get(key) ?? { NB: 0, O: 0, P: 0 };
+    const st = (getCanonicalAttendanceStatusV2({ statusV2: r.statusV2, status: r.status }) ?? "").toUpperCase();
+    if (st === "NB") rec.NB += 1;
+    if (st === "O") rec.O += 1;
+    if (st === "P") rec.P += 1;
+    byStudentDiscipline.set(key, rec);
+  }
+
+  const disciplineSections = disciplineOrder.map((disciplineId) => {
+    const total = sessionsCountByDiscipline.get(disciplineId) ?? 0;
+    const disciplineRows = students.map((s) => {
+      const c = byStudentDiscipline.get(`${s.id}:${disciplineId}`) ?? { NB: 0, O: 0, P: 0 };
+      const pct = total > 0 ? Math.round(((c.P + c.O) / total) * 1000) / 10 : 0;
+      return { studentId: s.id, studentName: s.name, nb: c.NB, o: c.O, pct };
+    });
+    return { disciplineId, totalSessions: total, rows: disciplineRows };
   });
 
   return (
@@ -218,7 +258,8 @@ export default async function ReportsPage(props: {
         </div>
       </div>
 
-      <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 14, background: "white", overflowX: "auto" }}>
+      <div style={{ marginTop: 16, fontWeight: 900, fontSize: 16 }}>1. Общий результат по выбранным предметам</div>
+      <div style={{ marginTop: 8, border: "1px solid #e5e7eb", borderRadius: 14, background: "white", overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <thead>
             <tr style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb" }}>
@@ -248,6 +289,48 @@ export default async function ReportsPage(props: {
           Всего занятий за период: <span style={{ fontWeight: 900 }}>{totalSessions}</span>
         </div>
       </div>
+
+      <div style={{ marginTop: 20, fontWeight: 900, fontSize: 16 }}>2. Результаты по каждому предмету отдельно</div>
+      {disciplineSections.length === 0 ? (
+        <div style={{ marginTop: 8, color: "#6b7280", fontWeight: 700 }}>Нет дисциплин для выбранных фильтров.</div>
+      ) : (
+        disciplineSections.map((section) => (
+          <div key={section.disciplineId} style={{ marginTop: 10, border: "1px solid #e5e7eb", borderRadius: 14, background: "white", overflowX: "auto" }}>
+            <div style={{ padding: 12, fontWeight: 900 }}>
+              {formatDisciplineLabel({
+                disciplineId: section.disciplineId,
+                disciplineName: disciplineNameById.get(section.disciplineId) ?? null,
+              })}
+            </div>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb" }}>
+                  <th style={{ padding: "10px 8px" }}>Студент</th>
+                  <th style={{ padding: "10px 8px" }}>НБ</th>
+                  <th style={{ padding: "10px 8px" }}>О</th>
+                  <th style={{ padding: "10px 8px" }}>Итого %</th>
+                </tr>
+              </thead>
+              <tbody>
+                {section.rows.map((r) => {
+                  const isLow = r.pct < LOW_ATTENDANCE_THRESHOLD;
+                  return (
+                    <tr key={`${section.disciplineId}:${r.studentId}`} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                      <td style={{ padding: "10px 8px", fontWeight: 900 }}>{r.studentName}</td>
+                      <td style={{ padding: "10px 8px" }}>{r.nb}</td>
+                      <td style={{ padding: "10px 8px" }}>{r.o}</td>
+                      <td style={{ padding: "10px 8px", fontWeight: 900, color: isLow ? "#dc2626" : "#111827" }}>{r.pct}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div style={{ padding: 12, color: "#6b7280" }}>
+              Всего занятий по предмету: <span style={{ fontWeight: 900 }}>{section.totalSessions}</span>
+            </div>
+          </div>
+        ))
+      )}
     </main>
   );
 }

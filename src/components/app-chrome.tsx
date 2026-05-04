@@ -32,6 +32,8 @@ export function AppChrome() {
   const backTarget =
     pathname === "/"
       ? "/login"
+      : pathname === "/student"
+      ? "/login"
       : pathname === "/curator/dashboard"
       ? "/login"
       : pathname === "/curator/exemptions" || curatorExemptionsGroup
