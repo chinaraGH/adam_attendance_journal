@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { formatDisciplineLabel } from "@/lib/ui/labels";
-import { AutoSubmitDateInput, AutoSubmitSelect } from "./auto-submit-filters";
+import { AutoSubmitDateInput, AutoSubmitDisciplineMultiSelect, AutoSubmitSelect } from "./auto-submit-filters";
 
 const LOW_ATTENDANCE_THRESHOLD = 70;
 
@@ -10,14 +10,55 @@ function toDateInputValue(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function parseDate(param: string | undefined): Date | null {
-  if (!param) return null;
-  const d = new Date(param);
-  return Number.isNaN(d.getTime()) ? null : d;
+function toSingleParam(param: string | string[] | undefined): string | undefined {
+  if (!param) return undefined;
+  if (Array.isArray(param)) {
+    const first = param.find(Boolean);
+    return first?.trim() || undefined;
+  }
+  const value = param.trim();
+  return value || undefined;
+}
+
+function parseDate(param: string | string[] | undefined): Date | null {
+  const value = toSingleParam(param);
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const d = new Date(year, monthIndex, day);
+  if (
+    Number.isNaN(d.getTime()) ||
+    d.getFullYear() !== year ||
+    d.getMonth() !== monthIndex ||
+    d.getDate() !== day
+  ) {
+    return null;
+  }
+  return d;
+}
+
+function toStartOfDay(d: Date) {
+  const next = new Date(d);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function toEndOfDay(d: Date) {
+  const next = new Date(d);
+  next.setHours(23, 59, 59, 999);
+  return next;
+}
+
+function toArray(value?: string | string[]) {
+  if (!value) return [];
+  return (Array.isArray(value) ? value : [value]).filter(Boolean);
 }
 
 export default async function ReportsPage(props: {
-  searchParams: { groupId?: string; disciplineId?: string; from?: string; to?: string };
+  searchParams: { groupId?: string; disciplineId?: string | string[]; from?: string | string[]; to?: string | string[] };
 }) {
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "TEACHER" && actor.role !== "CURATOR") {
@@ -45,8 +86,8 @@ export default async function ReportsPage(props: {
   const defaultTo = new Date(now);
   defaultTo.setHours(23, 59, 59, 999);
 
-  const from = parseDate(props.searchParams.from) ?? defaultFrom;
-  const to = parseDate(props.searchParams.to) ?? defaultTo;
+  const from = toStartOfDay(parseDate(props.searchParams.from) ?? defaultFrom);
+  const to = toEndOfDay(parseDate(props.searchParams.to) ?? defaultTo);
 
   const disciplines = groupId
     ? await prisma.classSession.findMany({
@@ -66,7 +107,9 @@ export default async function ReportsPage(props: {
           })
     ).map((d) => [d.id, d.name]),
   );
-  const disciplineId = props.searchParams.disciplineId ?? "";
+  const selectedDisciplineIds = toArray(props.searchParams.disciplineId);
+  const availableDisciplineIds = new Set(disciplines.map((d) => d.disciplineId));
+  const disciplineIds = selectedDisciplineIds.filter((id) => availableDisciplineIds.has(id));
 
   const students =
     groupId.length > 0
@@ -85,7 +128,7 @@ export default async function ReportsPage(props: {
             isActive: true,
             deletedAt: null,
             startTime: { gte: from, lte: to },
-            ...(disciplineId ? { disciplineId } : {}),
+            ...(disciplineIds.length > 0 ? { disciplineId: { in: disciplineIds } } : {}),
           },
           select: { id: true },
         })
@@ -148,17 +191,17 @@ export default async function ReportsPage(props: {
 
           <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
             Дисциплина
-            <AutoSubmitSelect name="disciplineId" defaultValue={disciplineId}>
-              <option value="">Все</option>
-              {disciplines.map((d) => (
-                <option key={d.disciplineId} value={d.disciplineId}>
-                  {formatDisciplineLabel({
-                    disciplineId: d.disciplineId,
-                    disciplineName: disciplineNameById.get(d.disciplineId) ?? null,
-                  })}
-                </option>
-              ))}
-            </AutoSubmitSelect>
+            <AutoSubmitDisciplineMultiSelect
+              name="disciplineId"
+              selectedValues={disciplineIds}
+              options={disciplines.map((d) => ({
+                value: d.disciplineId,
+                label: formatDisciplineLabel({
+                  disciplineId: d.disciplineId,
+                  disciplineName: disciplineNameById.get(d.disciplineId) ?? null,
+                }),
+              }))}
+            />
           </label>
 
           <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>

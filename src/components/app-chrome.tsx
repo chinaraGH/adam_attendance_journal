@@ -29,15 +29,16 @@ export function AppChrome() {
   if (pathname.startsWith("/attendance")) return null;
 
   const curatorExemptionsGroup = /^\/curator\/exemptions\/[^/]+$/.test(pathname);
-  const curatorRootLevel = pathname === "/curator/exemptions" || pathname === "/curator/dashboard";
+  const backTarget =
+    pathname === "/curator/dashboard"
+      ? "/"
+      : pathname === "/curator/exemptions" || curatorExemptionsGroup
+        ? "/curator/dashboard"
+        : parentPath;
 
   return (
     <div style={{ position: "fixed", top: 16, left: 16, zIndex: 50 }}>
-      <ExitButton
-        label="Назад"
-        to={curatorExemptionsGroup ? "/curator/exemptions" : curatorRootLevel ? "/curator/dashboard" : parentPath}
-        preferTo
-      />
+      <ExitButton label="Назад" to={backTarget} preferTo />
     </div>
   );
 }
