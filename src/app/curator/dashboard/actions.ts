@@ -1,8 +1,212 @@
 "use server";
 
+import { formatInTimeZone } from "date-fns-tz";
+
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
+import { BISHKEK_TIME_ZONE } from "@/lib/time/bishkek-now";
 import { processSickRequest, setAdministrativeAbsence } from "@/app/actions/curator-actions";
+
+export type CuratorSickSemesterRow = {
+  attendanceId: string;
+  rowKind: "pending" | "confirmed" | "rejected_nb";
+  statusV2: string | null;
+  status: string | null;
+  updatedAt: Date;
+  exemptionsDateYmd: string;
+  student: {
+    id: string;
+    name: string;
+    group: { id: string; name: string };
+  };
+  classSession: {
+    id: string;
+    disciplineId: string;
+    startTime: Date;
+    endTime: Date;
+    discipline: { name: string | null } | null;
+    semester: { isLocked: boolean } | null;
+  };
+};
+
+/** Блокирующие статусы за семестр: B_PENDING, B_CONFIRMED и отклонённые Б (NB после sick_reject в audit). Без изменения бизнес-правил записи. */
+export async function getCuratorSickSemesterOverview(): Promise<
+  | { ok: false; error: string }
+  | {
+      ok: true;
+      semesterName: string | null;
+      semesterEndDate: Date | null;
+      semesterLocked: boolean;
+      rows: CuratorSickSemesterRow[];
+    }
+> {
+  const actor = await getCurrentUserOrRedirect();
+  if (actor.role !== "CURATOR") {
+    return { ok: false, error: "Недостаточно прав." };
+  }
+
+  const groupLinks = await prisma.userGroupCurator.findMany({
+    where: { userId: actor.id, isActive: true, deletedAt: null },
+    select: { groupId: true },
+  });
+  const groupIds = groupLinks.map((x) => x.groupId);
+  if (groupIds.length === 0) {
+    return {
+      ok: true,
+      semesterName: null,
+      semesterEndDate: null,
+      semesterLocked: false,
+      rows: [],
+    };
+  }
+
+  const semester =
+    (await prisma.semester.findFirst({
+      where: { isLocked: false },
+      orderBy: { startDate: "desc" },
+      select: { id: true, name: true, endDate: true, isLocked: true },
+    })) ??
+    (await prisma.semester.findFirst({
+      orderBy: { startDate: "desc" },
+      select: { id: true, name: true, endDate: true, isLocked: true },
+    }));
+
+  if (!semester) {
+    return {
+      ok: true,
+      semesterName: null,
+      semesterEndDate: null,
+      semesterLocked: false,
+      rows: [],
+    };
+  }
+
+  const sessions = await prisma.classSession.findMany({
+    where: {
+      groupId: { in: groupIds },
+      semesterId: semester.id,
+      isActive: true,
+      deletedAt: null,
+      NOT: [{ statusV2: "cancelled" }, { status: "cancelled" }],
+    },
+    select: { id: true },
+  });
+  const sessionIds = sessions.map((s) => s.id);
+  if (sessionIds.length === 0) {
+    return {
+      ok: true,
+      semesterName: semester.name,
+      semesterEndDate: semester.endDate,
+      semesterLocked: semester.isLocked,
+      rows: [],
+    };
+  }
+
+  const attendanceSelect = {
+    id: true,
+    statusV2: true,
+    status: true,
+    updatedAt: true,
+    student: { select: { id: true, name: true, group: { select: { id: true, name: true } } } },
+    classSession: {
+      select: {
+        id: true,
+        disciplineId: true,
+        startTime: true,
+        endTime: true,
+        discipline: { select: { name: true } },
+        semester: { select: { isLocked: true } },
+      },
+    },
+  } as const;
+
+  const direct = await prisma.attendance.findMany({
+    where: {
+      classSessionId: { in: sessionIds },
+      isActive: true,
+      deletedAt: null,
+      statusV2: { in: ["B_PENDING", "B_CONFIRMED"] },
+    },
+    orderBy: { updatedAt: "desc" },
+    select: attendanceSelect,
+  });
+
+  const scopeAttendanceIds = (
+    await prisma.attendance.findMany({
+      where: { classSessionId: { in: sessionIds }, isActive: true, deletedAt: null },
+      select: { id: true },
+    })
+  ).map((x) => x.id);
+
+  const rejectAudits =
+    scopeAttendanceIds.length === 0
+      ? []
+      : await prisma.auditTrail.findMany({
+          where: {
+            action: "sick_reject",
+            entityType: "Attendance",
+            entityId: { in: scopeAttendanceIds },
+          },
+          select: { entityId: true },
+        });
+
+  const rejectedIds = [...new Set(rejectAudits.map((a) => a.entityId))];
+
+  const rejectedRows =
+    rejectedIds.length === 0
+      ? []
+      : await prisma.attendance.findMany({
+          where: {
+            id: { in: rejectedIds },
+            classSessionId: { in: sessionIds },
+            isActive: true,
+            deletedAt: null,
+          },
+          orderBy: { updatedAt: "desc" },
+          select: attendanceSelect,
+        });
+
+  const byId = new Map<string, CuratorSickSemesterRow>();
+
+  for (const a of direct) {
+    const ymd = formatInTimeZone(a.classSession.startTime, BISHKEK_TIME_ZONE, "yyyy-MM-dd");
+    byId.set(a.id, {
+      attendanceId: a.id,
+      rowKind: a.statusV2 === "B_PENDING" ? "pending" : "confirmed",
+      statusV2: a.statusV2,
+      status: a.status,
+      updatedAt: a.updatedAt,
+      exemptionsDateYmd: ymd,
+      student: a.student,
+      classSession: a.classSession,
+    });
+  }
+
+  for (const a of rejectedRows) {
+    if (byId.has(a.id)) continue;
+    const ymd = formatInTimeZone(a.classSession.startTime, BISHKEK_TIME_ZONE, "yyyy-MM-dd");
+    byId.set(a.id, {
+      attendanceId: a.id,
+      rowKind: "rejected_nb",
+      statusV2: a.statusV2,
+      status: a.status,
+      updatedAt: a.updatedAt,
+      exemptionsDateYmd: ymd,
+      student: a.student,
+      classSession: a.classSession,
+    });
+  }
+
+  const rows = [...byId.values()].sort((x, y) => y.updatedAt.getTime() - x.updatedAt.getTime());
+
+  return {
+    ok: true,
+    semesterName: semester.name,
+    semesterEndDate: semester.endDate,
+    semesterLocked: semester.isLocked,
+    rows,
+  };
+}
 
 export async function getPendingSickAttendances() {
   const actor = await getCurrentUserOrRedirect();
