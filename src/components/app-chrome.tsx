@@ -44,6 +44,8 @@ export function AppChrome() {
       ? "/login"
       : pathname.startsWith("/acadepartment/")
       ? "/acadepartment"
+      : pathname === "/admin/semester"
+      ? "/acadepartment"
       : pathname === "/acadepartment"
       ? "/login"
       : pathname === "/leadership" || pathname === "/leadership/dashboard"
