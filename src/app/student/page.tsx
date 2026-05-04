@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
+import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
 import { StudentAttendanceFilters } from "@/components/student-attendance-filters";
 
 function toDateInputValue(d: Date) {
@@ -47,6 +48,17 @@ function toEndOfDay(d: Date) {
   const next = new Date(d);
   next.setHours(23, 59, 59, 999);
   return next;
+}
+
+/** Подписи статусов для экрана студента (не технические коды из БД). */
+function formatStudentAttendanceStatusLabel(raw: string | null | undefined): string {
+  if (raw == null || String(raw).trim() === "") return "—";
+  const canonical = getCanonicalAttendanceStatusV2({ statusV2: raw, status: null });
+  if (!canonical) return String(raw).trim();
+  if (canonical === "NB") return "НБ";
+  if (canonical === "B_PENDING") return "неподтверждённое Б";
+  if (canonical === "B_CONFIRMED") return "Б";
+  return String(raw).trim();
 }
 
 export default async function StudentPage(props: {
@@ -158,7 +170,8 @@ export default async function StudentPage(props: {
   const total = filtered.length;
   const counts = { P: 0, O: 0, NB: 0, B_PENDING: 0, B_CONFIRMED: 0, A: 0, S: 0, OTHER: 0, NULL: 0 };
   for (const s of filtered) {
-    const st = (bySessionId.get(s.id) ?? null)?.toUpperCase() ?? null;
+    const raw = bySessionId.get(s.id) ?? null;
+    const st = raw ? getCanonicalAttendanceStatusV2({ statusV2: raw, status: null }) : null;
     if (!st) counts.NULL += 1;
     else if (st === "P") counts.P += 1;
     else if (st === "O") counts.O += 1;
@@ -200,8 +213,8 @@ export default async function StudentPage(props: {
           <span>П: {counts.P}</span>
           <span>О: {counts.O}</span>
           <span>НБ: {counts.NB}</span>
-          <span>Б_pending: {counts.B_PENDING}</span>
-          <span>Б_confirmed: {counts.B_CONFIRMED}</span>
+          <span>неподтверждённое Б: {counts.B_PENDING}</span>
+          <span>Б: {counts.B_CONFIRMED}</span>
           <span>А: {counts.A}</span>
         </div>
       </div>
@@ -225,12 +238,13 @@ export default async function StudentPage(props: {
             ) : (
               filtered.map((s) => {
                 const date = s.startTime.toLocaleDateString("ru-RU");
-                const status = bySessionId.get(s.id) ?? "—";
+                const raw = bySessionId.get(s.id);
+                const statusLabel = formatStudentAttendanceStatusLabel(raw);
                 return (
                   <tr key={s.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
                     <td style={{ padding: "10px 8px", fontWeight: 800 }}>{date}</td>
                     <td style={{ padding: "10px 8px" }}>{s.discipline.name}</td>
-                    <td style={{ padding: "10px 8px", fontWeight: 900 }}>{String(status)}</td>
+                    <td style={{ padding: "10px 8px", fontWeight: 900 }}>{statusLabel}</td>
                   </tr>
                 );
               })

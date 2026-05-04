@@ -160,17 +160,7 @@ export async function setAdministrativeAbsence(input: { attendanceId: string }) 
     throw new Error("Семестр закрыт. Изменение посещаемости запрещено.");
   }
 
-  // Per TZ: curator can change NB -> A only after end_time. We'll require after end_time for setting A at all.
-  const now = getBishkekNow();
-  const endBishkek = toZonedTime(row.classSession.endTime, BISHKEK_TIME_ZONE);
-  if (!isAfter(now, endBishkek)) {
-    return { ok: false as const, error: "Статус А можно выставлять только после окончания занятия." };
-  }
-
   const before = getCanonicalAttendanceStatusV2({ statusV2: row.statusV2, status: row.status });
-  if (before === "B_CONFIRMED") {
-    return { ok: false as const, error: "B_CONFIRMED изменить невозможно." };
-  }
 
   const decision = decideAttendanceStatusChange({
     actorRole: actor.role,

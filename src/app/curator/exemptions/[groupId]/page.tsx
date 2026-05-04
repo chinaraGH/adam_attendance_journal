@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { formatInTimeZone, toZonedTime } from "date-fns-tz";
-import { isAfter } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
-import { BISHKEK_TIME_ZONE, getBishkekNow } from "@/lib/time/bishkek-now";
+import { BISHKEK_TIME_ZONE } from "@/lib/time/bishkek-now";
 import { formatDisciplineLabel } from "@/lib/ui/labels";
 import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
 
@@ -124,8 +123,6 @@ export default async function CuratorGroupExemptionsPage(props: {
 
   const attendanceByKey = new Map(attendances.map((a) => [`${a.studentId}:${a.classSessionId}`, a] as const));
 
-  const nowBishkek = getBishkekNow();
-
   return (
     <main style={{ padding: 24, maxWidth: 1000, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
@@ -168,11 +165,8 @@ export default async function CuratorGroupExemptionsPage(props: {
                   const att = attendanceByKey.get(`${st.id}:${session.id}`) ?? null;
                   const canonical = att ? getCanonicalAttendanceStatusV2({ statusV2: att.statusV2, status: att.status }) : null;
                   const statusLabel = canonical ?? "—";
-                  const endBishkek = toZonedTime(session.endTime, BISHKEK_TIME_ZONE);
-                  const classEnded = isAfter(nowBishkek, endBishkek);
                   const semesterLocked = !!session.semester?.isLocked || !!semester?.isLocked;
-                  const blockedBConfirmed = canonical === "B_CONFIRMED";
-                  const toggleDisabled = semesterLocked || !classEnded || blockedBConfirmed;
+                  const toggleDisabled = semesterLocked;
 
                   return (
                     <tr key={`${st.id}:${session.id}`} style={{ borderBottom: "1px solid #f3f4f6" }}>

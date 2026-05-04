@@ -1,8 +1,5 @@
 "use server";
 
-import { isAfter } from "date-fns";
-import { toZonedTime } from "date-fns-tz";
-
 import { setAdministrativeAbsence } from "@/app/actions/curator-actions";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
@@ -10,11 +7,10 @@ import {
   decideAttendanceStatusChange,
   getCanonicalAttendanceStatusV2,
 } from "@/lib/attendance/status-machine";
-import { BISHKEK_TIME_ZONE, getBishkekNow } from "@/lib/time/bishkek-now";
 
 /**
  * Только экран «Освобождения»: переключение А ↔ снятие А / первичная запись А.
- * Те же ограничения по времени и семестру, что и setAdministrativeAbsence; снятие А — локально для этого UI.
+ * Доступно в течение семестра в любой момент (включая текущее занятие и задним числом), кроме заблокированного семестра.
  */
 export async function toggleExemptionsAdministrativeAbsence(input: { classSessionId: string; studentId: string }) {
   try {
@@ -30,7 +26,6 @@ export async function toggleExemptionsAdministrativeAbsence(input: { classSessio
       where: { id: input.classSessionId, isActive: true, deletedAt: null },
       select: {
         id: true,
-        endTime: true,
         groupId: true,
         semesterId: true,
         semester: { select: { isLocked: true } },
@@ -46,12 +41,6 @@ export async function toggleExemptionsAdministrativeAbsence(input: { classSessio
 
     if (session.semester?.isLocked) {
       return { ok: false as const, error: "Семестр закрыт. Изменение посещаемости запрещено." };
-    }
-
-    const now = getBishkekNow();
-    const endBishkek = toZonedTime(session.endTime, BISHKEK_TIME_ZONE);
-    if (!isAfter(now, endBishkek)) {
-      return { ok: false as const, error: "Статус А можно выставлять только после окончания занятия." };
     }
 
     const inGroup = await prisma.student.findFirst({
@@ -71,10 +60,6 @@ export async function toggleExemptionsAdministrativeAbsence(input: { classSessio
     });
 
     const before = row ? getCanonicalAttendanceStatusV2(row) : null;
-
-    if (before === "B_CONFIRMED") {
-      return { ok: false as const, error: "B_CONFIRMED изменить невозможно." };
-    }
 
     if (row && before === "A") {
       const updated = await prisma.attendance.update({
