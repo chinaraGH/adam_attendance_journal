@@ -30,8 +30,10 @@ export function AppChrome() {
 
   const curatorExemptionsGroup = /^\/curator\/exemptions\/[^/]+$/.test(pathname);
   const backTarget =
-    pathname === "/curator/dashboard"
-      ? "/"
+    pathname === "/"
+      ? "/login"
+      : pathname === "/curator/dashboard"
+      ? "/login"
       : pathname === "/curator/exemptions" || curatorExemptionsGroup
         ? "/curator/dashboard"
         : parentPath;
