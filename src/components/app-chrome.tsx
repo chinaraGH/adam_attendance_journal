@@ -27,9 +27,15 @@ export function AppChrome() {
   if (pathname.startsWith("/login")) return null;
   if (pathname.startsWith("/attendance")) return null;
 
+  const curatorExemptionsGroup = /^\/curator\/exemptions\/[^/]+$/.test(pathname);
+
   return (
     <div style={{ position: "fixed", top: 16, left: 16, zIndex: 50 }}>
-      <ExitButton label="Назад" to={fallbackPath} preferTo={pathname.startsWith("/student")} />
+      <ExitButton
+        label="Назад"
+        to={curatorExemptionsGroup ? "/curator/exemptions" : fallbackPath}
+        preferTo={pathname.startsWith("/student") || curatorExemptionsGroup}
+      />
     </div>
   );
 }

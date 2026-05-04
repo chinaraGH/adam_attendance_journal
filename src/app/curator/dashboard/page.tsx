@@ -1,11 +1,11 @@
 import Link from "next/link";
 
-import { getCuratorGroupSummary, getPendingSickAttendances } from "./actions";
+import { getCuratorGroupSummary, getCuratorSickSemesterOverview } from "./actions";
 import { formatDisciplineLabel } from "@/lib/ui/labels";
 import { SickRequestActions } from "./sick-request-actions";
 
 export default async function CuratorDashboardPage() {
-  const result = await getPendingSickAttendances();
+  const sickSemester = await getCuratorSickSemesterOverview();
   const summary = await getCuratorGroupSummary();
 
   return (
@@ -71,57 +71,99 @@ export default async function CuratorDashboardPage() {
         )}
       </div>
 
-      <p style={{ marginTop: 10, color: "#6b7280", fontWeight: 700 }}>
-        Запросы по болезни (B_PENDING), доступные для обработки после окончания занятия.
+      <div style={{ marginTop: 20, fontWeight: 900, fontSize: 17 }}>Справки Б за текущий семестр</div>
+      <p style={{ marginTop: 8, color: "#6b7280", fontWeight: 600 }}>
+        Неподтверждённые (B_PENDING), подтверждённые (B_CONFIRMED) и отклонённые справки Б (NB после отклонения). Обработка запросов B_PENDING — после
+        окончания занятия; правки по статусу А — в разделе «Освобождения», пока семестр не закрыт.
       </p>
 
-      {!result.ok ? (
+      {!sickSemester.ok ? (
         <div style={{ marginTop: 16, padding: 12, borderRadius: 12, background: "#fef2f2", color: "#991b1b", fontWeight: 800 }}>
-          {result.error}
+          {sickSemester.error}
         </div>
-      ) : result.items.length === 0 ? (
-        <p style={{ marginTop: 16 }}>Нет активных запросов B_PENDING.</p>
       ) : (
-        <ul style={{ marginTop: 16, padding: 0, listStyle: "none", display: "grid", gap: 12 }}>
-          {result.items.map((item) => (
-            <li
-              key={item.id}
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 14,
-                padding: 14,
-                background: "white",
-                display: "grid",
-                gap: 10,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                <div>
-                  <div style={{ fontWeight: 900 }}>
-                    {item.student.name} <span style={{ color: "#6b7280" }}>({item.student.id})</span>
-                  </div>
-                  <div style={{ marginTop: 4, color: "#374151", fontWeight: 800 }}>
-                    Группа: {item.student.group.name}
-                  </div>
-                  <div style={{ marginTop: 4, color: "#6b7280" }}>
-                    Занятие:{" "}
-                    {formatDisciplineLabel({
-                      disciplineId: item.classSession.disciplineId,
-                      disciplineName: item.classSession.discipline?.name,
-                    })}{" "}
-                    • {new Date(item.classSession.startTime).toLocaleString("ru-RU")}
-                  </div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontWeight: 900 }}>Статус: {item.statusV2}</div>
-                  <div style={{ marginTop: 4, color: "#6b7280" }}>Обновлено: {new Date(item.updatedAt).toLocaleString("ru-RU")}</div>
-                </div>
-              </div>
+        <>
+          {sickSemester.semesterName ? (
+            <div style={{ marginTop: 10, color: "#374151", fontWeight: 700 }}>
+              Семестр: {sickSemester.semesterName}
+              {sickSemester.semesterEndDate ? (
+                <span> • до {new Date(sickSemester.semesterEndDate).toLocaleDateString("ru-RU")}</span>
+              ) : null}
+            </div>
+          ) : null}
+          {sickSemester.semesterLocked ? (
+            <div style={{ marginTop: 10, color: "#991b1b", fontWeight: 800 }}>Семестр заблокирован — новые действия по журналу недоступны.</div>
+          ) : null}
 
-              <SickRequestActions attendanceId={item.id} semesterLocked={!!item.classSession.semester?.isLocked} />
-            </li>
-          ))}
-        </ul>
+          <div style={{ marginTop: 14, overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: 14, background: "white" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 720 }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", background: "#f9fafb" }}>
+                  <th style={{ padding: "10px 8px" }}>Тип</th>
+                  <th style={{ padding: "10px 8px" }}>Студент</th>
+                  <th style={{ padding: "10px 8px" }}>Группа</th>
+                  <th style={{ padding: "10px 8px" }}>Занятие</th>
+                  <th style={{ padding: "10px 8px" }}>Статус</th>
+                  <th style={{ padding: "10px 8px" }}>Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sickSemester.rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ padding: 14, color: "#6b7280", fontWeight: 700 }}>
+                      Нет записей Б за семестр по вашим группам.
+                    </td>
+                  </tr>
+                ) : (
+                  sickSemester.rows.map((item) => {
+                    const statusShown = (item.statusV2 ?? item.status ?? "—").toString();
+                    const kindLabel =
+                      item.rowKind === "pending"
+                        ? "Ожидает (B_PENDING)"
+                        : item.rowKind === "confirmed"
+                          ? "Подтверждена (B_CONFIRMED)"
+                          : "Отклонена (NB)";
+                    return (
+                      <tr key={item.attendanceId} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                        <td style={{ padding: "10px 8px", fontWeight: 800 }}>{kindLabel}</td>
+                        <td style={{ padding: "10px 8px", fontWeight: 800 }}>
+                          {item.student.name}
+                          <div style={{ color: "#6b7280", fontSize: 12 }}>{item.student.id}</div>
+                        </td>
+                        <td style={{ padding: "10px 8px" }}>{item.student.group.name}</td>
+                        <td style={{ padding: "10px 8px" }}>
+                          {formatDisciplineLabel({
+                            disciplineId: item.classSession.disciplineId,
+                            disciplineName: item.classSession.discipline?.name,
+                          })}
+                          <div style={{ color: "#6b7280", fontSize: 12, marginTop: 2 }}>
+                            {new Date(item.classSession.startTime).toLocaleString("ru-RU")}
+                          </div>
+                        </td>
+                        <td style={{ padding: "10px 8px", fontWeight: 700 }}>{statusShown}</td>
+                        <td style={{ padding: "10px 8px", verticalAlign: "top" }}>
+                          {item.rowKind === "pending" ? (
+                            <SickRequestActions
+                              attendanceId={item.attendanceId}
+                              semesterLocked={sickSemester.semesterLocked || !!item.classSession.semester?.isLocked}
+                            />
+                          ) : (
+                            <Link
+                              href={`/curator/exemptions/${item.student.group.id}?date=${item.exemptionsDateYmd}`}
+                              style={{ fontWeight: 800, color: "#2563eb" }}
+                            >
+                              Освобождения
+                            </Link>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </main>
   );

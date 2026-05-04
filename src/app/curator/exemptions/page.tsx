@@ -9,9 +9,6 @@ export default async function CuratorExemptionsPage() {
     <main style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
         <h1 style={{ fontSize: 26, fontWeight: 900 }}>Освобождения</h1>
-        <Link href="/curator/dashboard" style={{ fontWeight: 800 }}>
-          К кабинету куратора
-        </Link>
       </div>
 
       <p style={{ marginTop: 12, color: "#6b7280", fontWeight: 600 }}>
