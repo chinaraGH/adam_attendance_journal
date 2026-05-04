@@ -73,8 +73,8 @@ export default async function CuratorDashboardPage() {
 
       <div style={{ marginTop: 20, fontWeight: 900, fontSize: 17 }}>Справки Б за текущий семестр</div>
       <p style={{ marginTop: 8, color: "#6b7280", fontWeight: 600 }}>
-        Неподтверждённые (B_PENDING), подтверждённые (B_CONFIRMED) и отклонённые справки Б (NB после отклонения). Обработка запросов B_PENDING — после
-        окончания занятия; правки по статусу А — в разделе «Освобождения», пока семестр не закрыт.
+        Неподтверждённые Б, подтверждённые Б и отклонённые справки Б (НБ после отклонения). Обработка запросов Б — после окончания занятия; правки по статусу
+        А — в разделе «Освобождения», пока семестр не закрыт.
       </p>
 
       {!sickSemester.ok ? (
@@ -96,69 +96,48 @@ export default async function CuratorDashboardPage() {
           ) : null}
 
           <div style={{ marginTop: 14, overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: 14, background: "white" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 720 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 640 }}>
               <thead>
                 <tr style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", background: "#f9fafb" }}>
-                  <th style={{ padding: "10px 8px" }}>Тип</th>
                   <th style={{ padding: "10px 8px" }}>Студент</th>
                   <th style={{ padding: "10px 8px" }}>Группа</th>
                   <th style={{ padding: "10px 8px" }}>Занятие</th>
                   <th style={{ padding: "10px 8px" }}>Статус</th>
-                  <th style={{ padding: "10px 8px" }}>Действия</th>
                 </tr>
               </thead>
               <tbody>
                 {sickSemester.rows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ padding: 14, color: "#6b7280", fontWeight: 700 }}>
+                    <td colSpan={4} style={{ padding: 14, color: "#6b7280", fontWeight: 700 }}>
                       Нет записей Б за семестр по вашим группам.
                     </td>
                   </tr>
                 ) : (
-                  sickSemester.rows.map((item) => {
-                    const statusShown = (item.statusV2 ?? item.status ?? "—").toString();
-                    const kindLabel =
-                      item.rowKind === "pending"
-                        ? "Ожидает (B_PENDING)"
-                        : item.rowKind === "confirmed"
-                          ? "Подтверждена (B_CONFIRMED)"
-                          : "Отклонена (NB)";
-                    return (
-                      <tr key={item.attendanceId} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                        <td style={{ padding: "10px 8px", fontWeight: 800 }}>{kindLabel}</td>
-                        <td style={{ padding: "10px 8px", fontWeight: 800 }}>
-                          {item.student.name}
-                          <div style={{ color: "#6b7280", fontSize: 12 }}>{item.student.id}</div>
-                        </td>
-                        <td style={{ padding: "10px 8px" }}>{item.student.group.name}</td>
-                        <td style={{ padding: "10px 8px" }}>
-                          {formatDisciplineLabel({
-                            disciplineId: item.classSession.disciplineId,
-                            disciplineName: item.classSession.discipline?.name,
-                          })}
-                          <div style={{ color: "#6b7280", fontSize: 12, marginTop: 2 }}>
-                            {new Date(item.classSession.startTime).toLocaleString("ru-RU")}
-                          </div>
-                        </td>
-                        <td style={{ padding: "10px 8px", fontWeight: 700 }}>{statusShown}</td>
-                        <td style={{ padding: "10px 8px", verticalAlign: "top" }}>
-                          {item.rowKind === "pending" ? (
-                            <SickRequestActions
-                              attendanceId={item.attendanceId}
-                              semesterLocked={sickSemester.semesterLocked || !!item.classSession.semester?.isLocked}
-                            />
-                          ) : (
-                            <Link
-                              href={`/curator/exemptions/${item.student.group.id}?date=${item.exemptionsDateYmd}`}
-                              style={{ fontWeight: 800, color: "#2563eb" }}
-                            >
-                              Освобождения
-                            </Link>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
+                  sickSemester.rows.map((item) => (
+                    <tr key={item.attendanceId} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                      <td style={{ padding: "10px 8px", fontWeight: 800 }}>
+                        {item.student.name}
+                        <div style={{ color: "#6b7280", fontSize: 12 }}>{item.student.id}</div>
+                      </td>
+                      <td style={{ padding: "10px 8px" }}>{item.student.group.name}</td>
+                      <td style={{ padding: "10px 8px" }}>
+                        {formatDisciplineLabel({
+                          disciplineId: item.classSession.disciplineId,
+                          disciplineName: item.classSession.discipline?.name,
+                        })}
+                        <div style={{ color: "#6b7280", fontSize: 12, marginTop: 2 }}>
+                          {new Date(item.classSession.startTime).toLocaleString("ru-RU")}
+                        </div>
+                      </td>
+                      <td style={{ padding: "10px 8px", verticalAlign: "top" }}>
+                        <SickRequestActions
+                          attendanceId={item.attendanceId}
+                          semesterLocked={sickSemester.semesterLocked || !!item.classSession.semester?.isLocked}
+                          rowKind={item.rowKind}
+                        />
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
