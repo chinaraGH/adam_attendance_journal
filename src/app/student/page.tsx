@@ -147,9 +147,6 @@ export default async function StudentPage(props: {
   }
   const pct = total > 0 ? Math.round(((counts.P + counts.O) / total) * 1000) / 10 : 0;
 
-  // Day options derived from sessions in range.
-  const dayOptions = Array.from(new Set(sessions.map((s) => s.startTime.toISOString().slice(0, 10)))).sort().reverse();
-
   return (
     <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
@@ -166,10 +163,7 @@ export default async function StudentPage(props: {
         <StudentAttendanceFilters
           initialFrom={toDateInputValue(from)}
           initialTo={toDateInputValue(to)}
-          initialView={view === "days" ? "days" : "disciplines"}
-          dayOptions={dayOptions.map((d) => ({ value: d, label: d }))}
           disciplineOptions={disciplineOptions.map((d) => ({ value: d.id, label: d.name }))}
-          selectedDays={selectedDays}
           selectedDisciplineIds={selectedDisciplineIds}
         />
       </div>
