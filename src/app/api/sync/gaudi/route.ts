@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { requireSyncAuth } from "@/lib/sync/auth";
 import { recalculateAccessForUser } from "@/lib/auth/recalculate-access";
+import { enqueueIntegrationDlqFailure } from "@/lib/integration/dlq";
 
 type GaudiGroupInput = { gaudiId: string; name: string; code?: string | null; isActive?: boolean };
 type GaudiStudentInput = { gaudiId: string; name: string; groupGaudiId: string; isActive?: boolean };
@@ -18,19 +19,31 @@ const defaultRoleMappings: Array<{ gaudiRole: string; ejpRole: string; priority:
   { gaudiRole: "STUDENT", ejpRole: "STUDENT", priority: 50 },
 ];
 
+function resolveMappedEjpRoles(
+  roles: string[] | null | undefined,
+  roleMappings: Map<string, { ejpRole: string; priority: number }>,
+) {
+  if (!Array.isArray(roles) || roles.length === 0) return [];
+  const uniqueByRole = new Map<string, { ejpRole: string; priority: number }>();
+  for (const role of roles) {
+    const normalized = role?.trim().toUpperCase();
+    if (!normalized) continue;
+    const mapped = roleMappings.get(normalized);
+    if (!mapped) continue;
+    const existing = uniqueByRole.get(mapped.ejpRole);
+    if (!existing || mapped.priority < existing.priority) {
+      uniqueByRole.set(mapped.ejpRole, mapped);
+    }
+  }
+  return Array.from(uniqueByRole.values()).sort((a, b) => a.priority - b.priority);
+}
+
 function resolveEjpRoleFromGaudiRoles(
   roles: string[] | null | undefined,
   roleMappings: Map<string, { ejpRole: string; priority: number }>,
 ): string | null {
-  if (!Array.isArray(roles) || roles.length === 0) return null;
-  const ranked = roles
-    .map((role) => role?.trim().toUpperCase())
-    .filter((role): role is string => Boolean(role))
-    .map((role) => ({ role, mapped: roleMappings.get(role) }))
-    .filter((entry): entry is { role: string; mapped: { ejpRole: string; priority: number } } => Boolean(entry.mapped))
-    .sort((a, b) => a.mapped.priority - b.mapped.priority);
-
-  return ranked[0]?.mapped.ejpRole ?? null;
+  const mappedRoles = resolveMappedEjpRoles(roles, roleMappings);
+  return mappedRoles[0]?.ejpRole ?? null;
 }
 
 export async function POST(request: NextRequest) {
@@ -217,6 +230,7 @@ export async function POST(request: NextRequest) {
       }
 
       const nextRole = resolveEjpRoleFromGaudiRoles(u.roles, roleMappings);
+      const mappedRoles = resolveMappedEjpRoles(u.roles, roleMappings);
       if (!nextRole) {
         errors.push({
           type: "user-role",
@@ -245,6 +259,45 @@ export async function POST(request: NextRequest) {
           payload: u,
         });
         continue;
+      }
+
+      await prisma.$executeRawUnsafe(
+        `
+          UPDATE public.user_roles
+          SET is_active = false,
+              deleted_at = now(),
+              updated_at = now()
+          WHERE user_id = $1
+            AND source = 'gaudi'
+            AND is_active = true
+        `,
+        u.userId,
+      );
+      for (const mapped of mappedRoles) {
+        await prisma.$executeRawUnsafe(
+          `
+            INSERT INTO public.user_roles (
+              id,
+              user_id,
+              role_code,
+              source,
+              is_active,
+              deleted_at,
+              created_at,
+              updated_at
+            ) VALUES (
+              $1, $2, $3, 'gaudi', true, NULL, now(), now()
+            )
+            ON CONFLICT (user_id, role_code, source)
+            DO UPDATE SET
+              is_active = true,
+              deleted_at = NULL,
+              updated_at = now()
+          `,
+          randomUUID(),
+          u.userId,
+          mapped.ejpRole,
+        );
       }
 
       if (existingUser.role !== nextRole) {
@@ -311,7 +364,16 @@ export async function POST(request: NextRequest) {
       },
       select: { id: true },
     });
-    return NextResponse.json({ ok: false, correlationId, errorsCount: 1, errors: [temporaryError] }, { status: 503 });
+    await enqueueIntegrationDlqFailure({
+      provider: "gaudi",
+      operation: "sync_gaudi_batch",
+      payload: { errors: errors.slice(0, 50), startedAt, added, updated },
+      errorCode: "SYNC_TEMPORARY_FAILURE",
+      errorMessage: message,
+      category: "temporary",
+      correlationId,
+    });
+    return NextResponse.json({ ok: false, correlationId, dlqQueued: true, errorsCount: 1, errors: [temporaryError] }, { status: 503 });
   }
 }
 
