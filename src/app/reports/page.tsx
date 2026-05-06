@@ -59,7 +59,7 @@ function toArray(value?: string | string[]) {
 }
 
 export default async function ReportsPage(props: {
-  searchParams: { groupId?: string; disciplineId?: string | string[]; from?: string | string[]; to?: string | string[] };
+  searchParams: { groupId?: string; disciplineId?: string | string[]; from?: string | string[]; to?: string | string[]; semesterScope?: string };
 }) {
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "TEACHER" && actor.role !== "CURATOR") {
@@ -111,6 +111,9 @@ export default async function ReportsPage(props: {
   const selectedDisciplineIds = toArray(props.searchParams.disciplineId);
   const availableDisciplineIds = new Set(disciplines.map((d) => d.disciplineId));
   const disciplineIds = selectedDisciplineIds.filter((id) => availableDisciplineIds.has(id));
+  const semesterScopeParam = toSingleParam(props.searchParams.semesterScope) ?? "all";
+  const semesterScope: "all" | "in" | "out" =
+    semesterScopeParam === "in" || semesterScopeParam === "out" ? semesterScopeParam : "all";
 
   const students =
     groupId.length > 0
@@ -129,15 +132,18 @@ export default async function ReportsPage(props: {
             isActive: true,
             deletedAt: null,
             startTime: { gte: from, lte: to },
+            ...(semesterScope === "in" ? { outOfSemester: false } : {}),
+            ...(semesterScope === "out" ? { outOfSemester: true } : {}),
             ...(disciplineIds.length > 0 ? { disciplineId: { in: disciplineIds } } : {}),
           },
-          select: { id: true, disciplineId: true },
+          select: { id: true, disciplineId: true, outOfSemester: true },
         })
       : [];
 
   const sessionIds = sessions.map((s) => s.id);
   const sessionDisciplineById = new Map(sessions.map((s) => [s.id, s.disciplineId]));
   const totalSessions = sessionIds.length;
+  const outOfSemesterSessions = sessions.filter((s) => s.outOfSemester).length;
 
   const attendanceRows =
     sessionIds.length === 0 || students.length === 0
@@ -252,9 +258,21 @@ export default async function ReportsPage(props: {
             По
             <AutoSubmitDateInput name="to" defaultValue={toDateInputValue(to)} />
           </label>
+
+          <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
+            Область семестра
+            <AutoSubmitSelect name="semesterScope" defaultValue={semesterScope}>
+              <option value="all">Все</option>
+              <option value="in">Только в семестре</option>
+              <option value="out">Только вне семестров</option>
+            </AutoSubmitSelect>
+          </label>
         </form>
         <div style={{ marginTop: 10, color: "#6b7280", fontWeight: 700 }}>
           Формула: % = (П + О) / всего занятий за период • Порог: {LOW_ATTENDANCE_THRESHOLD}%
+        </div>
+        <div style={{ marginTop: 6, color: outOfSemesterSessions > 0 ? "#92400e" : "#6b7280", fontWeight: 700 }}>
+          Вне семестров в текущей выборке: {outOfSemesterSessions}
         </div>
       </div>
 

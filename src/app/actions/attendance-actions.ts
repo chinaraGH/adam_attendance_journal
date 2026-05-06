@@ -129,6 +129,9 @@ export async function markAttendance(raw: unknown): Promise<MarkAttendanceResult
     if (session.semester?.isLocked) {
       return { ok: false, error: "Семестр закрыт. Изменение посещаемости запрещено." };
     }
+    if (!session.semesterId) {
+      return { ok: false, error: "Занятие вне семестров. Отметка посещаемости недоступна." };
+    }
 
     const student = await prisma.student.findFirst({
       where: {

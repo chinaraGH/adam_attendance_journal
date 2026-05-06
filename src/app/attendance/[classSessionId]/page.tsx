@@ -19,6 +19,7 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
       openedAt: true,
       status: true,
       statusV2: true,
+      outOfSemester: true,
       discipline: { select: { name: true } },
       semester: { select: { isLocked: true } },
       group: {
@@ -104,6 +105,23 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
   }
 
   const isReadOnly = effective === "finished" || effective === "auto_closed" || effective === "cancelled" || !!session.semester?.isLocked;
+  const sessionAudit = await prisma.auditTrail.findMany({
+    where: {
+      entityType: "ClassSession",
+      entityId: session.id,
+      action: {
+        in: [
+          "class_session_semester_resolution_update",
+          "class_session_semester_resolution_reconciled",
+          "class_session_cancel",
+          "class_session_restore",
+        ],
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 8,
+    select: { id: true, createdAt: true, action: true, afterJson: true },
+  });
 
   return (
     <main style={{ padding: 24, maxWidth: 820, margin: "0 auto" }}>
@@ -119,6 +137,9 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
               <div style={{ color: "#6b7280", marginTop: 4 }}>
                 Статус: <span style={{ fontWeight: 800 }}>{formatClassSessionStatusLabel(effective)}</span>
               </div>
+              <div style={{ color: session.outOfSemester ? "#92400e" : "#047857", marginTop: 4, fontWeight: 800 }}>
+                Семестровый статус: {session.outOfSemester ? "Вне семестров" : "В семестре"}
+              </div>
               {session.semester?.isLocked ? (
                 <div style={{ marginTop: 6, color: "#991b1b", fontWeight: 900 }}>
                   Семестр заблокирован — изменения запрещены.
@@ -132,6 +153,20 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
         classSessionId={session.id}
         readOnly={isReadOnly}
       />
+      <section style={{ marginTop: 16, border: "1px solid #e5e7eb", borderRadius: 12, background: "white", padding: 12 }}>
+        <div style={{ fontWeight: 900, marginBottom: 8 }}>История статуса занятия</div>
+        {sessionAudit.length === 0 ? (
+          <div style={{ color: "#6b7280", fontSize: 13 }}>Записи аудита отсутствуют.</div>
+        ) : (
+          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6 }}>
+            {sessionAudit.map((item) => (
+              <li key={item.id} style={{ border: "1px solid #f3f4f6", borderRadius: 10, padding: "8px 10px", fontSize: 13 }}>
+                <strong>{item.action}</strong> — {new Date(item.createdAt).toLocaleString("ru-RU")}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </main>
   );
 }

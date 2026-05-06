@@ -42,6 +42,9 @@ export async function toggleExemptionsAdministrativeAbsence(input: { classSessio
     if (session.semester?.isLocked) {
       return { ok: false as const, error: "Семестр закрыт. Изменение посещаемости запрещено." };
     }
+    if (!session.semesterId) {
+      return { ok: false as const, error: "Занятие вне семестров. Освобождение недоступно." };
+    }
 
     const inGroup = await prisma.student.findFirst({
       where: { id: input.studentId, groupId: session.groupId, isActive: true, deletedAt: null },

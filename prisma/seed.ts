@@ -132,6 +132,16 @@ async function main() {
     ],
     skipDuplicates: true,
   });
+  await prisma.gaudiRoleMapping.createMany({
+    data: [
+      { gaudiRole: "ADMIN", ejpRole: "ADMIN", priority: 10, isActive: true, deletedAt: null },
+      { gaudiRole: "ACADEMIC_OFFICE", ejpRole: "ACADEMIC_OFFICE", priority: 20, isActive: true, deletedAt: null },
+      { gaudiRole: "CURATOR", ejpRole: "CURATOR", priority: 30, isActive: true, deletedAt: null },
+      { gaudiRole: "TEACHER", ejpRole: "TEACHER", priority: 40, isActive: true, deletedAt: null },
+      { gaudiRole: "STUDENT", ejpRole: "STUDENT", priority: 50, isActive: true, deletedAt: null },
+    ],
+    skipDuplicates: true,
+  });
   await prisma.teacher.createMany({
     data: teachers.map((t) => ({ id: t.id, gaudiId: t.gaudiId, name: t.name, email: null, isActive: true, deletedAt: null })),
     skipDuplicates: true,
