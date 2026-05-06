@@ -46,7 +46,13 @@
 
 ### Обязательные поля
 
-- `sessions[]`: `scheduleExternalId`, `groupGaudiId`, `disciplineCode`, `semesterId`, `startTime`, `endTime`
+- `sessions[]`: `scheduleExternalId`, `groupGaudiId`, `disciplineCode`, `startTime`, `endTime`
+
+### Важные правила идемпотентности
+
+- В ЭЖП upsert идет по ключу `(source, scheduleExternalId)`.
+- Для входящего Schedule API `source` фиксирован как `SCHEDULE` (задается на стороне ЭЖП).
+- `semesterId` из входного payload игнорируется: семестр вычисляется внутри ЭЖП по `startTime`.
 
 ### Поля по преподавателю
 
@@ -65,7 +71,6 @@
       "disciplineCode": "INF",
       "teacherGaudiId": "T_0001",
       "teacherName": "Петров П.П.",
-      "semesterId": "clxxxxxxxxxxxxxxxx",
       "startTime": "2026-02-10T08:00:00.000Z",
       "endTime": "2026-02-10T09:30:00.000Z"
     }
@@ -88,3 +93,9 @@
 ```
 
 Если есть ошибки по отдельным записям, API всё равно вернёт `200`, но `ok: false` и детали в `errors[]`.
+
+---
+
+## Безопасные миграции и rollback
+
+- Операционный runbook для down-plan и rollback без потери аудита: `docs/migration-safety-runbook.md`.
