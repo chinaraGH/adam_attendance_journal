@@ -56,6 +56,20 @@ export default async function AdminStudentPage(props: { params: { id: string } }
         select: { id: true, createdAt: true, action: true, afterJson: true },
       })
     : [];
+  const gaudiUserRoles = linkedUser
+    ? await prisma.userRole.findMany({
+        where: { userId: linkedUser.id, source: "gaudi", isActive: true, deletedAt: null },
+        orderBy: { roleCode: "asc" },
+        select: { id: true, roleCode: true, source: true },
+      })
+    : [];
+  const manualUserRoles = linkedUser
+    ? await prisma.userRole.findMany({
+        where: { userId: linkedUser.id, source: "manual", isActive: true, deletedAt: null },
+        orderBy: { roleCode: "asc" },
+        select: { id: true, roleCode: true },
+      })
+    : [];
 
   return (
     <main className="mx-auto max-w-[900px] p-6">
@@ -87,6 +101,14 @@ export default async function AdminStudentPage(props: { params: { id: string } }
           <>
             <div className="mt-2">
               <span className="font-black">Effective роль ЭЖП</span>: {linkedUser.role}
+            </div>
+            <div className="mt-2">
+              <span className="font-black">Роли из GAUDI</span>:{" "}
+              {gaudiUserRoles.length > 0 ? gaudiUserRoles.map((r) => r.roleCode).join(", ") : "—"}
+            </div>
+            <div className="mt-2">
+              <span className="font-black">Ручной override</span>:{" "}
+              {manualUserRoles.length > 0 ? manualUserRoles.map((r) => r.roleCode).join(", ") : "—"}
             </div>
             <div className="mt-2 text-xs text-gray-600">Последние события синка ролей:</div>
             {recentRoleSync.length === 0 ? (
