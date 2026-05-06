@@ -17,6 +17,7 @@ const DAYS = 10;
 const SESSION_MINUTES = 80;
 const BISHKEK_TZ = "Asia/Bishkek";
 const EXTERNAL_PREFIX = "STRESS_TIVANOV";
+const SCHEDULE_SOURCE = "SCHEDULE";
 
 function addMinutes(date: Date, minutes: number) {
   return new Date(date.getTime() + minutes * 60_000);
@@ -85,6 +86,7 @@ async function main() {
   const dayKey = toDayKeyBishkek(periodStart);
 
   const rows: Array<{
+    source: string;
     scheduleExternalId: string;
     gaudiId: null;
     disciplineId: string;
@@ -108,6 +110,7 @@ async function main() {
     const seq = String(i + 1).padStart(4, "0");
 
     rows.push({
+      source: SCHEDULE_SOURCE,
       scheduleExternalId: `${EXTERNAL_PREFIX}_${dayKey}_${seq}`,
       gaudiId: null,
       disciplineId: pair.disciplineId,
@@ -129,6 +132,7 @@ async function main() {
   await prisma.classSession.deleteMany({
     where: {
       teacherId: TEACHER_ID,
+        source: SCHEDULE_SOURCE,
       scheduleExternalId: { startsWith: `${EXTERNAL_PREFIX}_${dayKey}_` },
     },
   });

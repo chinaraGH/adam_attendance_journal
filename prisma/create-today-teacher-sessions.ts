@@ -15,6 +15,7 @@ function addHours(d: Date, hours: number) {
 
 async function main() {
   const teacherId = "TEACHER_TEST";
+  const sessionSource = "SCHEDULE";
 
   const nowInstant = new Date();
   const nowBishkek = toZonedTime(nowInstant, BISHKEK_TZ);
@@ -95,12 +96,20 @@ async function main() {
   const scheduledEnd = toInstant(futureEndBishkek);
 
   await prisma.classSession.upsert({
-    where: { scheduleExternalId: `SCHEDULE_TODAY_${dayKey}_FINISHED_${teacherId}` },
+    where: {
+      source_scheduleExternalId: {
+        source: sessionSource,
+        scheduleExternalId: `SCHEDULE_TODAY_${dayKey}_FINISHED_${teacherId}`,
+      },
+    },
     update: {
+      source: sessionSource,
       disciplineId: discFinished.id,
       groupId: group.id,
       teacherId,
       semesterId: semester.id,
+      outOfSemester: false,
+      semesterResolutionStatus: "IN_SEMESTER",
       startTime: finishedStart,
       endTime: finishedEnd,
       openedAt: addMinutes(finishedStart, 5),
@@ -110,12 +119,15 @@ async function main() {
       deletedAt: null,
     },
     create: {
+      source: sessionSource,
       scheduleExternalId: `SCHEDULE_TODAY_${dayKey}_FINISHED_${teacherId}`,
       gaudiId: null,
       disciplineId: discFinished.id,
       groupId: group.id,
       teacherId,
       semesterId: semester.id,
+      outOfSemester: false,
+      semesterResolutionStatus: "IN_SEMESTER",
       startTime: finishedStart,
       endTime: finishedEnd,
       openedAt: addMinutes(finishedStart, 5),
@@ -128,12 +140,20 @@ async function main() {
   });
 
   await prisma.classSession.upsert({
-    where: { scheduleExternalId: `SCHEDULE_TODAY_${dayKey}_ACTIVE_${teacherId}` },
+    where: {
+      source_scheduleExternalId: {
+        source: sessionSource,
+        scheduleExternalId: `SCHEDULE_TODAY_${dayKey}_ACTIVE_${teacherId}`,
+      },
+    },
     update: {
+      source: sessionSource,
       disciplineId: discActive.id,
       groupId: group.id,
       teacherId,
       semesterId: semester.id,
+      outOfSemester: false,
+      semesterResolutionStatus: "IN_SEMESTER",
       startTime: activeStart,
       endTime: activeEnd,
       openedAt: addMinutes(activeStart, 1),
@@ -143,12 +163,15 @@ async function main() {
       deletedAt: null,
     },
     create: {
+      source: sessionSource,
       scheduleExternalId: `SCHEDULE_TODAY_${dayKey}_ACTIVE_${teacherId}`,
       gaudiId: null,
       disciplineId: discActive.id,
       groupId: group.id,
       teacherId,
       semesterId: semester.id,
+      outOfSemester: false,
+      semesterResolutionStatus: "IN_SEMESTER",
       startTime: activeStart,
       endTime: activeEnd,
       openedAt: addMinutes(activeStart, 1),
@@ -161,12 +184,20 @@ async function main() {
   });
 
   await prisma.classSession.upsert({
-    where: { scheduleExternalId: `SCHEDULE_TODAY_${dayKey}_SCHEDULED_${teacherId}` },
+    where: {
+      source_scheduleExternalId: {
+        source: sessionSource,
+        scheduleExternalId: `SCHEDULE_TODAY_${dayKey}_SCHEDULED_${teacherId}`,
+      },
+    },
     update: {
+      source: sessionSource,
       disciplineId: discFuture.id,
       groupId: group.id,
       teacherId,
       semesterId: semester.id,
+      outOfSemester: false,
+      semesterResolutionStatus: "IN_SEMESTER",
       startTime: scheduledStart,
       endTime: scheduledEnd,
       openedAt: null,
@@ -176,12 +207,15 @@ async function main() {
       deletedAt: null,
     },
     create: {
+      source: sessionSource,
       scheduleExternalId: `SCHEDULE_TODAY_${dayKey}_SCHEDULED_${teacherId}`,
       gaudiId: null,
       disciplineId: discFuture.id,
       groupId: group.id,
       teacherId,
       semesterId: semester.id,
+      outOfSemester: false,
+      semesterResolutionStatus: "IN_SEMESTER",
       startTime: scheduledStart,
       endTime: scheduledEnd,
       openedAt: null,

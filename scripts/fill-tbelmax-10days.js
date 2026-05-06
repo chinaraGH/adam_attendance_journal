@@ -38,6 +38,7 @@ async function main() {
     const disciplineIds = ["DHISECO", "DMNG", "DINF", "DENG"];
 
     const rows = [];
+    const source = "SCHEDULE";
     for (let i = 1; i <= sessionsCount; i++) {
       const s = new Date(start.getTime() + (i - 1) * minutesPerSession * 60 * 1000);
       const e = new Date(s.getTime() + minutesPerSession * 60 * 1000);
@@ -49,12 +50,15 @@ async function main() {
 
       rows.push({
         id,
+        source,
         scheduleExternalId,
         gaudiId: null,
         disciplineId: disciplineIds[(i - 1) % disciplineIds.length],
         groupId: groupIds[(i - 1) % groupIds.length],
         teacherId,
         semesterId,
+        outOfSemester: false,
+        semesterResolutionStatus: "IN_SEMESTER",
         startTime: s,
         endTime: e,
         status: "scheduled",
