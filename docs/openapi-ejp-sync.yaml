@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: EJP Sync API (GAUDI + Schedule)
-  version: 1.1.0
+  version: 1.2.0
   description: |
     Короткий рабочий контракт для интеграторов.
     Авторизация везде: либо `x-sync-token: <SYNC_SECRET>`, либо `Authorization: Bearer <SYNC_SECRET>`.
@@ -70,8 +70,9 @@ paths:
     post:
       summary: Синхронизация занятий из Schedule
       description: |
-        Upsert по `scheduleExternalId`.
+        Upsert по внутреннему ключу `(source, scheduleExternalId)`, где `source` для этого endpoint фиксирован как `SCHEDULE`.
         Статус отмены не принимается из Schedule и управляется только внутри ЭЖП.
+        `semesterId` из входного payload игнорируется — семестр вычисляется внутри ЭЖП по `startTime`.
         Преподаватель:
         - если задан `teacherId`, используется он;
         - иначе ищется по `teacherGaudiId`;
@@ -92,7 +93,6 @@ paths:
                       teacherGaudiId: "T_0001"
                       teacherName: "Петров П.П."
                       teacherEmail: "petrov@example.com"
-                      semesterId: "clxxxxxxxxxxxxxxxx"
                       startTime: "2026-02-10T08:00:00.000Z"
                       endTime: "2026-02-10T09:30:00.000Z"
                       status: "scheduled"
@@ -103,6 +103,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SyncResponse"
+        "503":
+          description: Временная ошибка интеграции, запись поставлена в DLQ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemporarySyncErrorResponse"
         "401":
           description: Неверный секрет
           content:
@@ -203,7 +209,6 @@ components:
         - scheduleExternalId
         - groupGaudiId
         - disciplineCode
-        - semesterId
         - startTime
         - endTime
       properties:
@@ -227,6 +232,9 @@ components:
           nullable: true
         semesterId:
           type: string
+          description: |
+            Legacy поле. Может быть передано, но игнорируется.
+            Семестр вычисляется внутри ЭЖП по startTime.
         startTime:
           type: string
           format: date-time
@@ -246,8 +254,23 @@ components:
           type: integer
         updated:
           type: integer
+        correlationId:
+          type: string
         errorsCount:
           type: integer
+        warningsCount:
+          type: integer
+        warnings:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+              scheduleExternalId:
+                type: string
         errors:
           type: array
           items:
@@ -255,10 +278,49 @@ components:
             properties:
               type:
                 type: string
+              category:
+                type: string
+                enum: [validation, business, temporary]
+              code:
+                type: string
               message:
+                type: string
+              recommendation:
+                type: string
+              scheduleExternalId:
                 type: string
               payload:
                 nullable: true
+
+    TemporarySyncErrorResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: false
+        correlationId:
+          type: string
+        dlqQueued:
+          type: boolean
+          example: true
+        errorsCount:
+          type: integer
+          example: 1
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              category:
+                type: string
+              code:
+                type: string
+              message:
+                type: string
+              recommendation:
+                type: string
 
     UnauthorizedError:
       type: object
