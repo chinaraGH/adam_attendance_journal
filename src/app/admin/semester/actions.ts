@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "node:crypto";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { lockSemesterAndConvertPendingToNb } from "@/lib/semester/lock-semester";
+import { reconcileClassSessionsBySemesterBoundaries } from "@/lib/semester/reconcile-class-sessions";
 
 /** Календарная дата из поля type=date (YYYY-MM-DD) → UTC 00:00 этой даты, без сдвига при отображении через timeZone: UTC. */
 function parseYmdToUtcDate(ymd: string): Date {
@@ -50,7 +52,7 @@ export async function getCurrentSemester() {
 }
 
 export async function upsertSemester(formData: FormData) {
-  await requireAcademicOffice();
+  const actor = await requireAcademicOffice();
 
   const semesterId = formData.get("semesterId");
   const name = formData.get("name");
@@ -80,7 +82,7 @@ export async function upsertSemester(formData: FormData) {
   await prisma.auditTrail.create({
     data: {
       actorType: "academic_office",
-      actorId: (await getCurrentUserOrRedirect()).id,
+      actorId: actor.id,
       action: semesterId ? "semester_update" : "semester_create",
       entityType: "Semester",
       entityId: row.id,
@@ -88,6 +90,11 @@ export async function upsertSemester(formData: FormData) {
       afterJson: JSON.stringify({ name, startDate: start.toISOString(), endDate: end.toISOString() }),
     },
     select: { id: true },
+  });
+  await reconcileClassSessionsBySemesterBoundaries({
+    actorType: "academic_office",
+    actorId: actor.id,
+    correlationId: randomUUID(),
   });
 
   revalidatePath("/admin/semester");

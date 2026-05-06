@@ -77,6 +77,10 @@ export async function saveAttendances(input: {
     if (session.semester?.isLocked) {
       throw new Error("Семестр закрыт. Изменение посещаемости запрещено.");
     }
+    if (!session.semesterId) {
+      throw new Error("Занятие вне семестров. Сохранение посещаемости недоступно.");
+    }
+    const semesterId = session.semesterId;
 
     const effectiveStatus = getEffectiveClassSessionStatus({
       startTime: session.startTime,
@@ -178,7 +182,7 @@ export async function saveAttendances(input: {
           create: {
             classSessionId: session.id,
             studentId: item.studentId,
-            semesterId: session.semesterId,
+            semesterId,
             status: decision.next,
             statusV2: decision.next,
             updatedBy: actor.id,

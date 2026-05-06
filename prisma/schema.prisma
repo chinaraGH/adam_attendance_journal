@@ -180,7 +180,8 @@ model ClassSession {
   disciplineId       String       @map("discipline_id")
   groupId            String       @map("group_id")
   teacherId          String       @map("teacher_id")
-  semesterId         String       @map("semester_id")
+  semesterId         String?      @map("semester_id")
+  outOfSemester      Boolean      @default(false) @map("out_of_semester")
   startTime          DateTime     @map("start_time") @db.Timestamptz(6)
   endTime            DateTime     @map("end_time") @db.Timestamptz(6)
   status             String       @default("scheduled")
@@ -194,9 +195,10 @@ model ClassSession {
   attendances        Attendance[]
   discipline         Discipline   @relation(fields: [disciplineId], references: [id])
   group              Group        @relation(fields: [groupId], references: [id])
-  semester           Semester     @relation(fields: [semesterId], references: [id])
+  semester           Semester?    @relation(fields: [semesterId], references: [id])
   teacher            Teacher      @relation(fields: [teacherId], references: [id])
 
+  @@index([outOfSemester], map: "idx_class_sessions_out_of_semester")
   @@map("class_sessions")
 }
 
@@ -258,4 +260,19 @@ model AuditTrail {
   afterJson  String?  @map("after_json")
 
   @@map("audit_trail")
+}
+
+model GaudiRoleMapping {
+  id           String   @id @default(cuid())
+  gaudiRole    String   @unique @map("gaudi_role")
+  ejpRole      String   @map("ejp_role")
+  priority     Int      @default(100)
+  isActive     Boolean  @default(true) @map("is_active")
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([isActive])
+  @@index([priority])
+  @@map("gaudi_role_mappings")
 }

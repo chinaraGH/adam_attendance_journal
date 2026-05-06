@@ -175,6 +175,10 @@ export async function POST(request: Request) {
   let attendancePreCreated = 0;
 
   for (const session of upcomingSessions) {
+    if (!session.semesterId) {
+      continue;
+    }
+    const semesterId = session.semesterId;
     const students = await prisma.student.findMany({
       where: { groupId: session.groupId, isActive: true, deletedAt: null },
       select: { id: true },
@@ -196,7 +200,7 @@ export async function POST(request: Request) {
             data: toCreate.map((st) => ({
               classSessionId: session.id,
               studentId: st.id,
-              semesterId: session.semesterId,
+              semesterId,
               status: null,
               statusV2: null,
               updatedBy: "system:precreate",
