@@ -41,12 +41,17 @@ export async function reconcileClassSessionsBySemesterBoundaries(params: Reconci
   for (const session of sessions) {
     const nextSemesterId = resolveSemesterIdForDate(semesters, session.startTime);
     const nextOutOfSemester = !nextSemesterId;
+    const nextSemesterResolutionStatus = nextSemesterId ? "IN_SEMESTER" : "OUT_OF_SEMESTER";
     const changed = session.semesterId !== nextSemesterId || Boolean(session.outOfSemester) !== nextOutOfSemester;
     if (!changed) continue;
 
     await prisma.classSession.update({
       where: { id: session.id },
-      data: { semesterId: nextSemesterId, outOfSemester: nextOutOfSemester },
+      data: {
+        semesterId: nextSemesterId,
+        outOfSemester: nextOutOfSemester,
+        semesterResolutionStatus: nextSemesterResolutionStatus,
+      },
       select: { id: true },
     });
 
@@ -61,6 +66,7 @@ export async function reconcileClassSessionsBySemesterBoundaries(params: Reconci
         afterJson: JSON.stringify({
           semesterId: nextSemesterId,
           outOfSemester: nextOutOfSemester,
+          semesterResolutionStatus: nextSemesterResolutionStatus,
           correlationId: params.correlationId ?? null,
         }),
       },

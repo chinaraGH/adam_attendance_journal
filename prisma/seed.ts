@@ -132,6 +132,16 @@ async function main() {
     ],
     skipDuplicates: true,
   });
+  await prisma.userRole.createMany({
+    data: [
+      ...teachers.map((t) => ({ userId: t.id, roleCode: "TEACHER", source: "seed", isActive: true, deletedAt: null })),
+      { userId: TEST_CURATOR_ID, roleCode: "CURATOR", source: "seed", isActive: true, deletedAt: null },
+      { userId: TEST_ACADEMIC_OFFICE_ID, roleCode: "ACADEMIC_OFFICE", source: "seed", isActive: true, deletedAt: null },
+      { userId: TEST_LEADERSHIP_ID, roleCode: "LEADERSHIP", source: "seed", isActive: true, deletedAt: null },
+      { userId: TEST_STUDENT_ID, roleCode: "STUDENT", source: "seed", isActive: true, deletedAt: null },
+    ],
+    skipDuplicates: true,
+  });
   await prisma.gaudiRoleMapping.createMany({
     data: [
       { gaudiRole: "ADMIN", ejpRole: "ADMIN", priority: 10, isActive: true, deletedAt: null },
@@ -300,12 +310,15 @@ async function main() {
     await prisma.classSession.create({
       data: {
         id: `CS${String(sc).padStart(6, "0")}`.slice(0, 8),
+        source: "SCHEDULE",
         scheduleExternalId: mkSched(),
         gaudiId: null,
         disciplineId,
         groupId,
         teacherId,
         semesterId: semester.id,
+        outOfSemester: false,
+        semesterResolutionStatus: "IN_SEMESTER",
         startTime: start,
         endTime: end,
         status: "scheduled",

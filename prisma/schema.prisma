@@ -131,11 +131,29 @@ model AppUser {
   createdAt     DateTime           @default(now()) @map("created_at")
   updatedAt     DateTime           @updatedAt @map("updated_at")
   curatorGroups UserGroupCurator[]
+  userRoles     UserRole[]
 
   @@index([role])
   @@index([isActive])
   @@index([deletedAt])
   @@map("users")
+}
+
+model UserRole {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  roleCode  String    @map("role_code")
+  source    String    @map("source")
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      AppUser   @relation(fields: [userId], references: [id])
+
+  @@unique([userId, roleCode, source], map: "user_roles_user_role_source_key")
+  @@index([userId, isActive], map: "user_roles_user_is_active_idx")
+  @@index([source], map: "user_roles_source_idx")
+  @@map("user_roles")
 }
 
 model UserGroupCurator {
@@ -175,13 +193,15 @@ model Student {
 
 model ClassSession {
   id                 String       @id @default(cuid())
-  scheduleExternalId String       @unique @map("schedule_external_id")
+  source             String       @default("SCHEDULE") @map("source")
+  scheduleExternalId String       @map("schedule_external_id")
   gaudiId            String?      @unique @map("gaudi_id")
   disciplineId       String       @map("discipline_id")
   groupId            String       @map("group_id")
   teacherId          String       @map("teacher_id")
   semesterId         String?      @map("semester_id")
   outOfSemester      Boolean      @default(false) @map("out_of_semester")
+  semesterResolutionStatus String? @map("semester_resolution_status")
   startTime          DateTime     @map("start_time") @db.Timestamptz(6)
   endTime            DateTime     @map("end_time") @db.Timestamptz(6)
   status             String       @default("scheduled")
@@ -198,6 +218,7 @@ model ClassSession {
   semester           Semester?    @relation(fields: [semesterId], references: [id])
   teacher            Teacher      @relation(fields: [teacherId], references: [id])
 
+  @@unique([source, scheduleExternalId], map: "class_sessions_source_schedule_external_id_key")
   @@index([outOfSemester], map: "idx_class_sessions_out_of_semester")
   @@map("class_sessions")
 }
@@ -275,4 +296,28 @@ model GaudiRoleMapping {
   @@index([isActive])
   @@index([priority])
   @@map("gaudi_role_mappings")
+}
+
+model IntegrationDlq {
+  id            String    @id @default(cuid())
+  provider      String    @map("provider")
+  operation     String    @map("operation")
+  payloadJson   String    @map("payload_json")
+  errorCode     String    @map("error_code")
+  errorMessage  String    @map("error_message")
+  category      String    @map("category")
+  attempts      Int       @default(0) @map("attempts")
+  maxAttempts   Int       @default(5) @map("max_attempts")
+  nextRetryAt   DateTime? @map("next_retry_at") @db.Timestamptz(6)
+  status        String    @default("pending") @map("status")
+  correlationId String?   @map("correlation_id")
+  lastErrorAt   DateTime? @map("last_error_at") @db.Timestamptz(6)
+  lastErrorStack String?  @map("last_error_stack")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([provider, operation])
+  @@index([status, nextRetryAt])
+  @@index([correlationId])
+  @@map("integration_dlq")
 }

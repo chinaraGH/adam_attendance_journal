@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import { prisma } from "@/lib/prisma";
 import { requireSyncAuth } from "@/lib/sync/auth";
+import { enqueueIntegrationDlqFailure } from "@/lib/integration/dlq";
 
 type ScheduleSessionInput = {
   scheduleExternalId: string;
@@ -168,9 +169,10 @@ export async function POST(request: NextRequest) {
       });
       const nextSemesterId = resolvedSemester?.id ?? null;
       const nextOutOfSemester = !resolvedSemester;
+      const nextSemesterResolutionStatus = resolvedSemester ? "IN_SEMESTER" : "OUT_OF_SEMESTER";
 
       const existed = await prisma.classSession.findFirst({
-        where: { scheduleExternalId: s.scheduleExternalId },
+        where: { source: "SCHEDULE", scheduleExternalId: s.scheduleExternalId },
         select: { id: true, status: true, statusV2: true, outOfSemester: true, semesterId: true },
       });
 
@@ -182,8 +184,14 @@ export async function POST(request: NextRequest) {
       const nextStatus = isCancelledInEjp ? "cancelled" : baseStatus;
 
       await prisma.classSession.upsert({
-        where: { scheduleExternalId: s.scheduleExternalId },
+        where: {
+          source_scheduleExternalId: {
+            source: "SCHEDULE",
+            scheduleExternalId: s.scheduleExternalId,
+          },
+        },
         create: {
+          source: "SCHEDULE",
           scheduleExternalId: s.scheduleExternalId,
           gaudiId: null,
           disciplineId: discipline.id,
@@ -191,6 +199,7 @@ export async function POST(request: NextRequest) {
           teacherId,
           semesterId: nextSemesterId,
           outOfSemester: nextOutOfSemester,
+          semesterResolutionStatus: nextSemesterResolutionStatus,
           startTime: start,
           endTime: end,
           status: nextStatus,
@@ -201,11 +210,13 @@ export async function POST(request: NextRequest) {
           deletedAt: null,
         },
         update: {
+          source: "SCHEDULE",
           disciplineId: discipline.id,
           groupId: group.id,
           teacherId,
           semesterId: nextSemesterId,
           outOfSemester: nextOutOfSemester,
+          semesterResolutionStatus: nextSemesterResolutionStatus,
           startTime: start,
           endTime: end,
           status: nextStatus,
@@ -271,7 +282,16 @@ export async function POST(request: NextRequest) {
       },
       select: { id: true },
     });
-    return NextResponse.json({ ok: false, correlationId, errorsCount: 1, errors: [temporaryError] }, { status: 503 });
+    await enqueueIntegrationDlqFailure({
+      provider: "schedule",
+      operation: "sync_schedule_batch",
+      payload: { errors: errors.slice(0, 50), startedAt, added, updated },
+      errorCode: "SYNC_TEMPORARY_FAILURE",
+      errorMessage: message,
+      category: "temporary",
+      correlationId,
+    });
+    return NextResponse.json({ ok: false, correlationId, dlqQueued: true, errorsCount: 1, errors: [temporaryError] }, { status: 503 });
   }
 }
 
