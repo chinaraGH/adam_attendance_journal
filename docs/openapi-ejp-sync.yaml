@@ -1,0 +1,280 @@
+openapi: 3.0.3
+info:
+  title: EJP Sync API (GAUDI + Schedule)
+  version: 1.1.0
+  description: |
+    Короткий рабочий контракт для интеграторов.
+    Авторизация везде: либо `x-sync-token: <SYNC_SECRET>`, либо `Authorization: Bearer <SYNC_SECRET>`.
+
+servers:
+  - url: http://localhost:3000
+  - url: https://{host}
+    variables:
+      host:
+        default: example.com
+
+security:
+  - SyncToken: []
+  - BearerToken: []
+
+paths:
+  /api/sync/gaudi:
+    post:
+      summary: Синхронизация справочников из GAUDI
+      description: Принимает группы, студентов и преподавателей одним запросом.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GaudiSyncRequest"
+            examples:
+              base:
+                value:
+                  groups:
+                    - gaudiId: "G_IST_24"
+                      name: "ИСТ-24"
+                      code: "IST-24"
+                      isActive: true
+                  students:
+                    - gaudiId: "S_0001"
+                      name: "Иванов Иван"
+                      groupGaudiId: "G_IST_24"
+                      isActive: true
+                  teachers:
+                    - gaudiId: "T_0001"
+                      name: "Петров П.П."
+                      email: "petrov@example.com"
+                      isActive: true
+      responses:
+        "200":
+          description: Данные обработаны
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResponse"
+        "401":
+          description: Неверный секрет
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedError"
+        "500":
+          description: Ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerError"
+
+  /api/sync/schedule:
+    post:
+      summary: Синхронизация занятий из Schedule
+      description: |
+        Upsert по `scheduleExternalId`.
+        Статус отмены не принимается из Schedule и управляется только внутри ЭЖП.
+        Преподаватель:
+        - если задан `teacherId`, используется он;
+        - иначе ищется по `teacherGaudiId`;
+        - если не найден и передан `teacherName`, преподаватель создаётся автоматически.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleSyncRequest"
+            examples:
+              base:
+                value:
+                  sessions:
+                    - scheduleExternalId: "SCH_2026_02_10_1"
+                      groupGaudiId: "G_IST_24"
+                      disciplineCode: "INF"
+                      teacherGaudiId: "T_0001"
+                      teacherName: "Петров П.П."
+                      teacherEmail: "petrov@example.com"
+                      semesterId: "clxxxxxxxxxxxxxxxx"
+                      startTime: "2026-02-10T08:00:00.000Z"
+                      endTime: "2026-02-10T09:30:00.000Z"
+                      status: "scheduled"
+      responses:
+        "200":
+          description: Данные обработаны
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResponse"
+        "401":
+          description: Неверный секрет
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedError"
+        "500":
+          description: Ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerError"
+
+components:
+  securitySchemes:
+    SyncToken:
+      type: apiKey
+      in: header
+      name: x-sync-token
+    BearerToken:
+      type: http
+      scheme: bearer
+      bearerFormat: SYNC_SECRET
+
+  schemas:
+    GaudiSyncRequest:
+      type: object
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/GaudiGroup"
+        students:
+          type: array
+          items:
+            $ref: "#/components/schemas/GaudiStudent"
+        teachers:
+          type: array
+          items:
+            $ref: "#/components/schemas/GaudiTeacher"
+
+    GaudiGroup:
+      type: object
+      required: [gaudiId, name]
+      properties:
+        gaudiId:
+          type: string
+        name:
+          type: string
+        code:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+          default: true
+
+    GaudiStudent:
+      type: object
+      required: [gaudiId, name, groupGaudiId]
+      properties:
+        gaudiId:
+          type: string
+          description: Основной внешний ID студента (из GAUDI)
+        name:
+          type: string
+        groupGaudiId:
+          type: string
+        isActive:
+          type: boolean
+          default: true
+
+    GaudiTeacher:
+      type: object
+      required: [gaudiId, name]
+      properties:
+        gaudiId:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+          default: true
+
+    ScheduleSyncRequest:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduleSession"
+
+    ScheduleSession:
+      type: object
+      required:
+        - scheduleExternalId
+        - groupGaudiId
+        - disciplineCode
+        - semesterId
+        - startTime
+        - endTime
+      properties:
+        scheduleExternalId:
+          type: string
+        groupGaudiId:
+          type: string
+        disciplineCode:
+          type: string
+        teacherId:
+          type: string
+          nullable: true
+        teacherGaudiId:
+          type: string
+          nullable: true
+        teacherName:
+          type: string
+          nullable: true
+        teacherEmail:
+          type: string
+          nullable: true
+        semesterId:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        status:
+          type: string
+          nullable: true
+
+    SyncResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        added:
+          type: integer
+        updated:
+          type: integer
+        errorsCount:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              message:
+                type: string
+              payload:
+                nullable: true
+
+    UnauthorizedError:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: Unauthorized
+
+    ServerError:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: false
+        error:
+          type: string
