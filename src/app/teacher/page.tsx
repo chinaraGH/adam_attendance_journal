@@ -76,29 +76,21 @@ export default async function HomePage() {
   );
 
   return (
-    <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
-        <div style={{ color: "#6b7280", fontWeight: 700 }}>Сегодня (Bishkek): {nowBishkek.toLocaleDateString("ru-RU")}</div>
+    <main className="p-4 sm:p-6 max-w-5xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="text-gray-500 font-bold">Сегодня (Bishkek): {nowBishkek.toLocaleDateString("ru-RU")}</div>
         <Link
           href="/teacher/reports"
-          style={{
-            border: "1px solid #111827",
-            borderRadius: 12,
-            padding: "10px 12px",
-            fontWeight: 900,
-            textDecoration: "none",
-            color: "#111827",
-            background: "white",
-          }}
+          className="border border-gray-900 rounded-xl px-4 py-2.5 font-black text-gray-900 bg-white hover:bg-gray-50 transition-colors text-center w-full sm:w-auto"
         >
           Просмотр отчетов
         </Link>
       </div>
 
       {sessionCards.length === 0 ? (
-        <p>На сегодня занятий нет.</p>
+        <p className="text-gray-500 text-center py-12">На сегодня занятий нет.</p>
       ) : (
-        <div style={{ display: "grid", gap: 12 }}>
+        <div className="grid gap-4">
           {sessionCards.map(({ session, effective, totalStudents, markedCount, isFilled }) => {
             const href = `/attendance/${session.id}`;
             const timeRange = formatTimeRange(session.startTime, session.endTime);
@@ -110,39 +102,49 @@ export default async function HomePage() {
             const statusLabel = isActive ? (hasSavedAttendance ? "Заполнено" : "Требуется заполнение") : isFilled ? "Заполнено" : null;
 
             const CardInner = (
-              <div
-                style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 14,
-                  padding: 14,
-                  background: "white",
-                  opacity: isActive ? 1 : 0.92,
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                  <div>
-                    <div style={{ fontWeight: 900, fontSize: 16 }}>
+              <div className={`border border-gray-200 rounded-2xl p-4 sm:p-5 bg-white transition-all shadow-sm hover:shadow-md ${isActive ? 'opacity-100 ring-2 ring-blue-500/20' : 'opacity-90'}`}>
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-4 sm:gap-6">
+                  <div className="flex-1">
+                    <div className="font-black text-lg text-gray-900 leading-tight">
                       {formatDisciplineLabel({ disciplineId: session.disciplineId, disciplineName: session.discipline?.name })}
                     </div>
-                    <div style={{ marginTop: 4, color: "#374151", fontWeight: 700 }}>{session.group.name}</div>
-                    <div style={{ marginTop: 4, color: "#6b7280" }}>{timeRange}</div>
+                    <div className="mt-1.5 text-gray-700 font-bold">{session.group.name}</div>
+                    <div className="mt-2 flex items-center text-gray-500 font-medium">
+                      <svg className="w-4 h-4 mr-1.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {timeRange}
+                    </div>
                   </div>
 
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontWeight: 900 }}>{formatClassSessionStatusLabel(effective)}</div>
-                    {statusLabel ? (
-                      <div style={{ marginTop: 6, color: hasSavedAttendance || isFilled ? "#16a34a" : "#b45309", fontWeight: 800 }}>
-                        {statusLabel}
+                  <div className="sm:text-right flex flex-row sm:flex-col justify-between items-center sm:items-end border-t sm:border-0 pt-3 sm:pt-0 mt-1 sm:mt-0 border-gray-100">
+                    <div className="font-black text-gray-900 bg-gray-100 sm:bg-transparent px-2.5 py-1 sm:p-0 rounded-md sm:rounded-none text-sm sm:text-base">
+                      {formatClassSessionStatusLabel(effective)}
+                    </div>
+                    <div className="text-right">
+                      {statusLabel ? (
+                        <div className={`mt-0 sm:mt-2 text-sm sm:text-base font-extrabold ${hasSavedAttendance || isFilled ? "text-green-600" : "text-amber-600"}`}>
+                          {statusLabel}
+                        </div>
+                      ) : null}
+                      <div className="mt-0.5 sm:mt-1 text-gray-500 font-medium text-sm sm:text-base">
+                        {markedCount}/{totalStudents}
                       </div>
-                    ) : null}
-                    <div style={{ marginTop: 4, color: "#6b7280" }}>
-                      {markedCount}/{totalStudents}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ marginTop: 10, color: "#111827", fontWeight: 700 }}>
-                  {isActive ? "Открыть журнал" : isReadOnly ? "Просмотр" : "Недоступно"}
+                <div className={`mt-4 pt-3 border-t border-gray-100 font-bold flex items-center justify-center sm:justify-start ${isActive ? 'text-blue-600' : isReadOnly ? 'text-gray-700' : 'text-gray-400'}`}>
+                  {isActive ? (
+                    <>
+                      <span>Открыть журнал</span>
+                      <svg className="w-4 h-4 ml-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                    </>
+                  ) : isReadOnly ? (
+                    "Просмотр"
+                  ) : (
+                    "Недоступно"
+                  )}
                 </div>
               </div>
             );

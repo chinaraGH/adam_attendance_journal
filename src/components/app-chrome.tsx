@@ -48,8 +48,6 @@ export function AppChrome() {
       ? "/acadepartment"
       : pathname === "/acadepartment"
       ? "/login"
-      : pathname === "/leadership" || pathname === "/leadership/dashboard"
-      ? "/login"
       : pathname === "/curator/exemptions" || curatorExemptionsGroup
         ? "/curator"
         : parentPath;
