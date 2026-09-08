@@ -232,6 +232,34 @@ function ClusteredHistogram(props: {
         </svg>
       </div>
 
+      <div style={{ marginTop: 16, overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, textAlign: "right", whiteSpace: "nowrap" }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid #e5e7eb", background: "#f9fafb" }}>
+              <th style={{ padding: "10px 8px", textAlign: "left", fontWeight: 800 }}>Категория</th>
+              {legendLabels.map((lab, b) => (
+                <th key={b} style={{ padding: "10px 8px", color: COLORS[b % COLORS.length], fontWeight: 800 }}>{lab}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {categories.map((cat, k) => (
+              <tr key={k} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                <td style={{ padding: "8px 8px", textAlign: "left", fontWeight: 800, color: "#111827" }}>{cat}</td>
+                {legendLabels.map((_, b) => {
+                  const v = values[k]?.[b];
+                  return (
+                    <td key={b} style={{ padding: "8px 8px", color: "#374151" }}>
+                      {v === null || v === undefined ? <span style={{ color: "#9ca3af" }}>—</span> : `${v}%`}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       <div
         style={{
           marginTop: 14,

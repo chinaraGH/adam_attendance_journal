@@ -56,6 +56,112 @@ async function setClassSessionCancelledState(formData: FormData) {
   revalidatePath("/acadepartment");
 }
 
+async function createFaculty(formData: FormData) {
+  "use server";
+
+  const actor = await getCurrentUserOrRedirect();
+  if (actor.role !== "ADMIN" && actor.role !== "ACADEMIC_OFFICE") return;
+
+  const name = String(formData.get("name") ?? "").trim();
+  const codeRaw = String(formData.get("code") ?? "").trim();
+  const code = codeRaw.length > 0 ? codeRaw : null;
+  if (!name) return;
+
+  await prisma.faculty.create({
+    data: {
+      name,
+      code,
+      isActive: true,
+      deletedAt: null,
+    },
+    select: { id: true },
+  });
+
+  revalidatePath("/acadepartment");
+}
+
+async function createDepartment(formData: FormData) {
+  "use server";
+
+  const actor = await getCurrentUserOrRedirect();
+  if (actor.role !== "ADMIN" && actor.role !== "ACADEMIC_OFFICE") return;
+
+  const facultyId = String(formData.get("facultyId") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const codeRaw = String(formData.get("code") ?? "").trim();
+  const code = codeRaw.length > 0 ? codeRaw : null;
+  if (!facultyId || !name) return;
+
+  await prisma.department.create({
+    data: {
+      facultyId,
+      name,
+      code,
+      isActive: true,
+      deletedAt: null,
+    },
+    select: { id: true },
+  });
+
+  revalidatePath("/acadepartment");
+}
+
+async function createProgram(formData: FormData) {
+  "use server";
+
+  const actor = await getCurrentUserOrRedirect();
+  if (actor.role !== "ADMIN" && actor.role !== "ACADEMIC_OFFICE") return;
+
+  const facultyId = String(formData.get("facultyId") ?? "").trim();
+  const departmentId = String(formData.get("departmentId") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const codeRaw = String(formData.get("code") ?? "").trim();
+  const code = codeRaw.length > 0 ? codeRaw : null;
+  if (!facultyId || !departmentId || !name) return;
+
+  await prisma.program.create({
+    data: {
+      facultyId,
+      departmentId,
+      name,
+      code,
+      isActive: true,
+      deletedAt: null,
+    },
+    select: { id: true },
+  });
+
+  revalidatePath("/acadepartment");
+}
+
+async function createDiscipline(formData: FormData) {
+  "use server";
+
+  const actor = await getCurrentUserOrRedirect();
+  if (actor.role !== "ADMIN" && actor.role !== "ACADEMIC_OFFICE") return;
+
+  const name = String(formData.get("name") ?? "").trim();
+  const code = String(formData.get("code") ?? "")
+    .trim()
+    .toUpperCase();
+  const departmentIdRaw = String(formData.get("departmentId") ?? "").trim();
+  const departmentId = departmentIdRaw.length > 0 ? departmentIdRaw : null;
+  if (!name || !code) return;
+
+  await prisma.discipline.create({
+    data: {
+      name,
+      code,
+      departmentId,
+      isActive: true,
+      deletedAt: null,
+    },
+    select: { id: true },
+  });
+
+  revalidatePath("/acadepartment");
+}
+
 export default async function AcadepartmentPage(props: { searchParams: { q?: string } }) {
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "ADMIN" && actor.role !== "ACADEMIC_OFFICE") {
@@ -70,6 +176,16 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
   const q = qNorm(props.searchParams.q);
   const semesterScopeParam = qNorm((props.searchParams as { semesterScope?: string }).semesterScope);
   const semesterScope: "all" | "out" = semesterScopeParam === "out" ? "out" : "all";
+  const facultiesForInput = await prisma.faculty.findMany({
+    where: { isActive: true, deletedAt: null },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, code: true },
+  });
+  const departmentsForInput = await prisma.department.findMany({
+    where: { isActive: true, deletedAt: null },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, code: true, facultyId: true },
+  });
 
   const charts = await buildAcadepartmentAttendanceCharts();
 
@@ -137,6 +253,77 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
   for (const r of sickAgg) {
     sickCountByStudent.set(r.studentId, (sickCountByStudent.get(r.studentId) ?? 0) + r._count._all);
   }
+
+  const problemStudentsAgg = await prisma.attendance.groupBy({
+    by: ["studentId"],
+    where: {
+      isActive: true,
+      deletedAt: null,
+      statusV2: "NB",
+      classSession: { startTime: { gte: new Date(charts.semesterStartIso ?? "2000-01-01"), lte: new Date(charts.semesterEndIso ?? "2099-01-01") } }
+    },
+    _count: { _all: true },
+    orderBy: { _count: { studentId: "desc" } },
+    take: 15,
+  });
+
+  const problemStudentIdsTop = problemStudentsAgg.map((x) => x.studentId);
+  const problemStudentsData = await prisma.student.findMany({
+    where: { id: { in: problemStudentIdsTop } },
+    select: { id: true, name: true, gaudiId: true, group: { select: { id: true, name: true } } }
+  });
+  const problemStudentsDataMap = new Map(problemStudentsData.map((s) => [s.id, s]));
+  const problemStudentsList = problemStudentsAgg.map((a) => {
+    const st = problemStudentsDataMap.get(a.studentId);
+    return {
+      id: a.studentId,
+      name: st?.name ?? "—",
+      groupName: st?.group?.name ?? "—",
+      nbCount: a._count._all,
+    };
+  });
+
+  const facultiesSearch =
+    q.length > 0
+      ? await prisma.faculty.findMany({
+          where: {
+            isActive: true,
+            deletedAt: null,
+            OR: [{ name: { contains: q, mode: "insensitive" } }, { code: { contains: q, mode: "insensitive" } }],
+          },
+          take: 10,
+          orderBy: { name: "asc" },
+          select: { id: true, name: true, code: true },
+        })
+      : [];
+
+  const programsSearch =
+    q.length > 0
+      ? await prisma.program.findMany({
+          where: {
+            isActive: true,
+            deletedAt: null,
+            OR: [{ name: { contains: q, mode: "insensitive" } }, { code: { contains: q, mode: "insensitive" } }],
+          },
+          take: 10,
+          orderBy: { name: "asc" },
+          select: { id: true, name: true, code: true, department: { select: { name: true } } },
+        })
+      : [];
+
+  const disciplinesSearch =
+    q.length > 0
+      ? await prisma.discipline.findMany({
+          where: {
+            isActive: true,
+            deletedAt: null,
+            OR: [{ name: { contains: q, mode: "insensitive" } }, { code: { contains: q, mode: "insensitive" } }],
+          },
+          take: 10,
+          orderBy: { name: "asc" },
+          select: { id: true, name: true, code: true },
+        })
+      : [];
 
   const sessionsForCancellation = await prisma.classSession.findMany({
     where: {
@@ -242,6 +429,87 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
           semesterEndIso={charts.semesterEndIso}
         />
       </div>
+
+      <section style={{ marginTop: 24, borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
+        <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0, color: "#111827" }}>Ввод справочников</h2>
+        <div style={{ marginTop: 10, fontSize: 13, color: "#6b7280", fontWeight: 600 }}>
+          Ручной ввод сущностей: Faculty, Department, Program, Discipline.
+        </div>
+        <div style={{ marginTop: 14, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+          <form action={createFaculty} style={{ border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, display: "grid", gap: 8 }}>
+            <div style={{ fontWeight: 900, color: "#111827" }}>Faculty</div>
+            <input name="name" placeholder="Наименование" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
+            <input name="code" placeholder="Код (опционально)" style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
+            <button type="submit" style={{ border: "1px solid #111827", background: "#111827", color: "white", borderRadius: 10, padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}>
+              Добавить Faculty
+            </button>
+          </form>
+
+          <form action={createDepartment} style={{ border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, display: "grid", gap: 8 }}>
+            <div style={{ fontWeight: 900, color: "#111827" }}>Department</div>
+            <select name="facultyId" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }}>
+              <option value="">Выберите Faculty</option>
+              {facultiesForInput.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.code ?? f.name}
+                </option>
+              ))}
+            </select>
+            <input name="name" placeholder="Наименование" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
+            <input name="code" placeholder="Код (опционально)" style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
+            <button type="submit" style={{ border: "1px solid #111827", background: "#111827", color: "white", borderRadius: 10, padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}>
+              Добавить Department
+            </button>
+          </form>
+
+          <form action={createProgram} style={{ border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, display: "grid", gap: 8 }}>
+            <div style={{ fontWeight: 900, color: "#111827" }}>Program</div>
+            <select name="facultyId" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }}>
+              <option value="">Выберите Faculty</option>
+              {facultiesForInput.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.code ?? f.name}
+                </option>
+              ))}
+            </select>
+            <select name="departmentId" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }}>
+              <option value="">Выберите Department</option>
+              {departmentsForInput.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.code ?? d.name}
+                </option>
+              ))}
+            </select>
+            <input name="name" placeholder="Наименование" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
+            <input name="code" placeholder="Код (опционально)" style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
+            <button type="submit" style={{ border: "1px solid #111827", background: "#111827", color: "white", borderRadius: 10, padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}>
+              Добавить Program
+            </button>
+          </form>
+
+          <form action={createDiscipline} style={{ border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, display: "grid", gap: 8 }}>
+            <div style={{ fontWeight: 900, color: "#111827" }}>Discipline</div>
+            <select name="departmentId" style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }}>
+              <option value="">Без кафедры</option>
+              {departmentsForInput.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.code ?? d.name}
+                </option>
+              ))}
+            </select>
+            <input name="name" placeholder="Наименование" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
+            <input
+              name="code"
+              placeholder="Код (обязателен, как в Schedule)"
+              required
+              style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700, textTransform: "uppercase" }}
+            />
+            <button type="submit" style={{ border: "1px solid #111827", background: "#111827", color: "white", borderRadius: 10, padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}>
+              Добавить Discipline
+            </button>
+          </form>
+        </div>
+      </section>
 
       <section style={{ marginTop: 24, borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -365,6 +633,31 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
         </div>
       </section>
 
+      <section style={{ marginTop: 24, borderRadius: 14, border: "1px solid #fecaca", background: "#fef2f2", padding: 16 }}>
+        <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0, color: "#991b1b" }}>Топ-15 проблемных студентов (по числу НБ)</h2>
+        <div style={{ marginTop: 10, fontSize: 13, color: "#7f1d1d", fontWeight: 600 }}>
+          Отображаются студенты с наибольшим количеством пропусков в выбранном семестре.
+        </div>
+        <div style={{ marginTop: 14 }}>
+          {problemStudentsList.length === 0 ? (
+            <div style={{ fontSize: 13, color: "#991b1b" }}>Нет данных о пропусках.</div>
+          ) : (
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
+              {problemStudentsList.map((st, i) => (
+                <li key={st.id} style={{ display: "flex", justifyContent: "space-between", background: "white", padding: "10px 14px", borderRadius: 10, border: "1px solid #fca5a5" }}>
+                  <div>
+                    <span style={{ fontWeight: 800, color: "#991b1b", marginRight: 8 }}>#{i + 1}</span>
+                    <Link href={`/admin/students/${st.id}`} style={{ fontWeight: 900, color: "#111827", textDecoration: "none" }}>{st.name}</Link>
+                    <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280", fontWeight: 700 }}>{st.groupName}</div>
+                  </div>
+                  <strong style={{ color: "#b91c1c", fontSize: 16 }}>{st.nbCount}</strong>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
       <section style={{ marginTop: 24, borderRadius: 14, border: "1px solid #fde68a", background: "#fffbeb", padding: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0, color: "#92400e" }}>Аномалии расписания (вне семестров)</h2>
@@ -453,7 +746,7 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
         </form>
 
         {q.length === 0 ? (
-          <div style={{ marginTop: 16, fontSize: 14, color: "#6b7280", fontWeight: 600 }}>Введите запрос: студент / преподаватель / группа.</div>
+          <div style={{ marginTop: 16, fontSize: 14, color: "#6b7280", fontWeight: 600 }}>Введите запрос: студент / преподаватель / группа / факультет / направление / предмет.</div>
         ) : (
           <div style={{ marginTop: 20, display: "grid", gap: 16 }}>
             <section style={{ borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
@@ -552,6 +845,57 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
                         </Link>
                       </div>
                       <div style={{ fontSize: 14, color: "#6b7280" }}>{g.code ?? "—"}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section style={{ borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
+              <div style={{ fontWeight: 900 }}>Факультеты</div>
+              {facultiesSearch.length === 0 ? (
+                <div style={{ marginTop: 8, fontSize: 14, color: "#6b7280" }}>Нет результатов.</div>
+              ) : (
+                <ul style={{ marginTop: 12, display: "grid", gap: 8, padding: 0, listStyle: "none" }}>
+                  {facultiesSearch.map((f) => (
+                    <li key={f.id} style={{ display: "flex", justifyContent: "space-between", borderRadius: 12, border: "1px solid #f3f4f6", padding: 12 }}>
+                      <div style={{ fontWeight: 900 }}>{f.name}</div>
+                      <div style={{ fontSize: 14, color: "#6b7280" }}>{f.code ?? "—"}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section style={{ borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
+              <div style={{ fontWeight: 900 }}>Направления</div>
+              {programsSearch.length === 0 ? (
+                <div style={{ marginTop: 8, fontSize: 14, color: "#6b7280" }}>Нет результатов.</div>
+              ) : (
+                <ul style={{ marginTop: 12, display: "grid", gap: 8, padding: 0, listStyle: "none" }}>
+                  {programsSearch.map((p) => (
+                    <li key={p.id} style={{ display: "flex", justifyContent: "space-between", borderRadius: 12, border: "1px solid #f3f4f6", padding: 12 }}>
+                      <div>
+                        <div style={{ fontWeight: 900 }}>{p.name}</div>
+                        <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>{p.department?.name ?? "—"}</div>
+                      </div>
+                      <div style={{ fontSize: 14, color: "#6b7280" }}>{p.code ?? "—"}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section style={{ borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
+              <div style={{ fontWeight: 900 }}>Предметы (Дисциплины)</div>
+              {disciplinesSearch.length === 0 ? (
+                <div style={{ marginTop: 8, fontSize: 14, color: "#6b7280" }}>Нет результатов.</div>
+              ) : (
+                <ul style={{ marginTop: 12, display: "grid", gap: 8, padding: 0, listStyle: "none" }}>
+                  {disciplinesSearch.map((d) => (
+                    <li key={d.id} style={{ display: "flex", justifyContent: "space-between", borderRadius: 12, border: "1px solid #f3f4f6", padding: 12 }}>
+                      <div style={{ fontWeight: 900 }}>{d.name}</div>
+                      <div style={{ fontSize: 14, color: "#6b7280" }}>{d.code ?? "—"}</div>
                     </li>
                   ))}
                 </ul>

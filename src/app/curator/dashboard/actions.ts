@@ -439,6 +439,72 @@ export async function decideSickRequest(input: { attendanceId: string; decision:
   return processSickRequest(input);
 }
 
+export async function getCuratorProblematicStudents() {
+  const actor = await getCurrentUserOrRedirect();
+  if (actor.role !== "CURATOR") {
+    return { ok: false as const, error: "Недостаточно прав." };
+  }
+
+  const groupLinks = await prisma.userGroupCurator.findMany({
+    where: { userId: actor.id, isActive: true, deletedAt: null },
+    select: { groupId: true },
+  });
+  const groupIds = groupLinks.map((x) => x.groupId);
+  if (groupIds.length === 0) {
+    return { ok: true as const, items: [] as any[] };
+  }
+
+  const semester =
+    (await prisma.semester.findFirst({
+      where: { isLocked: false },
+      orderBy: { startDate: "desc" },
+      select: { id: true, startDate: true, endDate: true },
+    })) ??
+    (await prisma.semester.findFirst({
+      orderBy: { startDate: "desc" },
+      select: { id: true, startDate: true, endDate: true },
+    }));
+
+  const problemAgg = await prisma.attendance.groupBy({
+    by: ["studentId"],
+    where: {
+      isActive: true,
+      deletedAt: null,
+      statusV2: "NB",
+      classSession: { 
+        groupId: { in: groupIds },
+        ...(semester ? { startTime: { gte: semester.startDate, lte: semester.endDate } } : {})
+      }
+    },
+    _count: { _all: true },
+    orderBy: { _count: { studentId: "desc" } },
+    take: 15,
+  });
+
+  if (problemAgg.length === 0) {
+    return { ok: true as const, items: [] as any[] };
+  }
+
+  const pIds = problemAgg.map(a => a.studentId);
+  const students = await prisma.student.findMany({
+    where: { id: { in: pIds } },
+    select: { id: true, name: true, group: { select: { name: true } } }
+  });
+  const sMap = new Map(students.map(s => [s.id, s]));
+
+  const items = problemAgg.map(a => {
+    const s = sMap.get(a.studentId);
+    return {
+      studentId: a.studentId,
+      studentName: s?.name ?? "—",
+      groupName: s?.group?.name ?? "—",
+      nbCount: a._count._all,
+    };
+  });
+
+  return { ok: true as const, items };
+}
+
 export async function setA(input: { attendanceId: string }) {
   return setAdministrativeAbsence(input);
 }

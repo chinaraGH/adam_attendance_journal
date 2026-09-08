@@ -1,12 +1,13 @@
 import Link from "next/link";
 
-import { getCuratorGroupSummary, getCuratorSickSemesterOverview } from "./dashboard/actions";
+import { getCuratorGroupSummary, getCuratorSickSemesterOverview, getCuratorProblematicStudents } from "./dashboard/actions";
 import { formatDisciplineLabel } from "@/lib/ui/labels";
 import { SickRequestActions } from "./dashboard/sick-request-actions";
 
 export default async function CuratorPage() {
   const sickSemester = await getCuratorSickSemesterOverview();
   const summary = await getCuratorGroupSummary();
+  const problemRes = await getCuratorProblematicStudents();
 
   return (
     <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
@@ -67,6 +68,31 @@ export default async function CuratorPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: 24, border: "1px solid #fca5a5", borderRadius: 14, padding: 14, background: "#fef2f2" }}>
+        <div style={{ fontWeight: 900, marginBottom: 10, color: "#991b1b", fontSize: 17 }}>Студенты в зоне риска (Топ-15 по НБ)</div>
+        <p style={{ marginTop: 4, color: "#7f1d1d", fontWeight: 600, fontSize: 13, marginBottom: 14 }}>
+          Отображаются студенты ваших групп с наибольшим числом пропусков (НБ) за семестр.
+        </p>
+        {!problemRes.ok ? (
+          <div style={{ color: "#991b1b", fontWeight: 800 }}>{problemRes.error}</div>
+        ) : problemRes.items.length === 0 ? (
+          <div style={{ color: "#991b1b", fontWeight: 700 }}>Нет студентов с пропусками.</div>
+        ) : (
+          <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
+            {problemRes.items.map((st, i) => (
+              <div key={st.studentId} style={{ display: "flex", justifyContent: "space-between", background: "white", padding: "10px 14px", borderRadius: 10, border: "1px solid #fca5a5" }}>
+                <div>
+                  <span style={{ fontWeight: 800, color: "#991b1b", marginRight: 8 }}>#{i + 1}</span>
+                  <span style={{ fontWeight: 900, color: "#111827" }}>{st.studentName}</span>
+                  <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280", fontWeight: 700 }}>{st.groupName}</div>
+                </div>
+                <strong style={{ color: "#b91c1c", fontSize: 16 }}>{st.nbCount}</strong>
+              </div>
+            ))}
           </div>
         )}
       </div>
