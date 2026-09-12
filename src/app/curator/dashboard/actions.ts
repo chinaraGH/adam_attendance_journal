@@ -505,9 +505,6 @@ export async function getCuratorProblematicStudents() {
   return { ok: true as const, items };
 }
 
-export async function setA(input: { attendanceId: string }) {
-  return setAdministrativeAbsence(input);
-}
 
 export async function decideSickRequestForm(formData: FormData) {
   const attendanceId = formData.get("attendanceId");
@@ -521,11 +518,4 @@ export async function decideSickRequestForm(formData: FormData) {
   await decideSickRequest({ attendanceId, decision });
 }
 
-export async function setAForm(formData: FormData) {
-  const attendanceId = formData.get("attendanceId");
-  if (typeof attendanceId !== "string" || !attendanceId) {
-    return;
-  }
-  await setA({ attendanceId });
-}
 

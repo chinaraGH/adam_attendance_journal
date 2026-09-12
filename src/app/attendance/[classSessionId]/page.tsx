@@ -3,10 +3,12 @@ import { getEffectiveClassSessionStatus } from "@/lib/class-session/effective-st
 import { openJournal } from "@/app/actions/class-session-actions";
 import { formatClassSessionStatusLabel, formatDisciplineLabel } from "@/lib/ui/labels";
 import { BackToolbar, ExitButton } from "@/components/exit-button";
-
 import { AttendanceClient } from "../attendance-client";
 
+import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
+
 export default async function AttendanceBySessionPage(props: { params: { classSessionId: string } }) {
+  await getCurrentUserOrRedirect();
   const { classSessionId } = props.params;
 
   const session = await prisma.classSession.findFirst({
