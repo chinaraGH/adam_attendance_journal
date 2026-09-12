@@ -102,7 +102,6 @@ async function main() {
 
   const TEST_CURATOR_ID = "CURTEST1";
   const TEST_ACADEMIC_OFFICE_ID = "UCHTEST1";
-  const TEST_LEADERSHIP_ID = "LEADTS01";
   const TEST_STUDENT_ID = "STUDTST1";
 
   // Teachers + Users (IDs <= 8)
@@ -127,7 +126,6 @@ async function main() {
       ...teachers.map((t) => ({ id: t.id, role: "TEACHER", isActive: true, deletedAt: null })),
       { id: TEST_CURATOR_ID, role: "CURATOR", isActive: true, deletedAt: null },
       { id: TEST_ACADEMIC_OFFICE_ID, role: "ACADEMIC_OFFICE", isActive: true, deletedAt: null },
-      { id: TEST_LEADERSHIP_ID, role: "LEADERSHIP", isActive: true, deletedAt: null },
       { id: TEST_STUDENT_ID, role: "STUDENT", isActive: true, deletedAt: null },
     ],
     skipDuplicates: true,
@@ -137,7 +135,6 @@ async function main() {
       ...teachers.map((t) => ({ userId: t.id, roleCode: "TEACHER", source: "seed", isActive: true, deletedAt: null })),
       { userId: TEST_CURATOR_ID, roleCode: "CURATOR", source: "seed", isActive: true, deletedAt: null },
       { userId: TEST_ACADEMIC_OFFICE_ID, roleCode: "ACADEMIC_OFFICE", source: "seed", isActive: true, deletedAt: null },
-      { userId: TEST_LEADERSHIP_ID, roleCode: "LEADERSHIP", source: "seed", isActive: true, deletedAt: null },
       { userId: TEST_STUDENT_ID, roleCode: "STUDENT", source: "seed", isActive: true, deletedAt: null },
     ],
     skipDuplicates: true,

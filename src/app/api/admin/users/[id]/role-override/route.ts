@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { recalculateAccessForUser } from "@/lib/auth/recalculate-access";
 
-const allowedRoles = new Set(["ADMIN", "ACADEMIC_OFFICE", "CURATOR", "TEACHER", "STUDENT", "LEADERSHIP"]);
+const allowedRoles = new Set(["ADMIN", "ACADEMIC_OFFICE", "CURATOR", "TEACHER", "STUDENT"]);
 
 export async function POST(request: NextRequest, context: { params: { id: string } }) {
   let actor: Awaited<ReturnType<typeof getCurrentUser>>;

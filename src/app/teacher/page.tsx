@@ -14,13 +14,17 @@ function formatTimeRange(start: Date, end: Date) {
   return `${pad(s.getHours())}:${pad(s.getMinutes())}–${pad(e.getHours())}:${pad(e.getMinutes())}`;
 }
 
+import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
+
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const actor = await getCurrentUserOrRedirect();
   const { nowBishkek, startInstant, endInstant } = getBishkekDayRangeInstants();
 
   const sessions = await prisma.classSession.findMany({
     where: {
+      teacherId: actor.id,
       isActive: true,
       deletedAt: null,
       startTime: { gte: startInstant, lte: endInstant },
