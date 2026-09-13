@@ -11,6 +11,7 @@ const NAV_PREV_PATH_KEY = "ejp_prev_path";
 export function AppChrome() {
   const pathname = usePathname() ?? "";
   const [parentPath, setParentPath] = useState("/");
+  const [prevPath, setPrevPath] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined" || !pathname) return;
@@ -20,8 +21,15 @@ export function AppChrome() {
     if (idx <= 0) setParentPath("/");
     else setParentPath(clean.slice(0, idx));
     if (current !== pathname) {
-      if (current) window.sessionStorage.setItem(NAV_PREV_PATH_KEY, current);
+      if (current) {
+        window.sessionStorage.setItem(NAV_PREV_PATH_KEY, current);
+        setPrevPath(current);
+      } else {
+        setPrevPath(window.sessionStorage.getItem(NAV_PREV_PATH_KEY));
+      }
       window.sessionStorage.setItem(NAV_CURRENT_PATH_KEY, pathname);
+    } else {
+      setPrevPath(window.sessionStorage.getItem(NAV_PREV_PATH_KEY));
     }
   }, [pathname]);
 
@@ -29,6 +37,7 @@ export function AppChrome() {
   if (pathname.startsWith("/attendance")) return null;
 
   const curatorExemptionsGroup = /^\/curator\/exemptions\/[^/]+$/.test(pathname);
+  const adminGroup = /^\/admin\/groups\/[^/]+$/.test(pathname);
   const backTarget =
     pathname === "/"
       ? "/login"
@@ -48,6 +57,8 @@ export function AppChrome() {
       ? "/acadepartment"
       : pathname === "/acadepartment"
       ? "/login"
+      : adminGroup
+      ? (prevPath || "/acadepartment")
       : pathname === "/curator/exemptions" || curatorExemptionsGroup
         ? "/curator"
         : parentPath;
