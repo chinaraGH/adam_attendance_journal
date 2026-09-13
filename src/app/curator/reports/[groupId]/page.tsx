@@ -75,7 +75,7 @@ export default async function CuratorGroupReportPage(props: { params: { groupId:
             semesterId: semester.id,
             isActive: true,
             deletedAt: null,
-            NOT: [{ statusV2: "cancelled" }, { status: "cancelled" }],
+            OR: [{ statusV2: { not: "cancelled" } }, { statusV2: null, status: { not: "cancelled" } }],
           },
           orderBy: { startTime: "asc" },
           take: 20,
@@ -139,7 +139,7 @@ export default async function CuratorGroupReportPage(props: { params: { groupId:
       isActive: true,
       deletedAt: null,
       startTime: { gte: weekRanges[3]!.start, lte: weekRanges[0]!.end },
-      NOT: [{ statusV2: "cancelled" }, { status: "cancelled" }],
+      OR: [{ statusV2: { not: "cancelled" } }, { statusV2: null, status: { not: "cancelled" } }],
     },
     select: { id: true, startTime: true },
   });

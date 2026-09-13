@@ -95,7 +95,7 @@ export async function POST(request: Request) {
       deletedAt: null,
       openedAt: null,
       endTime: { lt: nowInstant },
-      NOT: [{ statusV2: "cancelled" }, { status: "cancelled" }],
+      OR: [{ statusV2: { not: "cancelled" } }, { statusV2: null, status: { not: "cancelled" } }],
     },
     select: { id: true, groupId: true, statusV2: true, status: true },
   });
@@ -167,7 +167,7 @@ export async function POST(request: Request) {
       isActive: true,
       deletedAt: null,
       startTime: { gte: nowInstant, lte: inFiveMinutesInstant },
-      NOT: [{ statusV2: "cancelled" }, { status: "cancelled" }],
+      OR: [{ statusV2: { not: "cancelled" } }, { statusV2: null, status: { not: "cancelled" } }],
     },
     select: { id: true, groupId: true, semesterId: true },
   });

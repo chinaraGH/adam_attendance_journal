@@ -15,7 +15,13 @@ export type AcadepartmentChartSeries = {
   points: (number | null)[];
 };
 
-async function resolveSemester() {
+async function resolveSemester(semesterId?: string) {
+  if (semesterId) {
+    return prisma.semester.findUnique({
+      where: { id: semesterId },
+      select: { id: true, name: true, startDate: true, endDate: true },
+    });
+  }
   return (
     (await prisma.semester.findFirst({
       where: { isLocked: false },
@@ -32,7 +38,7 @@ async function resolveSemester() {
 function isPresent(status: string | null): boolean {
   if (!status) return false;
   const u = status.toUpperCase();
-  return u === "P" || u === "O";
+  return u === "P" || u === "O" || u === "PRESENT" || u === "LATE";
 }
 
 type Agg = { numer: number; denom: number };
@@ -93,7 +99,7 @@ export type AcadepartmentFilterOption = { id: string; name: string };
  * Недельная динамика посещаемости (П+О / все отметки) по текущему семестру.
  * Все ряды «факультет×курс» и «направление×курс» отдаются для фильтрации на клиенте.
  */
-export async function buildAcadepartmentAttendanceCharts(): Promise<{
+export async function buildAcadepartmentAttendanceCharts(semesterId?: string): Promise<{
   weekKeys: string[];
   weekLabels: string[];
   facultyCourse: AcadepartmentChartSeries[];
@@ -107,8 +113,13 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
   facultyOptions: AcadepartmentFilterOption[];
   programOptions: AcadepartmentFilterOption[];
   courseOptions: number[];
+  allSemesters: { id: string; name: string | null; isLocked: boolean; startDate: Date; endDate: Date }[];
 }> {
-  const semester = await resolveSemester();
+  const allSemesters = await prisma.semester.findMany({
+    orderBy: { startDate: "desc" },
+    select: { id: true, name: true, isLocked: true, startDate: true, endDate: true },
+  });
+  const semester = await resolveSemester(semesterId);
   if (!semester) {
     return {
       weekKeys: [],
@@ -124,6 +135,7 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
       facultyOptions: [],
       programOptions: [],
       courseOptions: [],
+      allSemesters,
     };
   }
 
@@ -174,12 +186,43 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
     });
   }
 
-  const now = new Date();
-  const rangeEnd = dfMin([semester.endDate, now]);
-  const rangeStart = semester.startDate;
+  const attendances = await prisma.attendance.findMany({
+    where: {
+      isActive: true,
+      deletedAt: null,
+      OR: [{ statusV2: { not: null } }, { status: { not: null } }],
+      classSession: {
+        semesterId: semester.id,
+        isActive: true,
+        deletedAt: null,
+        OR: [{ statusV2: { not: "cancelled" } }, { statusV2: null, status: { not: "cancelled" } }],
+      },
+    },
+    select: {
+      status: true,
+      statusV2: true,
+      classSession: {
+        select: {
+          startTime: true,
+          groupId: true,
+        },
+      },
+    },
+  });
 
-  const semesterStartIso = format(semester.startDate, "yyyy-MM-dd");
-  const semesterEndIso = format(semester.endDate, "yyyy-MM-dd");
+  const now = new Date();
+  let rangeEnd = dfMin([semester.endDate, now]);
+  let rangeStart = semester.startDate;
+
+  if (attendances.length > 0) {
+    const minD = Math.min(...attendances.map((a) => a.classSession.startTime.getTime()));
+    const maxD = Math.max(...attendances.map((a) => a.classSession.startTime.getTime()));
+    if (minD < rangeStart.getTime()) rangeStart = new Date(minD);
+    if (maxD > rangeEnd.getTime()) rangeEnd = new Date(maxD);
+  }
+
+  const semesterStartIso = format(rangeStart, "yyyy-MM-dd");
+  const semesterEndIso = format(rangeEnd, "yyyy-MM-dd");
 
   if (rangeStart > rangeEnd) {
     return {
@@ -196,6 +239,7 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
       facultyOptions: [],
       programOptions: [],
       courseOptions: [],
+      allSemesters,
     };
   }
 
@@ -221,31 +265,9 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
       facultyOptions: [],
       programOptions: [],
       courseOptions: [],
+      allSemesters,
     };
   }
-
-  const attendances = await prisma.attendance.findMany({
-    where: {
-      isActive: true,
-      deletedAt: null,
-      statusV2: { not: null },
-      classSession: {
-        semesterId: semester.id,
-        isActive: true,
-        deletedAt: null,
-        NOT: [{ statusV2: "cancelled" }, { status: "cancelled" }],
-      },
-    },
-    select: {
-      statusV2: true,
-      classSession: {
-        select: {
-          startTime: true,
-          groupId: true,
-        },
-      },
-    },
-  });
 
   const fcData = new Map<string, Map<string, Agg>>();
   const pcData = new Map<string, Map<string, Agg>>();
@@ -260,7 +282,7 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
     const wk = format(startOfWeek(st, { weekStartsOn: 1 }), "yyyy-MM-dd");
     if (!weekKeys.includes(wk)) continue;
 
-    const present = isPresent(a.statusV2);
+    const present = isPresent(a.statusV2 ?? a.status);
 
     if (meta.course !== null && meta.facultyId !== null) {
       const fk = `${meta.facultyId}__c${meta.course}`;
@@ -345,5 +367,6 @@ export async function buildAcadepartmentAttendanceCharts(): Promise<{
     facultyOptions,
     programOptions,
     courseOptions,
+    allSemesters,
   };
 }

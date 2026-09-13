@@ -9,7 +9,7 @@ export default async function LoginPage() {
   let dbError: string | null = null;
   try {
     users = await prisma.appUser.findMany({
-      where: { isActive: true, deletedAt: null },
+      where: { isActive: true, deletedAt: null, role: { not: "LEADERSHIP" } },
       select: { id: true, role: true },
       orderBy: [{ role: "asc" }, { id: "asc" }],
       take: 200,

@@ -30,7 +30,7 @@ export type CuratorSickSemesterRow = {
 };
 
 /** Блокирующие статусы за семестр: B_PENDING, B_CONFIRMED и отклонённые Б (NB после sick_reject в audit). Без изменения бизнес-правил записи. */
-export async function getCuratorSickSemesterOverview(): Promise<
+export async function getCuratorSickSemesterOverview(dateParam?: string, semesterIdParam?: string): Promise<
   | { ok: false; error: string }
   | {
       ok: true;
@@ -60,16 +60,20 @@ export async function getCuratorSickSemesterOverview(): Promise<
     };
   }
 
-  const semester =
-    (await prisma.semester.findFirst({
-      where: { isLocked: false },
-      orderBy: { startDate: "desc" },
-      select: { id: true, name: true, endDate: true, isLocked: true },
-    })) ??
-    (await prisma.semester.findFirst({
-      orderBy: { startDate: "desc" },
-      select: { id: true, name: true, endDate: true, isLocked: true },
-    }));
+  const semester = semesterIdParam
+    ? await prisma.semester.findUnique({
+        where: { id: semesterIdParam },
+        select: { id: true, name: true, endDate: true, isLocked: true },
+      })
+    : ((await prisma.semester.findFirst({
+        where: { isLocked: false },
+        orderBy: { startDate: "desc" },
+        select: { id: true, name: true, endDate: true, isLocked: true },
+      })) ??
+      (await prisma.semester.findFirst({
+        orderBy: { startDate: "desc" },
+        select: { id: true, name: true, endDate: true, isLocked: true },
+      })));
 
   if (!semester) {
     return {
@@ -87,11 +91,13 @@ export async function getCuratorSickSemesterOverview(): Promise<
       semesterId: semester.id,
       isActive: true,
       deletedAt: null,
-      NOT: [{ statusV2: "cancelled" }, { status: "cancelled" }],
+      OR: [{ statusV2: { not: "cancelled" } }, { statusV2: null, status: { not: "cancelled" } }],
     },
-    select: { id: true },
+    select: { id: true, startTime: true },
   });
-  const sessionIds = sessions.map((s) => s.id);
+  const sessionIds = sessions
+    .filter((s) => !dateParam || formatInTimeZone(s.startTime, BISHKEK_TIME_ZONE, "yyyy-MM-dd") === dateParam)
+    .map((s) => s.id);
   if (sessionIds.length === 0) {
     return {
       ok: true,
@@ -252,7 +258,7 @@ export async function getPendingSickAttendances() {
   return { ok: true as const, items };
 }
 
-export async function getCuratorGroupSummary() {
+export async function getCuratorGroupSummary(semesterId?: string) {
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "CURATOR") {
     return { ok: false as const, error: "Недостаточно прав." };
@@ -267,6 +273,22 @@ export async function getCuratorGroupSummary() {
     return { ok: true as const, rows: [] as any[] };
   }
 
+  const semester = semesterId
+    ? await prisma.semester.findUnique({ where: { id: semesterId }, select: { id: true } })
+    : (await prisma.semester.findFirst({
+        where: { isLocked: false },
+        orderBy: { startDate: "desc" },
+        select: { id: true },
+      })) ??
+      (await prisma.semester.findFirst({
+        orderBy: { startDate: "desc" },
+        select: { id: true },
+      }));
+
+  if (!semester) {
+    return { ok: true as const, rows: [] as any[] };
+  }
+
   const groups = await prisma.group.findMany({
     where: { id: { in: groupIds }, isActive: true, deletedAt: null },
     select: { id: true, name: true, _count: { select: { students: true } } },
@@ -276,7 +298,7 @@ export async function getCuratorGroupSummary() {
   const groupIdToStudentsCount = new Map(groups.map((g) => [g.id, g._count.students]));
 
   const sessions = await prisma.classSession.findMany({
-    where: { groupId: { in: groupIds }, isActive: true, deletedAt: null },
+    where: { groupId: { in: groupIds }, semesterId: semester.id, isActive: true, deletedAt: null },
     select: { id: true, groupId: true, startTime: true, status: true, statusV2: true },
   });
 
@@ -439,7 +461,7 @@ export async function decideSickRequest(input: { attendanceId: string; decision:
   return processSickRequest(input);
 }
 
-export async function getCuratorProblematicStudents() {
+export async function getCuratorProblematicStudents(semesterId?: string) {
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "CURATOR") {
     return { ok: false as const, error: "Недостаточно прав." };
@@ -454,16 +476,17 @@ export async function getCuratorProblematicStudents() {
     return { ok: true as const, items: [] as any[] };
   }
 
-  const semester =
-    (await prisma.semester.findFirst({
-      where: { isLocked: false },
-      orderBy: { startDate: "desc" },
-      select: { id: true, startDate: true, endDate: true },
-    })) ??
-    (await prisma.semester.findFirst({
-      orderBy: { startDate: "desc" },
-      select: { id: true, startDate: true, endDate: true },
-    }));
+  const semester = semesterId
+    ? await prisma.semester.findUnique({ where: { id: semesterId }, select: { id: true, startDate: true, endDate: true } })
+    : (await prisma.semester.findFirst({
+        where: { isLocked: false },
+        orderBy: { startDate: "desc" },
+        select: { id: true, startDate: true, endDate: true },
+      })) ??
+      (await prisma.semester.findFirst({
+        orderBy: { startDate: "desc" },
+        select: { id: true, startDate: true, endDate: true },
+      }));
 
   const problemAgg = await prisma.attendance.groupBy({
     by: ["studentId"],
@@ -516,6 +539,18 @@ export async function decideSickRequestForm(formData: FormData) {
     return;
   }
   await decideSickRequest({ attendanceId, decision });
+}
+
+export async function getCuratorAllSemesters() {
+  const actor = await getCurrentUserOrRedirect();
+  if (actor.role !== "CURATOR") {
+    return [];
+  }
+  return await prisma.semester.findMany({
+    orderBy: { startDate: "desc" },
+    select: { id: true, name: true, isLocked: true },
+    take: 50,
+  });
 }
 
 

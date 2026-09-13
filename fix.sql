@@ -1,0 +1,1 @@
+ALTER TABLE class_sessions DROP CONSTRAINT class_sessions_schedule_external_id_key;

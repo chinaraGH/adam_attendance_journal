@@ -7,7 +7,7 @@ import { BISHKEK_TIME_ZONE } from "@/lib/time/bishkek-now";
 import { formatAttendanceStatusDisplay, formatDisciplineLabel } from "@/lib/ui/labels";
 import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
 
-import { AutoSubmitDateInput } from "../auto-submit-date-input";
+import { DateInputWithApply } from "../auto-submit-date-input";
 import { ToggleExemptionsAButton } from "../toggle-exemptions-a-button";
 
 function parseYmd(param: string | undefined): string | null {
@@ -83,7 +83,7 @@ export default async function CuratorGroupExemptionsPage(props: {
             semesterId: semester.id,
             isActive: true,
             deletedAt: null,
-            NOT: [{ statusV2: "cancelled" }, { status: "cancelled" }],
+            OR: [{ statusV2: { not: "cancelled" } }, { statusV2: null, status: { not: "cancelled" } }],
           },
           orderBy: { startTime: "asc" },
           select: {
@@ -132,7 +132,7 @@ export default async function CuratorGroupExemptionsPage(props: {
       <form method="get" style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "end" }}>
         <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
           Дата
-          <AutoSubmitDateInput defaultValue={selectedDate} />
+          <DateInputWithApply defaultValue={selectedDate} />
         </label>
       </form>
 

@@ -51,31 +51,69 @@ export async function getCurrentSemester() {
   return { ok: true as const, semester };
 }
 
-export async function upsertSemester(formData: FormData) {
+export async function upsertSemester(prevState: any, formData: FormData) {
   const actor = await requireAcademicOffice();
 
-  const semesterId = formData.get("semesterId");
-  const name = formData.get("name");
-  const startDate = formData.get("startDate");
-  const endDate = formData.get("endDate");
+  const intent = formData.get("intent") as string | null;
+  const semesterId = formData.get("semesterId") as string | null;
+  const name = formData.get("name") as string | null;
+  const startDate = formData.get("startDate") as string | null;
+  const endDate = formData.get("endDate") as string | null;
 
-  if (semesterId !== null && typeof semesterId !== "string") throw new Error("semesterId is invalid");
-  if (typeof name !== "string" || !name) throw new Error("name is required");
-  if (typeof startDate !== "string" || !startDate) throw new Error("startDate is required");
-  if (typeof endDate !== "string" || !endDate) throw new Error("endDate is required");
+  if (intent !== "create" && intent !== "update") throw new Error("Invalid intent");
+  if (!semesterId) throw new Error(intent === "create" ? "Укажите ID для нового семестра" : "semesterId is required");
+  if (!name) throw new Error("name is required");
+  if (!startDate) throw new Error("startDate is required");
+  if (!endDate) throw new Error("endDate is required");
 
   const start = parseYmdToUtcDate(startDate);
   const end = parseYmdToUtcDate(endDate);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) throw new Error("Некорректные даты.");
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return { error: "Некорректные даты." };
 
-  const row = semesterId
+  const intersecting = await prisma.semester.findFirst({
+    where: {
+      id: intent === "update" ? { not: semesterId } : undefined,
+      OR: [
+        { startDate: { lte: end }, endDate: { gte: start } }
+      ]
+    }
+  });
+
+  if (intersecting) {
+    return { error: `Даты пересекаются с семестром "${intersecting.name}"` };
+  }
+
+  if (intent === "update") {
+    const old = await prisma.semester.findUnique({ where: { id: semesterId } });
+    if (old && (old.startDate.getTime() !== start.getTime() || old.endDate.getTime() !== end.getTime())) {
+      const hasAtt = await prisma.attendance.findFirst({
+        where: {
+          classSession: { semesterId: semesterId, isActive: true, deletedAt: null },
+          isActive: true, deletedAt: null,
+        },
+        select: { id: true }
+      });
+      if (hasAtt) {
+        return { error: "Нельзя изменить даты: в семестре уже есть данные о посещаемости." };
+      }
+    }
+  }
+
+  if (intent === "create") {
+    const exists = await prisma.semester.findUnique({ where: { id: semesterId } });
+    if (exists) {
+      return { error: "Семестр с таким ID уже существует." };
+    }
+  }
+
+  const row = intent === "update"
     ? await prisma.semester.update({
         where: { id: semesterId },
         data: { name, startDate: start, endDate: end },
         select: { id: true },
       })
     : await prisma.semester.create({
-        data: { name, startDate: start, endDate: end, isLocked: false, lockedAt: null },
+        data: { id: semesterId, name, startDate: start, endDate: end, isLocked: false, lockedAt: null },
         select: { id: true },
       });
 
@@ -98,6 +136,7 @@ export async function upsertSemester(formData: FormData) {
   });
 
   revalidatePath("/admin/semester");
+  return { ok: true };
 }
 
 export async function lockSemester(formData: FormData) {

@@ -23,7 +23,7 @@ export async function GET() {
       isActive: true,
       deletedAt: null,
       startTime: { gte: startInstant, lte: endInstant },
-      NOT: [{ statusV2: "cancelled" }, { status: "cancelled" }],
+      OR: [{ statusV2: { not: "cancelled" } }, { statusV2: null, status: { not: "cancelled" } }],
     },
     orderBy: { startTime: "asc" },
     select: {

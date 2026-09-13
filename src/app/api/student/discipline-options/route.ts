@@ -66,7 +66,7 @@ export async function GET(request: Request) {
         isActive: true,
         deletedAt: null,
         startTime: { gte: from, lte: to },
-        NOT: [{ statusV2: "cancelled" }, { status: "cancelled" }],
+        OR: [{ statusV2: { not: "cancelled" } }, { statusV2: null, status: { not: "cancelled" } }],
       },
       select: { discipline: { select: { id: true, name: true } } },
     });
