@@ -31,7 +31,8 @@ export function normalizeAttendanceStatusV2(input: unknown): AttendanceStatusV2 
   // Back-compat with older constants occasionally seen in prototypes.
   if (s === "PRESENT") return "P";
   if (s === "LATE") return "O";
-  if (s === "UNEXCUSED_ABSENCE") return "NB";
+  if (s === "ABSENT" || s === "UNEXCUSED_ABSENCE") return "NB";
+  if (s === "EXCUSED") return "B_CONFIRMED";
 
   return null;
 }

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
-import { getAllSemesters, getCurrentSemester, lockSemester, upsertSemester } from "./actions";
+import { getAllSemesters, getCurrentSemester, lockSemester } from "./actions";
+import { SemesterForm } from "./semester-form";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,11 @@ export default async function SemesterAdminPage() {
       </div>
 
       <div style={{ marginTop: 12, color: "#6b7280" }}>
-        Semester ID: <span style={{ fontWeight: 900 }}>{semester.id}</span>
+        {semester.isLocked ? (
+          <>Нет активных семестров. Заполните форму ниже, чтобы создать новый.</>
+        ) : (
+          <>Semester ID: <span style={{ fontWeight: 900 }}>{semester.id}</span></>
+        )}
       </div>
 
       <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>
@@ -76,51 +81,7 @@ export default async function SemesterAdminPage() {
 
       <div style={{ marginTop: 16, border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>
         <div style={{ fontWeight: 900, marginBottom: 10 }}>Создание / редактирование семестра</div>
-        <form action={upsertSemester} style={{ display: "grid", gap: 10, maxWidth: 520 }}>
-          <input type="hidden" name="semesterId" value={semester.id} />
-          <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
-            Название
-            <input
-              name="name"
-              defaultValue={semester.name ?? ""}
-              placeholder="Например: Весенний семестр 2026"
-              style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", fontWeight: 800 }}
-            />
-          </label>
-          <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
-            Начало
-            <input
-              type="date"
-              name="startDate"
-              defaultValue={toDateInputValue(semester.startDate)}
-              style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", fontWeight: 800 }}
-            />
-          </label>
-          <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
-            Конец
-            <input
-              type="date"
-              name="endDate"
-              defaultValue={toDateInputValue(semester.endDate)}
-              style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", fontWeight: 800 }}
-            />
-          </label>
-          <button
-            type="submit"
-            style={{
-              border: "1px solid #111827",
-              background: "#111827",
-              color: "white",
-              padding: "10px 14px",
-              borderRadius: 12,
-              fontWeight: 900,
-              cursor: "pointer",
-              marginTop: 6,
-            }}
-          >
-            Сохранить семестр
-          </button>
-        </form>
+        <SemesterForm semester={semester.isLocked ? null : semester} />
 
         <div style={{ marginTop: 14, color: "#6b7280", fontWeight: 700 }}>Последние семестры:</div>
         <div style={{ marginTop: 8, overflowX: "auto" }}>

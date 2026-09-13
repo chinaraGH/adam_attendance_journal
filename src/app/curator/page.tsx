@@ -1,18 +1,74 @@
 import Link from "next/link";
 
-import { getCuratorGroupSummary, getCuratorSickSemesterOverview, getCuratorProblematicStudents } from "./dashboard/actions";
+import {
+  getCuratorGroupSummary,
+  getCuratorSickSemesterOverview,
+  getCuratorProblematicStudents,
+  getCuratorAllSemesters,
+} from "./dashboard/actions";
 import { formatDisciplineLabel } from "@/lib/ui/labels";
 import { SickRequestActions } from "./dashboard/sick-request-actions";
+import { DateInputWithApply } from "./exemptions/auto-submit-date-input";
 
-export default async function CuratorPage() {
-  const sickSemester = await getCuratorSickSemesterOverview();
-  const summary = await getCuratorGroupSummary();
-  const problemRes = await getCuratorProblematicStudents();
+function parseYmd(param: string | undefined): string | null {
+  if (!param || typeof param !== "string") return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(param.trim());
+  return m ? param.trim() : null;
+}
+
+function CuratorSemesterSelector(props: {
+  allSemesters: { id: string; name: string | null; isLocked: boolean }[];
+  currentSemesterId?: string;
+  dateParam?: string;
+}) {
+  return (
+    <form style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      {props.dateParam ? <input type="hidden" name="date" value={props.dateParam} /> : null}
+      <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>Семестр:</span>
+      <select
+        name="semesterId"
+        defaultValue={props.currentSemesterId ?? ""}
+        onChange={(e) => e.currentTarget.form?.requestSubmit()}
+        style={{
+          appearance: "none",
+          border: "1px solid #111827",
+          borderRadius: 12,
+          padding: "6px 10px",
+          fontWeight: 900,
+          fontSize: 13,
+          color: "#111827",
+          background: "white",
+          cursor: "pointer",
+        }}
+      >
+        {!props.currentSemesterId && <option value="">Авто (текущий)</option>}
+        {props.allSemesters.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name ?? "Без названия"} {s.isLocked ? "(Архив)" : ""}
+          </option>
+        ))}
+      </select>
+    </form>
+  );
+}
+
+export default async function CuratorPage(props: { searchParams: { date?: string; semesterId?: string } }) {
+  const selectedDate = parseYmd(props.searchParams.date);
+  const semesterIdParam = props.searchParams.semesterId;
+  const semesterId = typeof semesterIdParam === "string" && semesterIdParam.length > 0 ? semesterIdParam : undefined;
+
+  const allSemesters = await getCuratorAllSemesters();
+  const sickSemester = await getCuratorSickSemesterOverview(selectedDate ?? undefined, semesterId);
+  const summary = await getCuratorGroupSummary(semesterId);
+  const problemRes = await getCuratorProblematicStudents(semesterId);
 
   return (
     <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 900 }}>Кабинет куратора</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <h1 style={{ fontSize: 28, fontWeight: 900 }}>Кабинет куратора</h1>
+          <CuratorSemesterSelector allSemesters={allSemesters} currentSemesterId={semesterId} dateParam={selectedDate ?? undefined} />
+        </div>
         <Link
           href="/curator/exemptions"
           style={{
@@ -102,6 +158,17 @@ export default async function CuratorPage() {
         Неподтверждённые Б, подтверждённые Б и отклонённые справки Б (НБ после отклонения). Обработка запросов Б — после окончания занятия; правки по статусу
         А — в разделе «Освобождения», пока семестр не закрыт.
       </p>
+
+      <form method="get" style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "end" }}>
+        {semesterId && <input type="hidden" name="semesterId" value={semesterId} />}
+        <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
+          Дата
+          <DateInputWithApply defaultValue={selectedDate ?? ""} />
+        </label>
+        {selectedDate && (
+          <Link href="/curator" style={{ marginBottom: 12, fontSize: 14, fontWeight: 800, color: "#dc2626", textDecoration: "none" }}>Сбросить фильтр</Link>
+        )}
+      </form>
 
       {!sickSemester.ok ? (
         <div style={{ marginTop: 16, padding: 12, borderRadius: 12, background: "#fef2f2", color: "#991b1b", fontWeight: 800 }}>

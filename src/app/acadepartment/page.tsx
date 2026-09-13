@@ -176,6 +176,9 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
   const q = qNorm(props.searchParams.q);
   const semesterScopeParam = qNorm((props.searchParams as { semesterScope?: string }).semesterScope);
   const semesterScope: "all" | "out" = semesterScopeParam === "out" ? "out" : "all";
+  const semesterIdParam = qNorm((props.searchParams as { semesterId?: string }).semesterId);
+  const semesterId = semesterIdParam.length > 0 ? semesterIdParam : undefined;
+
   const facultiesForInput = await prisma.faculty.findMany({
     where: { isActive: true, deletedAt: null },
     orderBy: { name: "asc" },
@@ -187,7 +190,7 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
     select: { id: true, name: true, code: true, facultyId: true },
   });
 
-  const charts = await buildAcadepartmentAttendanceCharts();
+  const charts = await buildAcadepartmentAttendanceCharts(semesterId);
 
   const students =
     q.length > 0
@@ -240,12 +243,15 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
     studentIds.length === 0
       ? []
       : await prisma.attendance.groupBy({
-          by: ["studentId", "statusV2"],
+          by: ["studentId"],
           where: {
             isActive: true,
             deletedAt: null,
             studentId: { in: studentIds },
-            statusV2: { in: ["B_PENDING", "B_CONFIRMED"] },
+            OR: [
+              { statusV2: { in: ["B_PENDING", "B_CONFIRMED"] } },
+              { statusV2: null, status: { in: ["B_PENDING", "B_CONFIRMED", "excused"] } }
+            ],
           },
           _count: { _all: true },
         });
@@ -259,7 +265,7 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
     where: {
       isActive: true,
       deletedAt: null,
-      statusV2: "NB",
+      OR: [{ statusV2: "NB" }, { statusV2: null, status: { in: ["NB", "absent"] } }],
       classSession: { startTime: { gte: new Date(charts.semesterStartIso ?? "2000-01-01"), lte: new Date(charts.semesterEndIso ?? "2099-01-01") } }
     },
     _count: { _all: true },
@@ -397,7 +403,12 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
             Семестр: <span style={{ fontWeight: 800, color: "#111827" }}>{charts.semesterName ?? "—"}</span>
           </p>
         </div>
-        <AcadepartmentNavButtons />
+        <AcadepartmentNavButtons
+          allSemesters={charts.allSemesters}
+          currentSemesterId={semesterId}
+          semesterScopeParam={semesterScopeParam}
+          qParam={q}
+        />
       </div>
 
       <div style={{ marginTop: 20 }}>
@@ -433,22 +444,22 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
       <section style={{ marginTop: 24, borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
         <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0, color: "#111827" }}>Ввод справочников</h2>
         <div style={{ marginTop: 10, fontSize: 13, color: "#6b7280", fontWeight: 600 }}>
-          Ручной ввод сущностей: Faculty, Department, Program, Discipline.
+          Ручной ввод сущностей: Факультет, Кафедра, Образовательная программа (ОП), Дисциплина.
         </div>
         <div style={{ marginTop: 14, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
           <form action={createFaculty} style={{ border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, display: "grid", gap: 8 }}>
-            <div style={{ fontWeight: 900, color: "#111827" }}>Faculty</div>
+            <div style={{ fontWeight: 900, color: "#111827" }}>Факультет</div>
             <input name="name" placeholder="Наименование" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
             <input name="code" placeholder="Код (опционально)" style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
             <button type="submit" style={{ border: "1px solid #111827", background: "#111827", color: "white", borderRadius: 10, padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}>
-              Добавить Faculty
+              Добавить Факультет
             </button>
           </form>
 
           <form action={createDepartment} style={{ border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, display: "grid", gap: 8 }}>
-            <div style={{ fontWeight: 900, color: "#111827" }}>Department</div>
+            <div style={{ fontWeight: 900, color: "#111827" }}>Кафедра</div>
             <select name="facultyId" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }}>
-              <option value="">Выберите Faculty</option>
+              <option value="">Выберите Факультет</option>
               {facultiesForInput.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.code ?? f.name}
@@ -458,14 +469,14 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
             <input name="name" placeholder="Наименование" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
             <input name="code" placeholder="Код (опционально)" style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
             <button type="submit" style={{ border: "1px solid #111827", background: "#111827", color: "white", borderRadius: 10, padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}>
-              Добавить Department
+              Добавить Кафедру
             </button>
           </form>
 
           <form action={createProgram} style={{ border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, display: "grid", gap: 8 }}>
-            <div style={{ fontWeight: 900, color: "#111827" }}>Program</div>
+            <div style={{ fontWeight: 900, color: "#111827" }}>Обр. Программа</div>
             <select name="facultyId" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }}>
-              <option value="">Выберите Faculty</option>
+              <option value="">Выберите Факультет</option>
               {facultiesForInput.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.code ?? f.name}
@@ -473,7 +484,7 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
               ))}
             </select>
             <select name="departmentId" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }}>
-              <option value="">Выберите Department</option>
+              <option value="">Выберите Кафедру</option>
               {departmentsForInput.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.code ?? d.name}
@@ -483,12 +494,12 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
             <input name="name" placeholder="Наименование" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
             <input name="code" placeholder="Код (опционально)" style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
             <button type="submit" style={{ border: "1px solid #111827", background: "#111827", color: "white", borderRadius: 10, padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}>
-              Добавить Program
+              Добавить Программу
             </button>
           </form>
 
           <form action={createDiscipline} style={{ border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, display: "grid", gap: 8 }}>
-            <div style={{ fontWeight: 900, color: "#111827" }}>Discipline</div>
+            <div style={{ fontWeight: 900, color: "#111827" }}>Дисциплина</div>
             <select name="departmentId" style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }}>
               <option value="">Без кафедры</option>
               {departmentsForInput.map((d) => (
@@ -500,12 +511,12 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
             <input name="name" placeholder="Наименование" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
             <input
               name="code"
-              placeholder="Код (обязателен, как в Schedule)"
+              placeholder="Код (обязателен, как в расписании)"
               required
               style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700, textTransform: "uppercase" }}
             />
             <button type="submit" style={{ border: "1px solid #111827", background: "#111827", color: "white", borderRadius: 10, padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}>
-              Добавить Discipline
+              Добавить Дисциплину
             </button>
           </form>
         </div>
@@ -523,7 +534,7 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
         </div>
         <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link
-            href="/acadepartment"
+            href={`/acadepartment${semesterId ? `?semesterId=${semesterId}` : ""}`}
             style={{
               border: "1px solid #d1d5db",
               borderRadius: 10,
@@ -538,7 +549,7 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
             Все занятия
           </Link>
           <Link
-            href="/acadepartment?semesterScope=out"
+            href={`/acadepartment?semesterScope=out${semesterId ? `&semesterId=${semesterId}` : ""}`}
             style={{
               border: "1px solid #f59e0b",
               borderRadius: 10,

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { prisma } from "@/lib/prisma";
-import { ExportCsvButton } from "@/components/export-csv-button";
+import { ExportExcelButton } from "@/components/export-excel-button";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { formatAttendanceStatusDisplay } from "@/lib/ui/labels";
 
@@ -45,7 +45,7 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
   const sessions =
     semester?.id
       ? await prisma.classSession.findMany({
-          where: { groupId, semesterId: semester.id, isActive: true, deletedAt: null, NOT: [{ statusV2: "cancelled" }, { status: "cancelled" }] },
+          where: { groupId, semesterId: semester.id, isActive: true, deletedAt: null, OR: [{ statusV2: { not: "cancelled" } }, { statusV2: null, status: { not: "cancelled" } }] },
           orderBy: { startTime: "asc" },
           take: 20,
           select: { id: true, startTime: true, discipline: { select: { code: true } } },
@@ -75,6 +75,38 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
     );
   }
 
+  const abbrevMap: Record<string, string> = {
+    MNG: "МЕН",
+    DB: "БД",
+    ENG: "АНГ",
+    DE: "НЕМ",
+    MATH: "МАТ",
+    PHY: "ФИЗ",
+    CHE: "ХИМ",
+    BIO: "БИО",
+    HIS: "ИСТ",
+    GEO: "ГЕО",
+    LIT: "ЛИТ",
+    PE: "ФИЗРА",
+  };
+
+  const translateCode = (code: string | null) => {
+    if (!code) return "-";
+    return abbrevMap[code.toUpperCase()] || code;
+  };
+
+  const excelData = students.map((s) => {
+    const row: any = { Студент: s.name };
+    for (const session of sessions) {
+      const dateStr = new Date(session.startTime).toLocaleDateString("ru-RU").slice(0, 10);
+      const codeStr = translateCode(session.discipline?.code ?? null);
+      const header = `${dateStr} ${codeStr}`;
+      const status = cell.get(`${s.id}:${session.id}`) ?? "";
+      row[header] = status;
+    }
+    return row;
+  });
+
   return (
     <main className="mx-auto max-w-[1100px] p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -88,7 +120,7 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
           <Link className="font-bold underline" href="/acadepartment">
             ← Поиск
           </Link>
-          <ExportCsvButton filename={`group-${groupId}.csv`} rows={students.map((s) => ({ studentId: s.id, studentName: s.name }))} />
+          <ExportExcelButton filename={`group-${groupId}.xlsx`} data={excelData} />
         </div>
       </div>
 
@@ -98,8 +130,9 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
             <tr className="border-b text-left">
               <th className="sticky left-0 bg-white px-3 py-2 font-black">Студент</th>
               {sessions.map((s) => (
-                <th key={s.id} className="px-3 py-2 font-black">
-                  {new Date(s.startTime).toLocaleDateString("ru-RU")} {s.discipline.code ?? "—"}
+                <th key={s.id} className="min-w-[60px] break-all px-3 py-2 text-xs font-bold uppercase">
+                  <div className="mb-1">{new Date(s.startTime).toLocaleDateString("ru-RU").slice(0, 10)}</div>
+                  <div className="text-[10px] text-gray-500">{translateCode(s.discipline?.code ?? null)}</div>
                 </th>
               ))}
             </tr>

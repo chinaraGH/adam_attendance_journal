@@ -3,7 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 
-const LOW_THRESHOLD = 70;
+const LOW_THRESHOLD = 50;
 const LIST_LIMIT = 10;
 
 type RankRow = { id: string; name: string; code: string | null; pct: number; marks: number };
@@ -50,7 +50,7 @@ export default async function AcadepartmentRatingsPage() {
           where: {
             isActive: true,
             deletedAt: null,
-            statusV2: { not: null },
+            OR: [{ statusV2: { not: null } }, { status: { not: null } }],
             classSessionId: { in: sessionIds },
           },
           _count: { _all: true },
@@ -64,7 +64,10 @@ export default async function AcadepartmentRatingsPage() {
           where: {
             isActive: true,
             deletedAt: null,
-            statusV2: { in: ["P", "O"] },
+            OR: [
+              { statusV2: { in: ["P", "O"] } },
+              { statusV2: null, status: { in: ["P", "O", "present", "late"] } }
+            ],
             classSessionId: { in: sessionIds },
           },
           _count: { _all: true },
@@ -97,7 +100,10 @@ export default async function AcadepartmentRatingsPage() {
     })
     .filter((r) => r.marks > 0);
 
-  const topGroups = [...groupRows].sort((a, b) => b.pct - a.pct).slice(0, LIST_LIMIT);
+  const topGroups = [...groupRows]
+    .filter((r) => r.pct >= LOW_THRESHOLD)
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, LIST_LIMIT);
   const problemGroups = [...groupRows]
     .filter((r) => r.pct < LOW_THRESHOLD)
     .sort((a, b) => a.pct - b.pct)
@@ -127,7 +133,10 @@ export default async function AcadepartmentRatingsPage() {
     })
     .filter((r) => r.marks > 0);
 
-  const topDisciplines = [...discRows].sort((a, b) => b.pct - a.pct).slice(0, LIST_LIMIT);
+  const topDisciplines = [...discRows]
+    .filter((r) => r.pct >= LOW_THRESHOLD)
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, LIST_LIMIT);
   const problemDisciplines = [...discRows]
     .filter((r) => r.pct < LOW_THRESHOLD)
     .sort((a, b) => a.pct - b.pct)
@@ -152,7 +161,7 @@ export default async function AcadepartmentRatingsPage() {
           <Ul rows={problemGroups} href={(id) => `/admin/groups/${id}`} empty="Нет групп ниже порога или нет данных." />
         </section>
         <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-black">Самые «посещаемые» дисциплины (по доле П+О)</h2>
+          <h2 className="text-lg font-black">Самые посещаемые дисциплины (по доле П+О)</h2>
           <DiscTable rows={topDisciplines} />
         </section>
         <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">

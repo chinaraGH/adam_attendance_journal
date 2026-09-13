@@ -86,9 +86,11 @@ function aggregateWeeklyRange(
   return { numer, denom };
 }
 
-function pctAgg(numer: number, denom: number): number | null {
+type AggVal = { pct: number; n: number; d: number };
+
+function pctAgg(numer: number, denom: number): AggVal | null {
   if (denom <= 0) return null;
-  return Math.round((numer / denom) * 1000) / 10;
+  return { pct: Math.round((numer / denom) * 1000) / 10, n: numer, d: denom };
 }
 
 function truncateLabel(s: string, max = 48): string {
@@ -101,7 +103,7 @@ function ClusteredHistogram(props: {
   title: string;
   categories: string[];
   legendLabels: string[];
-  values: (number | null)[][];
+  values: (AggVal | null)[][];
   emptyHint: string | null;
 }) {
   const { title, categories, legendLabels, values, emptyHint } = props;
@@ -109,7 +111,7 @@ function ClusteredHistogram(props: {
   const B = legendLabels.length;
 
   const hasDataPoint = values.some((row) =>
-    row.some((v) => v !== null && v !== undefined && !Number.isNaN(v as number)),
+    row.some((v) => v !== null && v !== undefined && !Number.isNaN(v.pct)),
   );
 
   const W = 1000;
@@ -167,7 +169,7 @@ function ClusteredHistogram(props: {
             const nodes: React.ReactNode[] = [];
             for (let b = 0; b < B; b++) {
               const v = values[k]?.[b];
-              const pctVal = v === null || v === undefined ? null : Math.max(0, Math.min(100, v));
+              const pctVal = v === null || v === undefined ? null : Math.max(0, Math.min(100, v.pct));
               const col = COLORS[b % COLORS.length];
               const x = baseX + b * (barW + barGap);
               const cx = x + barW / 2;
@@ -250,7 +252,14 @@ function ClusteredHistogram(props: {
                   const v = values[k]?.[b];
                   return (
                     <td key={b} style={{ padding: "8px 8px", color: "#374151" }}>
-                      {v === null || v === undefined ? <span style={{ color: "#9ca3af" }}>—</span> : `${v}%`}
+                      {v === null || v === undefined ? (
+                        <span style={{ color: "#9ca3af" }}>—</span>
+                      ) : (
+                        <div style={{ display: "inline-flex", flexDirection: "column", gap: 2, alignItems: "flex-end" }}>
+                          <span>{v.pct}%</span>
+                          <span style={{ fontSize: 11, color: "#6b7280" }}>({v.n} / {v.d})</span>
+                        </div>
+                      )}
                     </td>
                   );
                 })}
@@ -491,15 +500,15 @@ function buildFacultyCourseHistograms(params: {
   fromIso: string;
   toIso: string;
 }): {
-  byFaculty: { categories: string[]; legendLabels: string[]; values: (number | null)[][] };
-  byCourse: { categories: string[]; legendLabels: string[]; values: (number | null)[][] };
+  byFaculty: { categories: string[]; legendLabels: string[]; values: (AggVal | null)[][] };
+  byCourse: { categories: string[]; legendLabels: string[]; values: (AggVal | null)[][] };
 } {
   const { facultyOptions, facSelected, fcCourses, weekly, weekKeys, fromIso, toIso } = params;
   const byId = weeklyById(weekly);
   const facultiesSorted = facultyOptions.filter((f) => facSelected.has(f.id)).sort((a, b) => a.name.localeCompare(b.name, "ru"));
   const coursesSorted = [...fcCourses].sort((a, b) => a - b);
 
-  const seriesPct = (facultyId: string, course: number): number | null => {
+  const seriesPct = (facultyId: string, course: number): AggVal | null => {
     const sid = facultyId === "nofac" ? `nofac__c${course}` : `${facultyId}__c${course}`;
     const s = byId.get(sid);
     if (!s) return null;
@@ -530,15 +539,15 @@ function buildProgramCourseHistograms(params: {
   fromIso: string;
   toIso: string;
 }): {
-  byProgram: { categories: string[]; legendLabels: string[]; values: (number | null)[][] };
-  byCourse: { categories: string[]; legendLabels: string[]; values: (number | null)[][] };
+  byProgram: { categories: string[]; legendLabels: string[]; values: (AggVal | null)[][] };
+  byCourse: { categories: string[]; legendLabels: string[]; values: (AggVal | null)[][] };
 } {
   const { programOptions, progSelected, pcCourses, weekly, weekKeys, fromIso, toIso } = params;
   const byId = weeklyById(weekly);
   const programsSorted = programOptions.filter((p) => progSelected.has(p.id)).sort((a, b) => a.name.localeCompare(b.name, "ru"));
   const coursesSorted = [...pcCourses].sort((a, b) => a - b);
 
-  const seriesPct = (programId: string, course: number): number | null => {
+  const seriesPct = (programId: string, course: number): AggVal | null => {
     const sid = `${programId}__c${course}`;
     const s = byId.get(sid);
     if (!s) return null;
@@ -877,9 +886,32 @@ export function AcadepartmentChartsWithFilters(props: {
 }
 
 /** Кнопки навигации в стиле «Назад» (`ExitButton`). */
-export function AcadepartmentNavButtons() {
+export function AcadepartmentNavButtons(props: {
+  allSemesters: { id: string; name: string | null; isLocked: boolean }[];
+  currentSemesterId?: string;
+  semesterScopeParam?: string;
+  qParam?: string;
+}) {
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+      <form style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {props.semesterScopeParam ? <input type="hidden" name="semesterScope" value={props.semesterScopeParam} /> : null}
+        {props.qParam ? <input type="hidden" name="q" value={props.qParam} /> : null}
+        <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>Семестр:</span>
+        <select
+          name="semesterId"
+          defaultValue={props.currentSemesterId ?? ""}
+          onChange={(e) => e.currentTarget.form?.requestSubmit()}
+          style={{ ...outlineNavStyle, padding: "6px 10px", fontSize: 13 }}
+        >
+          {!props.currentSemesterId && <option value="">Авто (текущий)</option>}
+          {props.allSemesters.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name ?? "Без названия"} {s.isLocked ? "(Архив)" : ""}
+            </option>
+          ))}
+        </select>
+      </form>
       <Link href="/acadepartment/ratings" style={outlineNavStyle}>
         Рейтинг
       </Link>
