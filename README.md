@@ -34,9 +34,14 @@ npm run dev                      # http://localhost:3000
 3. В Vercel: Add New → Project → выберите репозиторий. Framework: Next.js.
 4. Environment Variables: `DATABASE_URL`, `AUTH_SECRET` (длинная случайная строка), `TEST_PASSWORD`.
    Без `AUTH_SECRET` и `TEST_PASSWORD` приложение в продакшене не пустит пользователей.
-5. Сборка выполняет `prisma generate`, `prisma migrate deploy` и `next build` (скрипт `vercel-build`).
-6. Один раз наполните базу тестовыми данными с вашего компьютера:
-   `DATABASE_URL="<строка Neon>" TEST_PASSWORD=... npx prisma db seed` (команда стирает данные!).
+5. Сборка (`vercel-build`) выполняет `prisma generate`, подготовку базы (`scripts/db-bootstrap.mjs`),
+   `prisma migrate deploy` и `next build`.
+6. Первый деплой на новой или старой базе. Добавьте две переменные окружения (можно оставить навсегда, они безопасны):
+   - `ALLOW_DB_RESET=true` — если в базе остались таблицы от старой версии без истории миграций, схема `public` будет очищена
+     (данные удалятся!). После первой успешной миграции этот флаг уже ничего не стирает.
+   - `SEED_ON_BUILD=true` — если таблица `users` пуста, база наполнится тестовыми данными (логины из таблицы выше).
+   Без `ALLOW_DB_RESET` сборка на непустой «старой» базе остановится с понятным сообщением.
+7. Тестовые данные вручную (если нужно): `DATABASE_URL="<строка>" TEST_PASSWORD=... npx prisma db seed` (стирает данные!).
 
 ## Роли и экраны
 
