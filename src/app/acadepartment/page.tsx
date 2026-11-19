@@ -410,6 +410,14 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
           qParam={q}
         />
       </div>
+      <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <Link href="/acadepartment/points" style={{ border: "1px solid #111827", borderRadius: 10, padding: "8px 12px", fontSize: 13, fontWeight: 800, color: "#111827", textDecoration: "none", background: "white" }}>
+          Баллы семестра: лимиты и закрытие модулей
+        </Link>
+        <Link href="/points-report" style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 12px", fontSize: 13, fontWeight: 800, color: "#374151", textDecoration: "none", background: "white" }}>
+          Итоги по группам
+        </Link>
+      </div>
 
       <div style={{ marginTop: 20 }}>
         {charts.emptyMessage ? (

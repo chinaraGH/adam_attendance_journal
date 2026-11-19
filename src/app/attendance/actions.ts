@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
-import { getEffectiveClassSessionStatus } from "@/lib/class-session/effective-status";
+import { ATTENDANCE_GRACE_MINUTES, isAttendanceEditable } from "@/lib/class-session/attendance-window";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import {
   decideAttendanceStatusChange,
@@ -82,16 +82,11 @@ export async function saveAttendances(input: {
     }
     const semesterId = session.semesterId;
 
-    const effectiveStatus = getEffectiveClassSessionStatus({
-      startTime: session.startTime,
-      endTime: session.endTime,
-      openedAt: session.openedAt,
-      status: session.status,
-      statusV2: session.statusV2,
-    });
-
-    if (effectiveStatus !== "active" && effectiveStatus !== "scheduled") {
-      return { ok: false as const, error: "Сохранение недоступно: занятие завершено или отменено." };
+    if (!isAttendanceEditable(session)) {
+      return {
+        ok: false as const,
+        error: `Посещаемость можно исправить только в течение ${ATTENDANCE_GRACE_MINUTES} минут после окончания занятия. Для исправления обратитесь к куратору.`,
+      };
     }
 
     // Must mark every active student in the group: NULL is forbidden on save.
@@ -156,7 +151,7 @@ export async function saveAttendances(input: {
         const before = existingByStudentId.get(item.studentId) ?? null;
         const beforeStatusV2 = before ? getCanonicalAttendanceStatusV2(before) : null;
 
-        if (actor.role === "TEACHER" && beforeStatusV2 === "A") {
+        if (actor.role === "TEACHER" && (beforeStatusV2 === "A" || beforeStatusV2 === "B_CONFIRMED")) {
           continue;
         }
 

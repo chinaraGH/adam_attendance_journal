@@ -49,6 +49,8 @@ export function AppChrome() {
       ? "/teacher"
       : pathname === "/teacher/reports"
       ? "/teacher"
+      : pathname.startsWith("/teacher/tech-card") || pathname.startsWith("/teacher/control")
+      ? "/teacher"
       : pathname === "/curator" || pathname === "/curator/dashboard"
       ? "/login"
       : pathname.startsWith("/acadepartment/")
@@ -57,6 +59,10 @@ export function AppChrome() {
       ? "/acadepartment"
       : pathname === "/acadepartment"
       ? "/login"
+      : pathname === "/program-head"
+      ? "/login"
+      : pathname.startsWith("/points-report")
+      ? "/teacher"
       : adminGroup
       ? (prevPath || "/acadepartment")
       : pathname === "/curator/exemptions" || curatorExemptionsGroup

@@ -16,6 +16,7 @@ function roleAllowed(pathname: string, role: string) {
   if (pathname.startsWith("/admin")) return role === "ADMIN";
   if (pathname.startsWith("/acadepartment")) return role === "ADMIN" || role === "ACADEMIC_OFFICE";
   if (pathname.startsWith("/curator")) return role === "CURATOR";
+  if (pathname.startsWith("/program-head")) return role === "PROGRAM_HEAD" || role === "ADMIN" || role === "ACADEMIC_OFFICE";
   if (pathname.startsWith("/teacher")) return role === "TEACHER";
   if (pathname.startsWith("/student")) return role === "STUDENT";
   if (pathname.startsWith("/reports")) return role === "TEACHER" || role === "CURATOR";

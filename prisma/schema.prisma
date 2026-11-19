@@ -52,6 +52,8 @@ model Program {
   groups          Group[]
   department      Department          @relation(fields: [departmentId], references: [id])
   faculty         Faculty             @relation(fields: [facultyId], references: [id])
+  techCards       TechCard[]
+  headLinks       UserProgramHead[]
 
   @@unique([facultyId, departmentId, name], map: "programs_faculty_department_name_key")
   @@map("programs")
@@ -69,6 +71,7 @@ model Discipline {
   classSessions ClassSession[]
   programLinks  DisciplineProgram[]
   department    Department?         @relation(fields: [departmentId], references: [id])
+  techCards     TechCard[]
 
   @@unique([departmentId, name], map: "disciplines_department_name_key")
   @@index([departmentId])
@@ -99,6 +102,7 @@ model Teacher {
   createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
   classSessions ClassSession[]
+  techCards     TechCard[]
 
   @@map("teachers")
 }
@@ -132,6 +136,7 @@ model AppUser {
   updatedAt     DateTime           @updatedAt @map("updated_at")
   curatorGroups UserGroupCurator[]
   userRoles     UserRole[]
+  programHeads  UserProgramHead[]
 
   @@index([role])
   @@index([isActive])
@@ -176,51 +181,54 @@ model UserGroupCurator {
 }
 
 model Student {
-  id          String       @id @default(cuid())
-  gaudiId     String       @unique @map("gaudi_id")
-  groupId     String       @map("group_id")
-  name        String
-  isActive    Boolean      @default(true) @map("is_active")
-  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz(6)
-  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
-  attendances Attendance[]
-  group       Group        @relation(fields: [groupId], references: [id])
+  id            String         @id @default(cuid())
+  gaudiId       String         @unique @map("gaudi_id")
+  groupId       String         @map("group_id")
+  name          String
+  isActive      Boolean        @default(true) @map("is_active")
+  deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  attendances   Attendance[]
+  group         Group          @relation(fields: [groupId], references: [id])
+  lessonScores  LessonScore[]
+  controlScores ControlScore[]
 
   @@index([groupId])
   @@map("students")
 }
 
 model ClassSession {
-  id                 String       @id @default(cuid())
-  source             String       @default("SCHEDULE") @map("source")
-  scheduleExternalId String       @map("schedule_external_id")
-  gaudiId            String?      @unique @map("gaudi_id")
-  disciplineId       String       @map("discipline_id")
-  groupId            String       @map("group_id")
-  teacherId          String       @map("teacher_id")
-  semesterId         String?      @map("semester_id")
-  outOfSemester      Boolean      @default(false) @map("out_of_semester")
-  semesterResolutionStatus String? @map("semester_resolution_status")
-  startTime          DateTime     @map("start_time") @db.Timestamptz(6)
-  endTime            DateTime     @map("end_time") @db.Timestamptz(6)
-  status             String       @default("scheduled")
-  statusV2           String?      @map("status_v2")
-  openedAt           DateTime?    @map("opened_at") @db.Timestamptz(6)
-  flagLateTeacher    Boolean      @default(false) @map("flag_late_teacher")
-  geoLatitude        Float?       @map("geo_latitude")
-  geoLongitude       Float?       @map("geo_longitude")
-  geoAccuracy        Float?       @map("geo_accuracy")
-  geoTimestamp       DateTime?    @map("geo_timestamp") @db.Timestamptz(6)
-  isActive           Boolean      @default(true) @map("is_active")
-  deletedAt          DateTime?    @map("deleted_at") @db.Timestamptz(6)
-  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
-  attendances        Attendance[]
-  discipline         Discipline   @relation(fields: [disciplineId], references: [id])
-  group              Group        @relation(fields: [groupId], references: [id])
-  semester           Semester?    @relation(fields: [semesterId], references: [id])
-  teacher            Teacher      @relation(fields: [teacherId], references: [id])
+  id                       String        @id @default(cuid())
+  source                   String        @default("SCHEDULE") @map("source")
+  scheduleExternalId       String        @map("schedule_external_id")
+  gaudiId                  String?       @unique @map("gaudi_id")
+  disciplineId             String        @map("discipline_id")
+  groupId                  String        @map("group_id")
+  teacherId                String        @map("teacher_id")
+  semesterId               String?       @map("semester_id")
+  outOfSemester            Boolean       @default(false) @map("out_of_semester")
+  semesterResolutionStatus String?       @map("semester_resolution_status")
+  startTime                DateTime      @map("start_time") @db.Timestamptz(6)
+  endTime                  DateTime      @map("end_time") @db.Timestamptz(6)
+  status                   String        @default("scheduled")
+  statusV2                 String?       @map("status_v2")
+  openedAt                 DateTime?     @map("opened_at") @db.Timestamptz(6)
+  flagLateTeacher          Boolean       @default(false) @map("flag_late_teacher")
+  geoLatitude              Float?        @map("geo_latitude")
+  geoLongitude             Float?        @map("geo_longitude")
+  geoAccuracy              Float?        @map("geo_accuracy")
+  geoTimestamp             DateTime?     @map("geo_timestamp") @db.Timestamptz(6)
+  isActive                 Boolean       @default(true) @map("is_active")
+  deletedAt                DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  createdAt                DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  attendances              Attendance[]
+  discipline               Discipline    @relation(fields: [disciplineId], references: [id])
+  group                    Group         @relation(fields: [groupId], references: [id])
+  semester                 Semester?     @relation(fields: [semesterId], references: [id])
+  teacher                  Teacher       @relation(fields: [teacherId], references: [id])
+  lessonScores             LessonScore[]
 
   @@unique([source, scheduleExternalId], map: "class_sessions_source_schedule_external_id_key")
   @@index([outOfSemester], map: "idx_class_sessions_out_of_semester")
@@ -259,16 +267,23 @@ model IntegrationLog {
 }
 
 model Semester {
-  id            String         @id @default(cuid())
-  name          String?
-  startDate     DateTime       @map("start_date") @db.Timestamptz(6)
-  endDate       DateTime       @map("end_date") @db.Timestamptz(6)
-  isLocked      Boolean        @default(false) @map("is_locked")
-  lockedAt      DateTime?      @map("locked_at") @db.Timestamptz(6)
-  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
-  attendances   Attendance[]
-  classSessions ClassSession[]
+  id             String         @id @default(cuid())
+  name           String?
+  startDate      DateTime       @map("start_date") @db.Timestamptz(6)
+  endDate        DateTime       @map("end_date") @db.Timestamptz(6)
+  isLocked       Boolean        @default(false) @map("is_locked")
+  totalPoints    Float          @default(100) @map("total_points")
+  modulePoints   Float          @default(50) @map("module_points")
+  extraMaxPoints Float          @default(20) @map("extra_max_points")
+  lockedAt       DateTime?      @map("locked_at") @db.Timestamptz(6)
+  /// Учебная часть закрывает модуль после подведения итогов: оценки модуля больше не меняются.
+  module1ClosedAt DateTime?     @map("module1_closed_at") @db.Timestamptz(6)
+  module2ClosedAt DateTime?     @map("module2_closed_at") @db.Timestamptz(6)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  attendances    Attendance[]
+  classSessions  ClassSession[]
+  techCards      TechCard[]
 
   @@map("semesters")
 }
@@ -288,14 +303,14 @@ model AuditTrail {
 }
 
 model GaudiRoleMapping {
-  id           String   @id @default(cuid())
-  gaudiRole    String   @unique @map("gaudi_role")
-  ejpRole      String   @map("ejp_role")
-  priority     Int      @default(100)
-  isActive     Boolean  @default(true) @map("is_active")
-  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id        String    @id @default(cuid())
+  gaudiRole String    @unique @map("gaudi_role")
+  ejpRole   String    @map("ejp_role")
+  priority  Int       @default(100)
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([isActive])
   @@index([priority])
@@ -303,25 +318,145 @@ model GaudiRoleMapping {
 }
 
 model IntegrationDlq {
-  id            String    @id @default(cuid())
-  provider      String    @map("provider")
-  operation     String    @map("operation")
-  payloadJson   String    @map("payload_json")
-  errorCode     String    @map("error_code")
-  errorMessage  String    @map("error_message")
-  category      String    @map("category")
-  attempts      Int       @default(0) @map("attempts")
-  maxAttempts   Int       @default(5) @map("max_attempts")
-  nextRetryAt   DateTime? @map("next_retry_at") @db.Timestamptz(6)
-  status        String    @default("pending") @map("status")
-  correlationId String?   @map("correlation_id")
-  lastErrorAt   DateTime? @map("last_error_at") @db.Timestamptz(6)
-  lastErrorStack String?  @map("last_error_stack")
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id             String    @id @default(cuid())
+  provider       String    @map("provider")
+  operation      String    @map("operation")
+  payloadJson    String    @map("payload_json")
+  errorCode      String    @map("error_code")
+  errorMessage   String    @map("error_message")
+  category       String    @map("category")
+  attempts       Int       @default(0) @map("attempts")
+  maxAttempts    Int       @default(5) @map("max_attempts")
+  nextRetryAt    DateTime? @map("next_retry_at") @db.Timestamptz(6)
+  status         String    @default("pending") @map("status")
+  correlationId  String?   @map("correlation_id")
+  lastErrorAt    DateTime? @map("last_error_at") @db.Timestamptz(6)
+  lastErrorStack String?   @map("last_error_stack")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([provider, operation])
   @@index([status, nextRetryAt])
   @@index([correlationId])
   @@map("integration_dlq")
+}
+
+// ---------------------------------------------------------------------------
+// Баллы: технологическая карта, оценки за занятия и контрольные точки
+// ---------------------------------------------------------------------------
+
+enum ControlCategory {
+  SELF_WORK
+  BORDER_CONTROL
+  EXTRA
+}
+
+/// Технологическая карта преподавателя: как он делит баллы по дисциплине в семестре.
+model TechCard {
+  id             String           @id @default(cuid())
+  disciplineId   String           @map("discipline_id")
+  programId      String           @map("program_id")
+  semesterId     String           @map("semester_id")
+  teacherId      String           @map("teacher_id")
+  /// Сколько процентов баллов за посещение получает студент при опоздании (статус О).
+  latePercent    Float            @default(50) @map("late_percent")
+  /// Дополнительные баллы за семестр (не больше лимита семестра).
+  extraMaxPoints Float            @default(0) @map("extra_max_points")
+  isActive       Boolean          @default(true) @map("is_active")
+  deletedAt      DateTime?        @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  discipline     Discipline       @relation(fields: [disciplineId], references: [id])
+  program        Program          @relation(fields: [programId], references: [id])
+  semester       Semester         @relation(fields: [semesterId], references: [id])
+  teacher        Teacher          @relation(fields: [teacherId], references: [id])
+  modules        TechCardModule[]
+  controlScores  ControlScore[]
+
+  @@unique([disciplineId, programId, semesterId, teacherId])
+  @@index([teacherId])
+  @@map("tech_cards")
+}
+
+/// Модуль карты (1 или 2): как преподаватель делит баллы модуля по категориям.
+model TechCardModule {
+  id                   String           @id @default(cuid())
+  techCardId           String           @map("tech_card_id")
+  moduleNo             Int              @map("module_no")
+  lessonsCount         Int              @default(0) @map("lessons_count")
+  attendancePoints     Float            @default(0) @map("attendance_points")
+  selfWorkPoints       Float            @default(0) @map("self_work_points")
+  currentControlPoints Float            @default(0) @map("current_control_points")
+  borderControlPoints  Float            @default(0) @map("border_control_points")
+  techCard             TechCard         @relation(fields: [techCardId], references: [id], onDelete: Cascade)
+  lessons              TechCardLesson[]
+
+  @@unique([techCardId, moduleNo])
+  @@map("tech_card_modules")
+}
+
+/// Баллы текущего контроля за конкретное занятие модуля (по порядковому номеру занятия).
+model TechCardLesson {
+  id       String         @id @default(cuid())
+  moduleId String         @map("module_id")
+  lessonNo Int            @map("lesson_no")
+  points   Float          @default(0)
+  module   TechCardModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([moduleId, lessonNo])
+  @@map("tech_card_lessons")
+}
+
+/// Оценка студента за занятие (текущий контроль).
+model LessonScore {
+  id             String       @id @default(cuid())
+  classSessionId String       @map("class_session_id")
+  studentId      String       @map("student_id")
+  score          Float
+  enteredById    String       @map("entered_by_id")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  classSession   ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+  student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classSessionId, studentId])
+  @@index([studentId])
+  @@map("lesson_scores")
+}
+
+/// Оценка студента за самостоятельную работу, рубежный контроль (по модулю) или дополнительные баллы (moduleNo = 0).
+model ControlScore {
+  id          String          @id @default(cuid())
+  techCardId  String          @map("tech_card_id")
+  studentId   String          @map("student_id")
+  category    ControlCategory
+  moduleNo    Int             @default(0) @map("module_no")
+  score       Float
+  enteredById String          @map("entered_by_id")
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  techCard    TechCard        @relation(fields: [techCardId], references: [id], onDelete: Cascade)
+  student     Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([techCardId, studentId, category, moduleNo])
+  @@index([studentId])
+  @@map("control_scores")
+}
+
+/// Руководитель направления: видит посещаемость, баллы и преподавателей своих направлений.
+model UserProgramHead {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  programId String    @map("program_id")
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      AppUser   @relation(fields: [userId], references: [id])
+  program   Program   @relation(fields: [programId], references: [id])
+
+  @@unique([userId, programId], map: "user_program_heads_user_program_key")
+  @@index([userId])
+  @@index([programId])
+  @@map("user_program_heads")
 }

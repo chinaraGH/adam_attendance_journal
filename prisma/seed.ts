@@ -4,10 +4,16 @@ const prisma = new PrismaClient();
 
 async function main() {
   // Cleanup for repeatable seed in prototype environment.
+  await prisma.userProgramHead.deleteMany({});
+  await prisma.controlScore.deleteMany({});
+  await prisma.lessonScore.deleteMany({});
+  await prisma.techCard.deleteMany({});
+  await prisma.userGroupCurator.deleteMany({});
+  await prisma.userRole.deleteMany({});
+  await prisma.gaudiRoleMapping.deleteMany({});
   await prisma.attendance.deleteMany({});
   await prisma.classSession.deleteMany({});
   await prisma.student.deleteMany({});
-  await prisma.userGroupCurator.deleteMany({});
   await prisma.group.deleteMany({});
   await prisma.disciplineProgram.deleteMany({});
   await prisma.discipline.deleteMany({});
@@ -102,6 +108,8 @@ async function main() {
 
   const TEST_CURATOR_ID = "CURTEST1";
   const TEST_ACADEMIC_OFFICE_ID = "UCHTEST1";
+  const TEST_PROGRAM_HEAD_IST = "HEADIST1";
+  const TEST_PROGRAM_HEAD_ECO = "HEADECO1";
   const TEST_STUDENT_ID = "STUDTST1";
 
   // Teachers + Users (IDs <= 8)
@@ -125,6 +133,8 @@ async function main() {
     data: [
       ...teachers.map((t) => ({ id: t.id, role: "TEACHER", isActive: true, deletedAt: null })),
       { id: TEST_CURATOR_ID, role: "CURATOR", isActive: true, deletedAt: null },
+      { id: TEST_PROGRAM_HEAD_IST, role: "PROGRAM_HEAD", isActive: true, deletedAt: null },
+      { id: TEST_PROGRAM_HEAD_ECO, role: "PROGRAM_HEAD", isActive: true, deletedAt: null },
       { id: TEST_ACADEMIC_OFFICE_ID, role: "ACADEMIC_OFFICE", isActive: true, deletedAt: null },
       { id: TEST_STUDENT_ID, role: "STUDENT", isActive: true, deletedAt: null },
     ],
@@ -134,6 +144,8 @@ async function main() {
     data: [
       ...teachers.map((t) => ({ userId: t.id, roleCode: "TEACHER", source: "seed", isActive: true, deletedAt: null })),
       { userId: TEST_CURATOR_ID, roleCode: "CURATOR", source: "seed", isActive: true, deletedAt: null },
+      { userId: TEST_PROGRAM_HEAD_IST, roleCode: "PROGRAM_HEAD", source: "seed", isActive: true, deletedAt: null },
+      { userId: TEST_PROGRAM_HEAD_ECO, roleCode: "PROGRAM_HEAD", source: "seed", isActive: true, deletedAt: null },
       { userId: TEST_ACADEMIC_OFFICE_ID, roleCode: "ACADEMIC_OFFICE", source: "seed", isActive: true, deletedAt: null },
       { userId: TEST_STUDENT_ID, roleCode: "STUDENT", source: "seed", isActive: true, deletedAt: null },
     ],
@@ -144,6 +156,7 @@ async function main() {
       { gaudiRole: "ADMIN", ejpRole: "ADMIN", priority: 10, isActive: true, deletedAt: null },
       { gaudiRole: "ACADEMIC_OFFICE", ejpRole: "ACADEMIC_OFFICE", priority: 20, isActive: true, deletedAt: null },
       { gaudiRole: "CURATOR", ejpRole: "CURATOR", priority: 30, isActive: true, deletedAt: null },
+      { gaudiRole: "PROGRAM_HEAD", ejpRole: "PROGRAM_HEAD", priority: 25, isActive: true, deletedAt: null },
       { gaudiRole: "TEACHER", ejpRole: "TEACHER", priority: 40, isActive: true, deletedAt: null },
       { gaudiRole: "STUDENT", ejpRole: "STUDENT", priority: 50, isActive: true, deletedAt: null },
     ],
@@ -292,6 +305,7 @@ async function main() {
     skipDuplicates: true,
   });
 
+
   // Class sessions to represent "предмет + преподаватель + группа"
   const mkTime = (dayOffset: number, hour: number) => {
     const start = new Date(startOfToday.getTime() + dayOffset * dayMs);
@@ -375,6 +389,67 @@ async function main() {
 
   // 9) Английский язык — Михайлов — М-2-25
   await makeSession(dEng.id, "TMIKDA", G.M225, 7, 11);
+
+  await prisma.userProgramHead.createMany({
+    data: [
+      { id: "UPH_IST", userId: TEST_PROGRAM_HEAD_IST, programId: prgIst.id, isActive: true, deletedAt: null },
+      { id: "UPH_ECO", userId: TEST_PROGRAM_HEAD_ECO, programId: prgEco.id, isActive: true, deletedAt: null },
+    ],
+  });
+
+  // =========================================================================
+  // БАЛЛЫ: технологические карты (по одной на преподавателя + дисциплину + направление)
+  // =========================================================================
+  const planSessions = await prisma.classSession.findMany({
+    where: { semesterId: semester.id },
+    select: { disciplineId: true, teacherId: true, group: { select: { programId: true } } },
+  });
+  const cardIdByKey: Record<string, string> = {};
+  for (const ses of planSessions) {
+    const programId = ses.group.programId;
+    if (!programId) continue;
+    const key = `${ses.disciplineId}|${programId}|${ses.teacherId}`;
+    if (cardIdByKey[key]) continue;
+    const card = await prisma.techCard.create({
+      data: {
+        disciplineId: ses.disciplineId,
+        programId,
+        semesterId: semester.id,
+        teacherId: ses.teacherId,
+        latePercent: 50,
+        extraMaxPoints: 10,
+        modules: {
+          create: [1, 2].map((moduleNo) => ({
+            moduleNo,
+            lessonsCount: 10,
+            attendancePoints: 5,
+            selfWorkPoints: 10,
+            currentControlPoints: 20,
+            borderControlPoints: 15,
+            lessons: { create: Array.from({ length: 10 }, (_, i) => ({ lessonNo: i + 1, points: 2 })) },
+          })),
+        },
+      },
+      select: { id: true },
+    });
+    cardIdByKey[key] = card.id;
+  }
+
+  // Пример баллов за самостоятельную работу и рубежный контроль (Базы данных, ИСТ-5-25, Кузнецова).
+  const demoCardId = cardIdByKey[`${dDb.id}|${prgIst.id}|TKUZOL`];
+  if (demoCardId) {
+    const demoStudents = await prisma.student.findMany({ where: { groupId: "GIST525" }, orderBy: { name: "asc" }, take: 4 });
+    const selfWork = [9, 7.5, 6, 2];
+    const border = [12, 11, 9, 5];
+    for (let i = 0; i < demoStudents.length; i++) {
+      await prisma.controlScore.createMany({
+        data: [
+          { techCardId: demoCardId, studentId: demoStudents[i].id, category: "SELF_WORK", moduleNo: 1, score: selfWork[i], enteredById: "TKUZOL" },
+          { techCardId: demoCardId, studentId: demoStudents[i].id, category: "BORDER_CONTROL", moduleNo: 1, score: border[i], enteredById: "TKUZOL" },
+        ],
+      });
+    }
+  }
 }
 
 main()

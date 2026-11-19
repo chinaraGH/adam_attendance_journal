@@ -1,13 +1,10 @@
-# Prisma migrations note
+# Миграции Prisma
 
-This repository currently targets **PostgreSQL** (`prisma/schema.prisma` datasource provider is `postgresql`).
+Здесь одна чистая базовая миграция под PostgreSQL (`20261118000000_init`).
+Прежняя история была написана под SQLite и на PostgreSQL не применялась, поэтому заменена.
 
-There is an older migration folder that was generated when the project used **SQLite**. Prisma records the expected
-migration dialect in `prisma/migrations/migration_lock.toml`.
+Если у вас уже есть база, созданная по старой схеме, проще пересоздать её и выполнить `prisma db seed`:
+в ней только тестовые данные. Чтобы оставить существующую базу, пометьте базовую миграцию применённой:
+`npx prisma migrate resolve --applied 20261118000000_init` (после того как структура таблиц совпадёт со схемой).
 
-If you plan to use `prisma migrate` against PostgreSQL:
-
-- Ensure `prisma/migrations/migration_lock.toml` has `provider = "postgresql"`.
-- Consider creating a fresh baseline migration for PostgreSQL (or re-initialize migrations) if the historical SQLite SQL
-  no longer matches your actual database.
-
+Новые изменения схемы: `npx prisma migrate dev --name <описание>`.

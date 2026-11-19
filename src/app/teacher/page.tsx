@@ -83,12 +83,32 @@ export default async function HomePage() {
     <main className="p-4 sm:p-6 max-w-5xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="text-gray-500 font-bold">Сегодня (Bishkek): {nowBishkek.toLocaleDateString("ru-RU")}</div>
-        <Link
-          href="/teacher/reports"
-          className="border border-gray-900 rounded-xl px-4 py-2.5 font-black text-gray-900 bg-white hover:bg-gray-50 transition-colors text-center w-full sm:w-auto"
-        >
-          Просмотр отчетов
-        </Link>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Link
+            href="/teacher/tech-card"
+            className="border border-blue-600 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2.5 font-black transition-colors text-center shadow-sm w-full sm:w-auto"
+          >
+            Технологические карты
+          </Link>
+          <Link
+            href="/teacher/control"
+            className="border border-blue-600 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2.5 font-black transition-colors text-center shadow-sm w-full sm:w-auto"
+          >
+            Контрольные точки
+          </Link>
+          <Link
+            href="/points-report"
+            className="border border-blue-600 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2.5 font-black transition-colors text-center shadow-sm w-full sm:w-auto"
+          >
+            Итоги
+          </Link>
+          <Link
+            href="/teacher/reports"
+            className="border border-gray-900 rounded-xl px-4 py-2.5 font-black text-gray-900 bg-white hover:bg-gray-50 transition-colors text-center w-full sm:w-auto"
+          >
+            Просмотр отчетов
+          </Link>
+        </div>
       </div>
 
       {sessionCards.length === 0 ? (

@@ -3,7 +3,11 @@ import { SignJWT, jwtVerify } from "jose";
 const COOKIE_NAME = "ejp_session";
 
 function getSecret() {
-  const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? "dev-secret-change-me";
+  const configured = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+  if (!configured && process.env.NODE_ENV === "production") {
+    throw new Error("AUTH_SECRET is not set. Set it in the environment before running in production.");
+  }
+  const secret = configured ?? "dev-secret-change-me";
   return new TextEncoder().encode(secret);
 }
 

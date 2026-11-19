@@ -3,12 +3,14 @@ import { getEffectiveClassSessionStatus } from "@/lib/class-session/effective-st
 import { openJournal } from "@/app/actions/class-session-actions";
 import { formatClassSessionStatusLabel, formatDisciplineLabel } from "@/lib/ui/labels";
 import { BackToolbar, ExitButton } from "@/components/exit-button";
-import { AttendanceClient } from "../attendance-client";
+import { AttendanceClient, type ClientPlan } from "../attendance-client";
 
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
+import { loadSessionPlan } from "@/lib/points/session-points";
+import { isAttendanceEditable } from "@/lib/class-session/attendance-window";
 
 export default async function AttendanceBySessionPage(props: { params: { classSessionId: string } }) {
-  await getCurrentUserOrRedirect();
+  const actor = await getCurrentUserOrRedirect();
   const { classSessionId } = props.params;
 
   const session = await prisma.classSession.findFirst({
@@ -60,7 +62,14 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
 
   // If someone navigates after end_time and openedAt was NULL,
   // the session is effectively auto-closed: convert remaining NULLs to "S".
-  if (effective === "auto_closed") {
+  const attendanceEditable = isAttendanceEditable({
+    startTime: session.startTime,
+    endTime: session.endTime,
+    openedAt: session.openedAt,
+    status: session.status,
+    statusV2: session.statusV2,
+  });
+  if (effective === "auto_closed" && !attendanceEditable) {
     const updated = await prisma.attendance.updateMany({
       where: {
         classSessionId: session.id,
@@ -106,7 +115,24 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
     initialStatusByStudentId[r.studentId] = r.statusV2 ?? r.status ?? null;
   }
 
-  const isReadOnly = effective === "finished" || effective === "auto_closed" || effective === "cancelled" || !!session.semester?.isLocked;
+  const plan = await loadSessionPlan({ classSessionId: session.id, actor });
+  const semesterLocked = !!session.semester?.isLocked;
+  const attendanceOpen = attendanceEditable && !semesterLocked;
+  const scoresEditable = !semesterLocked && effective !== "cancelled";
+  const clientPlan: ClientPlan = plan.available
+    ? {
+        available: true,
+        moduleNo: plan.moduleNo,
+        lessonNo: plan.lessonNo,
+        moduleLessons: plan.moduleLessons,
+        lessonMax: plan.lessonMax,
+        remainingAfter: plan.remainingAfter,
+        attendancePerLesson: plan.attendancePerLesson,
+        latePercent: plan.latePercent,
+        moduleClosed: plan.moduleClosed,
+        scores: plan.scoresByStudentId,
+      }
+    : { available: false, code: plan.code, reason: plan.reason, disciplineId: plan.disciplineId, programId: plan.programId, semesterId: plan.semesterId };
   const sessionAudit = await prisma.auditTrail.findMany({
     where: {
       entityType: "ClassSession",
@@ -153,7 +179,9 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
         students={session.group.students}
         initialStatusByStudentId={initialStatusByStudentId}
         classSessionId={session.id}
-        readOnly={isReadOnly}
+        attendanceEditable={attendanceOpen}
+        scoresEditable={scoresEditable}
+        plan={clientPlan}
       />
       <section style={{ marginTop: 16, border: "1px solid #e5e7eb", borderRadius: 12, background: "white", padding: 12 }}>
         <div style={{ fontWeight: 900, marginBottom: 8 }}>История статуса занятия</div>

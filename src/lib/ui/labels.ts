@@ -42,6 +42,7 @@ export function formatRoleLabel(role: string) {
   const r = String(role).trim().toUpperCase();
   if (r === "TEACHER") return "Преподаватель";
   if (r === "CURATOR") return "Куратор";
+  if (r === "PROGRAM_HEAD") return "Руководитель направления";
   if (r === "ACADEMIC_OFFICE") return "Учебная часть";
   if (r === "ADMIN") return "Администратор";
   if (r === "STUDENT") return "Студент";

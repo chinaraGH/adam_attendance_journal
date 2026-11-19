@@ -9,47 +9,12 @@ import {
 import { formatDisciplineLabel } from "@/lib/ui/labels";
 import { SickRequestActions } from "./dashboard/sick-request-actions";
 import { DateInputWithApply } from "./exemptions/auto-submit-date-input";
+import { CuratorSemesterSelector } from "./semester-selector";
 
 function parseYmd(param: string | undefined): string | null {
   if (!param || typeof param !== "string") return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(param.trim());
   return m ? param.trim() : null;
-}
-
-function CuratorSemesterSelector(props: {
-  allSemesters: { id: string; name: string | null; isLocked: boolean }[];
-  currentSemesterId?: string;
-  dateParam?: string;
-}) {
-  return (
-    <form style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      {props.dateParam ? <input type="hidden" name="date" value={props.dateParam} /> : null}
-      <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>Семестр:</span>
-      <select
-        name="semesterId"
-        defaultValue={props.currentSemesterId ?? ""}
-        onChange={(e) => e.currentTarget.form?.requestSubmit()}
-        style={{
-          appearance: "none",
-          border: "1px solid #111827",
-          borderRadius: 12,
-          padding: "6px 10px",
-          fontWeight: 900,
-          fontSize: 13,
-          color: "#111827",
-          background: "white",
-          cursor: "pointer",
-        }}
-      >
-        {!props.currentSemesterId && <option value="">Авто (текущий)</option>}
-        {props.allSemesters.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name ?? "Без названия"} {s.isLocked ? "(Архив)" : ""}
-          </option>
-        ))}
-      </select>
-    </form>
-  );
 }
 
 export default async function CuratorPage(props: { searchParams: { date?: string; semesterId?: string } }) {

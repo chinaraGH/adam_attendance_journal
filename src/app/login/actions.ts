@@ -9,8 +9,11 @@ import { getDashboardPathForRole } from "@/lib/auth/role-routes";
 
 type LoginState = { ok: true } | { ok: false; error: string };
 
-function getTestPassword() {
-  return process.env.TEST_PASSWORD ?? "test";
+function getTestPassword(): string | null {
+  const configured = process.env.TEST_PASSWORD;
+  if (configured) return configured;
+  // В продакшене пароль по умолчанию запрещён: без TEST_PASSWORD вход закрыт.
+  return process.env.NODE_ENV === "production" ? null : "test";
 }
 
 export async function loginWithPassword(_prevState: LoginState, formData: FormData): Promise<LoginState> {
