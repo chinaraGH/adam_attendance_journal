@@ -201,9 +201,8 @@ export function AttendanceClient(props: {
           }
         }
         initialRef.current = { statuses: { ...statusById }, scores: { ...scoreById } };
-        setOkMessage("Сохранено");
-        if (typeof window !== "undefined" && window.history.length > 1) router.back();
-        else router.push("/teacher");
+        setOkMessage(`Сохранено в ${new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bishkek" })}`);
+        router.refresh(); // подтянуть свежие данные, оставаясь на этом экране
       } catch {
         setErrorMessage("Ошибка сохранения. Попробуйте ещё раз.");
       } finally {
@@ -252,8 +251,6 @@ export function AttendanceClient(props: {
 
       {plan.available && plan.moduleClosed ? <div style={box("info")}>Модуль {plan.moduleNo} закрыт учебной частью: оценки больше не меняются.</div> : null}
       {statusHint ? <div style={box("info")}>{statusHint}</div> : null}
-      {errorMessage ? <div style={box("error")}>{errorMessage}</div> : null}
-      {okMessage ? <div style={box("ok")}>{okMessage}</div> : null}
 
       <ul style={{ display: "grid", gap: 10, padding: 0, margin: 0, listStyle: "none" }}>
         {students.map((student, idx) => {
@@ -334,6 +331,8 @@ export function AttendanceClient(props: {
         })}
       </ul>
 
+      {errorMessage ? <div style={{ ...box("error"), marginTop: 14, marginBottom: 0 }}>{errorMessage}</div> : null}
+      {okMessage ? <div style={{ ...box("ok"), marginTop: 14, marginBottom: 0 }}>{okMessage}</div> : null}
       <div style={{ marginTop: 14, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <button
           type="button"

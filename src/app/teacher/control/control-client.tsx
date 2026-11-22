@@ -103,8 +103,6 @@ export function ControlClient(props: {
       {closed ? <div style={box("info")}>Модуль закрыт учебной частью: оценки больше не меняются.</div> : null}
       {!closed && max <= 0 ? <div style={box("info")}>В технологической карте для этой категории не заданы баллы.</div> : null}
       {category === "EXTRA" ? <div style={box("info")}>Дополнительные баллы добавляются после модулей. Итог студента не может быть больше лимита семестра.</div> : null}
-      {error ? <div style={box("error")}>{error}</div> : null}
-      {ok ? <div style={box("ok")}>{ok}</div> : null}
 
       <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
         {students.map((s, i) => (
@@ -132,6 +130,8 @@ export function ControlClient(props: {
         ))}
       </ul>
 
+      {error ? <div style={{ ...box("error"), marginTop: 14, marginBottom: 0 }}>{error}</div> : null}
+      {ok ? <div style={{ ...box("ok"), marginTop: 14, marginBottom: 0 }}>{ok}</div> : null}
       <div style={{ marginTop: 14, display: "flex", gap: 12, alignItems: "center" }}>
         <button type="button" onClick={onSave} disabled={!editable || saving} style={{ borderRadius: 12, border: "1px solid #111827", background: "#111827", color: "white", padding: "12px 18px", fontWeight: 800, fontSize: 15, opacity: !editable || saving ? 0.6 : 1, cursor: !editable || saving ? "not-allowed" : "pointer" }}>
           {saving ? "Сохранение..." : "Сохранить"}

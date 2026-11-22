@@ -121,6 +121,13 @@ export default async function CuratorGroupExemptionsPage(props: {
           select: { id: true, studentId: true, classSessionId: true, statusV2: true, status: true },
         });
 
+  const nowMs = Date.now();
+  const currentSessionId =
+    selectedDate === todayYmd
+      ? (sessionsOnDay.find((x) => nowMs >= x.startTime.getTime() && nowMs < x.endTime.getTime()) ??
+          sessionsOnDay.find((x) => x.startTime.getTime() > nowMs))?.id ?? null
+      : null;
+
   const attendanceByKey = new Map(attendances.map((a) => [`${a.studentId}:${a.classSessionId}`, a] as const));
 
   return (
@@ -140,63 +147,73 @@ export default async function CuratorGroupExemptionsPage(props: {
         <div style={{ marginTop: 12, color: "#991b1b", fontWeight: 800 }}>Семестр заблокирован — выставление А недоступно.</div>
       ) : null}
 
-      <div style={{ marginTop: 16, fontWeight: 900, fontSize: 16 }}>Все занятия за выбранный день</div>
-      <div style={{ marginTop: 8, border: "1px solid #e5e7eb", borderRadius: 14, overflow: "hidden", background: "white" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-          <thead>
-            <tr style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", background: "#f9fafb" }}>
-              <th style={{ padding: "10px 8px" }}>Студент</th>
-              <th style={{ padding: "10px 8px" }}>Занятие</th>
-              <th style={{ padding: "10px 8px" }}>Дата</th>
-              <th style={{ padding: "10px 8px" }}>Статус</th>
-              <th style={{ padding: "10px 8px" }}>А</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sessionsOnDay.length === 0 || students.length === 0 ? (
-              <tr>
-                <td colSpan={5} style={{ padding: 14, color: "#6b7280", fontWeight: 700 }}>
-                  На выбранную дату занятий нет.
-                </td>
-              </tr>
-            ) : (
-              sessionsOnDay.flatMap((session) =>
-                students.map((st) => {
-                  const att = attendanceByKey.get(`${st.id}:${session.id}`) ?? null;
-                  const canonical = att ? getCanonicalAttendanceStatusV2({ statusV2: att.statusV2, status: att.status }) : null;
-                  const statusLabel = att ? formatAttendanceStatusDisplay({ statusV2: att.statusV2, status: att.status }) : "—";
-                  const semesterLocked = !!session.semester?.isLocked || !!semester?.isLocked;
-                  const toggleDisabled = semesterLocked;
+      <div style={{ marginTop: 16, display: "flex", gap: 12, alignItems: "baseline", flexWrap: "wrap" }}>
+        <div style={{ fontWeight: 900, fontSize: 16 }}>Занятия за выбранный день</div>
+        {currentSessionId ? (
+          <a href="#current" style={{ fontWeight: 800, fontSize: 14, color: "#1d4ed8" }}>
+            К текущему занятию
+          </a>
+        ) : null}
+      </div>
+      <div style={{ marginTop: 4, color: "#6b7280", fontSize: 13 }}>
+        Нажмите «Поставить А» у студента на нужном занятии. «Снять А» отменяет освобождение. Преподаватель освобождение изменить не может.
+      </div>
 
-                  return (
-                    <tr key={`${st.id}:${session.id}`} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                      <td style={{ padding: "10px 8px", fontWeight: 800 }}>{st.name}</td>
-                      <td style={{ padding: "10px 8px" }}>
-                        {formatDisciplineLabel({
-                          disciplineId: session.disciplineId,
-                          disciplineName: session.discipline?.name,
-                        })}
-                        <div style={{ color: "#6b7280", fontSize: 12, marginTop: 2 }}>
-                          {`${formatInTimeZone(session.startTime, BISHKEK_TIME_ZONE, "HH:mm")}–${formatInTimeZone(session.endTime, BISHKEK_TIME_ZONE, "HH:mm")}`}
+      <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
+        {sessionsOnDay.length === 0 || students.length === 0 ? (
+          <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, color: "#6b7280", fontWeight: 700, background: "white" }}>
+            На выбранную дату занятий нет.
+          </div>
+        ) : (
+          sessionsOnDay.map((session) => {
+            const isOngoing = nowMs >= session.startTime.getTime() && nowMs < session.endTime.getTime();
+            const isCurrent = session.id === currentSessionId;
+            const semesterLocked = !!session.semester?.isLocked || !!semester?.isLocked;
+            return (
+              <section
+                key={session.id}
+                id={isCurrent ? "current" : undefined}
+                style={{ border: `1px solid ${isCurrent ? "#93c5fd" : "#e5e7eb"}`, borderRadius: 14, background: "white", overflow: "hidden", scrollMarginTop: 80 }}
+              >
+                <div style={{ padding: "10px 12px", background: isCurrent ? "#eff6ff" : "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
+                    <div style={{ fontWeight: 900 }}>
+                      {`${formatInTimeZone(session.startTime, BISHKEK_TIME_ZONE, "HH:mm")}–${formatInTimeZone(session.endTime, BISHKEK_TIME_ZONE, "HH:mm")}`}
+                    </div>
+                    {isOngoing ? <span style={{ fontSize: 12, fontWeight: 800, color: "#166534" }}>Идёт сейчас</span> : null}
+                  </div>
+                  <div style={{ color: "#374151", fontSize: 14 }}>
+                    {formatDisciplineLabel({ disciplineId: session.disciplineId, disciplineName: session.discipline?.name })}
+                  </div>
+                </div>
+                <div>
+                  {students.map((st) => {
+                    const att = attendanceByKey.get(`${st.id}:${session.id}`) ?? null;
+                    const canonical = att ? getCanonicalAttendanceStatusV2({ statusV2: att.statusV2, status: att.status }) : null;
+                    const statusLabel = att ? formatAttendanceStatusDisplay({ statusV2: att.statusV2, status: att.status }) : "не отмечен";
+                    return (
+                      <div
+                        key={st.id}
+                        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 12px", borderBottom: "1px solid #f3f4f6" }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 800 }}>{st.name}</div>
+                          <div style={{ color: "#6b7280", fontSize: 12 }}>Статус: {statusLabel}</div>
                         </div>
-                      </td>
-                      <td style={{ padding: "10px 8px" }}>{formatInTimeZone(session.startTime, BISHKEK_TIME_ZONE, "dd.MM.yyyy")}</td>
-                      <td style={{ padding: "10px 8px", fontWeight: 700 }}>{statusLabel}</td>
-                      <td style={{ padding: "10px 8px" }}>
                         <ToggleExemptionsAButton
                           classSessionId={session.id}
                           studentId={st.id}
-                          disabled={toggleDisabled}
+                          disabled={semesterLocked}
                           isActive={canonical === "A"}
                         />
-                      </td>
-                    </tr>
-                  );
-                }),
-              )
-            )}
-          </tbody>
-        </table>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })
+        )}
       </div>
     </main>
   );

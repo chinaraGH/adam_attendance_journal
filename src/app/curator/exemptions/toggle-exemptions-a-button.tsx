@@ -37,16 +37,18 @@ export function ToggleExemptionsAButton(props: {
         title={isActive ? "Снять А" : "Установить А"}
         style={{
           borderRadius: 10,
-          padding: "8px 14px",
+          padding: "8px 10px",
           border: `1px solid ${isActive ? "#16a34a" : "#d1d5db"}`,
           background: isActive ? "#16a34a" : isDisabled ? "#f3f4f6" : "white",
           color: isActive ? "white" : isDisabled ? "#6b7280" : "#111827",
           fontWeight: 800,
           cursor: isDisabled ? "not-allowed" : "pointer",
-          minWidth: 52,
+          minWidth: 112,
+          fontSize: 13,
+          whiteSpace: "nowrap",
         }}
       >
-        {isPending ? "…" : "А"}
+        {isPending ? "…" : isActive ? "Снять А" : "Поставить А"}
       </button>
       {error ? <span style={{ color: "#991b1b", fontWeight: 700, fontSize: 12 }}>{error}</span> : null}
     </div>
