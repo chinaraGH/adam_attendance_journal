@@ -12,6 +12,7 @@ export function AppChrome() {
   const pathname = usePathname() ?? "";
   const [parentPath, setParentPath] = useState("/");
   const [prevPath, setPrevPath] = useState<string | null>(null);
+  const [me, setMe] = useState<{ displayName: string; roleLabel: string; role: string } | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined" || !pathname) return;
@@ -31,6 +32,27 @@ export function AppChrome() {
     } else {
       setPrevPath(window.sessionStorage.getItem(NAV_PREV_PATH_KEY));
     }
+  }, [pathname]);
+
+  // Имя текущего пользователя (обновляется при каждом переходе, в том числе сразу после входа)
+  useEffect(() => {
+    if (!pathname || pathname.startsWith("/login")) {
+      setMe(null);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled) return;
+        setMe(d?.ok ? { displayName: String(d.displayName ?? ""), roleLabel: String(d.roleLabel ?? ""), role: String(d.role ?? "") } : null);
+      })
+      .catch(() => {
+        if (!cancelled) setMe(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [pathname]);
 
   if (pathname.startsWith("/login")) return null;
@@ -62,7 +84,11 @@ export function AppChrome() {
       : pathname === "/program-head"
       ? "/login"
       : pathname.startsWith("/points-report")
-      ? "/teacher"
+      ? me?.role === "PROGRAM_HEAD"
+        ? "/program-head"
+        : me?.role === "ADMIN" || me?.role === "ACADEMIC_OFFICE"
+          ? "/acadepartment"
+          : "/teacher"
       : adminGroup
       ? (prevPath || "/acadepartment")
       : pathname === "/curator/exemptions" || curatorExemptionsGroup
@@ -70,8 +96,14 @@ export function AppChrome() {
         : parentPath;
 
   return (
-    <BackToolbar>
+    <BackToolbar style={{ gap: 12, justifyContent: "space-between" }}>
       <ExitButton label="Назад" to={backTarget} preferTo />
+      {me ? (
+        <div style={{ minWidth: 0, textAlign: "right", lineHeight: 1.25 }} title={`${me.displayName} · ${me.roleLabel}`}>
+          <div style={{ fontWeight: 800, fontSize: 14, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{me.displayName}</div>
+          <div style={{ fontSize: 12, color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{me.roleLabel}</div>
+        </div>
+      ) : null}
     </BackToolbar>
   );
 }

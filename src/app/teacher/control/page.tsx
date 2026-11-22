@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
-import { BackToolbar, ExitButton } from "@/components/exit-button";
 import { groupsForTechCard } from "@/lib/points/report";
 import { ControlClient } from "./control-client";
 
@@ -40,16 +39,9 @@ export default async function ControlPage(props: { searchParams: { cardId?: stri
     });
   }
 
-  const header = (
-    <BackToolbar style={{ marginBottom: 12 }}>
-      <ExitButton to="/teacher" preferTo />
-    </BackToolbar>
-  );
-
   if (options.length === 0) {
     return (
       <main style={{ padding: 16, maxWidth: 640, margin: "0 auto" }}>
-        {header}
         <h1 style={{ fontSize: 22, fontWeight: 800 }}>Контрольные точки</h1>
         <p>Сначала заполните технологическую карту (раздел «Технологические карты»).</p>
       </main>
@@ -75,7 +67,6 @@ export default async function ControlPage(props: { searchParams: { cardId?: stri
 
   return (
     <main style={{ padding: 16, maxWidth: 640, margin: "0 auto" }}>
-      {header}
       <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 10 }}>Контрольные точки</h1>
       <ControlClient
         key={`${opt.cardId}|${group.id}|${cat.key}`}

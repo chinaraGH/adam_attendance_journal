@@ -133,8 +133,7 @@ export function AttendanceClient(props: {
   const lessonMax = plan.available ? plan.lessonMax : 0;
 
   const unmarked = students.filter((s) => !statusById[s.id]).length;
-  const needScore = (id: string) => statusById[id] === "P" || statusById[id] === "O";
-  const missingScores = scoring ? students.filter((s) => needScore(s.id) && scoreById[s.id].trim() === "").length : 0;
+  const gradedCount = scoring ? students.filter((s) => scoreById[s.id].trim() !== "").length : 0;
 
   const isDirty = useMemo(() => {
     for (const s of students) {
@@ -172,11 +171,6 @@ export function AttendanceClient(props: {
     }
     const scoreItems: Array<{ studentId: string; score: number }> = [];
     if (scoring) {
-      const missing = students.filter((s) => needScore(s.id) && scoreById[s.id].trim() === "");
-      if (missing.length > 0) {
-        setErrorMessage(`Поставьте оценку присутствующим (0 — тоже оценка): ${missing.map((s) => s.name).join(", ")}.`);
-        return;
-      }
       for (const s of students) {
         const v = parsePoints(scoreById[s.id]);
         if (v === null) continue;
@@ -294,6 +288,10 @@ export function AttendanceClient(props: {
                     value={raw}
                     disabled={!scoring || isSaving}
                     onChange={(e) => setScore(student.id, e.target.value)}
+                    onBlur={() => {
+                      const v = parsePoints(raw);
+                      if (v !== null && !Number.isNaN(v)) setScoreById((prev) => ({ ...prev, [student.id]: formatPoints(v) }));
+                    }}
                     style={{
                       width: 84,
                       height: 40,
@@ -361,12 +359,9 @@ export function AttendanceClient(props: {
           {attendanceEditable
             ? unmarked > 0
               ? `Осталось отметить: ${unmarked}`
-              : missingScores > 0
-                ? `Нужны оценки: ${missingScores}`
-                : "Всё заполнено"
-            : missingScores > 0
-              ? `Нужны оценки: ${missingScores}`
-              : "Посещаемость закрыта"}
+              : "Посещаемость отмечена"
+            : "Посещаемость закрыта"}
+          {scoring ? <div style={{ fontWeight: 500, fontSize: 12, color: "#6b7280" }}>Оценки поставлены: {gradedCount} из {students.length}. Их можно добавить позже.</div> : null}
         </div>
       </div>
     </>

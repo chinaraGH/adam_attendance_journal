@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
-import { BackToolbar, ExitButton } from "@/components/exit-button";
 import { canViewTechCard, visibleProgramIds } from "@/lib/points/access";
 import { buildGroupPointsReport, groupsForTechCard } from "@/lib/points/report";
 import { formatPoints } from "@/lib/points/calc";
@@ -27,9 +26,6 @@ export default async function PointsReportPage(props: { searchParams: { cardId?:
     const sum2 = (a: [number, number]) => a[0] + a[1];
     return (
       <main style={{ padding: 16, maxWidth: 960, margin: "0 auto" }}>
-        <BackToolbar style={{ marginBottom: 12 }}>
-          <ExitButton to="/points-report" preferTo />
-        </BackToolbar>
         <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Итоги группы {report.groupName}</h1>
         <div style={{ fontWeight: 700, marginTop: 2 }}>{report.disciplineName} · {card.teacher.name}</div>
         <div style={{ color: "#6b7280", fontSize: 13, marginBottom: 10 }}>
@@ -92,9 +88,6 @@ export default async function PointsReportPage(props: { searchParams: { cardId?:
   }
   return (
     <main style={{ padding: 16, maxWidth: 640, margin: "0 auto" }}>
-      <BackToolbar style={{ marginBottom: 12 }}>
-        <ExitButton to={back} preferTo />
-      </BackToolbar>
       <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Итоги по группам</h1>
       <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 12 }}>Баллы за посещаемость и оценки, расчёт на момент открытия.</p>
       {items.length === 0 ? <p>Нет данных: сначала заполните технологические карты.</p> : null}

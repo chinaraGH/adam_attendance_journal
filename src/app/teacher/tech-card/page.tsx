@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
-import { BackToolbar, ExitButton } from "@/components/exit-button";
 import { ensureTechCard, techCardInclude } from "@/lib/points/tech-card";
 import { TechCardEditor } from "./tech-card-editor";
 
@@ -27,9 +26,6 @@ export default async function TechCardPage(props: {
   if (card) {
     return (
       <main style={{ padding: 16, maxWidth: 640, margin: "0 auto" }}>
-        <BackToolbar style={{ marginBottom: 12 }}>
-          <ExitButton to="/teacher/tech-card" preferTo />
-        </BackToolbar>
         <TechCardEditor
           cardId={card.id}
           title={card.discipline.name}
@@ -94,9 +90,6 @@ export default async function TechCardPage(props: {
 
   return (
     <main style={{ padding: 16, maxWidth: 640, margin: "0 auto" }}>
-      <BackToolbar style={{ marginBottom: 12 }}>
-        <ExitButton to="/teacher" preferTo />
-      </BackToolbar>
       <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Технологические карты</h1>
       <p style={{ color: "#6b7280", marginBottom: 12, fontSize: 14 }}>Выберите дисциплину, чтобы распределить баллы.</p>
       {items.size === 0 ? (

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
+import { formatRoleLabel } from "@/lib/ui/labels";
 
 export async function GET() {
   let actor: Awaited<ReturnType<typeof getCurrentUser>>;
@@ -28,6 +29,13 @@ export async function GET() {
         })
       : null;
 
-  return NextResponse.json({ ok: true, user, teacher });
+  const student =
+    actor.role === "STUDENT"
+      ? await prisma.student.findFirst({ where: { id: actor.id, isActive: true, deletedAt: null }, select: { name: true } })
+      : null;
+  // Имена хранятся только у преподавателей и студентов; у остальных ролей показываем логин.
+  const displayName = teacher?.name ?? student?.name ?? user.id;
+
+  return NextResponse.json({ ok: true, user, teacher, displayName, role: user.role, roleLabel: formatRoleLabel(user.role) });
 }
 

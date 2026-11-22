@@ -122,6 +122,10 @@ export function ControlClient(props: {
                 setError(""); setOk("");
                 setValues((p) => ({ ...p, [s.id]: v }));
               }}
+              onBlur={() => {
+                const v = parsePoints(values[s.id]);
+                if (v !== null && !Number.isNaN(v)) setValues((p) => ({ ...p, [s.id]: formatPoints(v) }));
+              }}
               style={{ width: 90, height: 40, textAlign: "right", padding: "0 10px", borderRadius: 10, border: "1px solid #93c5fd", fontWeight: 700, fontSize: 15, background: editable ? "white" : "#f3f4f6" }}
             />
           </li>

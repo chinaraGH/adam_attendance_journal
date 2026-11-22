@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
-import { BackToolbar, ExitButton } from "@/components/exit-button";
 import { PointsSettingsClient } from "./points-settings-client";
 
 export const dynamic = "force-dynamic";
@@ -15,9 +14,6 @@ export default async function AcadepartmentPointsPage() {
 
   return (
     <main style={{ padding: 16, maxWidth: 640, margin: "0 auto" }}>
-      <BackToolbar style={{ marginBottom: 12 }}>
-        <ExitButton to="/acadepartment" preferTo />
-      </BackToolbar>
       <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Баллы семестра</h1>
       <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 12 }}>
         Лимиты баллов и закрытие модулей. После закрытия модуля оценки этого модуля у преподавателей не меняются.

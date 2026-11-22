@@ -14,7 +14,8 @@ export function parsePoints(input: string | number | null | undefined): number |
   if (input === null || input === undefined) return null;
   const t = String(input).trim().replace(",", ".");
   if (t === "") return null;
-  if (!/^\d+(\.\d+)?$/.test(t)) return Number.NaN;
+  // Допускаем «4,5», «4.5», «.4» и «4.»: на многих телефонах в цифровой клавиатуре только точка.
+  if (!/^(\d+(\.\d*)?|\.\d+)$/.test(t)) return Number.NaN;
   return Number(t);
 }
 
