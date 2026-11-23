@@ -13,12 +13,19 @@ export type PointsRow = {
   moduleTotals: [number, number];
   extra: number;
   total: number;
+  /** Присутствовал (П, О), пропустил (НБ, неподтверждённая Б), освобождён (А, подтверждённая Б) */
+  attended: number;
+  missed: number;
+  excused: number;
+  /** Отметки по видам: П, О, НБ, Б без подтверждения, Б подтверждённая, А */
+  counts: { p: number; o: number; nb: number; bPending: number; bConfirmed: number; a: number };
 };
 
 export type GroupPointsReport = {
   techCardId: string;
   groupId: string;
   groupName: string;
+  disciplineId: string;
   disciplineName: string;
   teacherId: string;
   programId: string;
@@ -97,8 +104,16 @@ export async function buildGroupPointsReport(params: { techCardId: string; group
   const rows: PointsRow[] = students.map((st) => {
     const attendance: [number, number] = [0, 0];
     const current: [number, number] = [0, 0];
+    const counts = { p: 0, o: 0, nb: 0, bPending: 0, bConfirmed: 0, a: 0 };
     for (const a of attRows) {
       if (a.studentId !== st.id) continue;
+      const canon = getCanonicalAttendanceStatusV2(a);
+      if (canon === "P") counts.p += 1;
+      else if (canon === "O") counts.o += 1;
+      else if (canon === "NB") counts.nb += 1;
+      else if (canon === "B_PENDING") counts.bPending += 1;
+      else if (canon === "B_CONFIRMED") counts.bConfirmed += 1;
+      else if (canon === "A") counts.a += 1;
       const mi = moduleOfSession.get(a.classSessionId);
       if (mi === undefined) continue;
       attendance[mi] += attendancePointsForLesson(getCanonicalAttendanceStatusV2(a), perLesson[mi], card.latePercent);
@@ -130,6 +145,10 @@ export async function buildGroupPointsReport(params: { techCardId: string; group
       moduleTotals,
       extra,
       total: studentTotal({ moduleTotals, extra, limits }),
+      attended: counts.p + counts.o,
+      missed: counts.nb + counts.bPending,
+      excused: counts.a + counts.bConfirmed,
+      counts,
     };
   });
 
@@ -147,6 +166,7 @@ export async function buildGroupPointsReport(params: { techCardId: string; group
     techCardId: card.id,
     groupId: group.id,
     groupName: group.name,
+    disciplineId: card.disciplineId,
     disciplineName: card.discipline.name,
     teacherId: card.teacherId,
     programId: card.programId,

@@ -3,6 +3,8 @@ import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
 import { formatAttendanceStatusDisplay } from "@/lib/ui/labels";
 import { StudentAttendanceFilters } from "@/components/student-attendance-filters";
+import { loadStudentPoints } from "@/lib/points/student-points";
+import { formatPoints } from "@/lib/points/calc";
 
 function toDateInputValue(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -88,6 +90,8 @@ export default async function StudentPage(props: {
       </main>
     );
   }
+
+  const myPoints = await loadStudentPoints(student.id, student.group.id);
 
   const view = (props.searchParams.view ?? "disciplines").toLowerCase(); // "disciplines" | "days"
 
@@ -183,6 +187,62 @@ export default async function StudentPage(props: {
             {student.name} • {student.group.name}
           </div>
         </div>
+      </div>
+
+      <div style={{ marginTop: 16, fontWeight: 900, fontSize: 18 }}>Мои баллы</div>
+      {myPoints.length === 0 ? (
+        <div style={{ marginTop: 8, border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white", color: "#6b7280", fontWeight: 700 }}>
+          Баллы пока не начислены: преподаватели ещё не заполнили технологические карты.
+        </div>
+      ) : (
+        <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
+          {myPoints.map((d) => {
+            const r = d.row;
+            const sum2 = (a: [number, number]) => a[0] + a[1];
+            const share = d.limits.totalPoints > 0 ? Math.min(100, (r.total / d.limits.totalPoints) * 100) : 0;
+            const tone = share >= 70 ? "#16a34a" : share >= 50 ? "#f59e0b" : "#dc2626";
+            const line = (label: string, value: number, max: number) => (
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "4px 0", fontSize: 14 }}>
+                <span style={{ color: "#374151" }}>{label}</span>
+                <span style={{ fontWeight: 800 }}>
+                  {formatPoints(value)}
+                  <span style={{ color: "#6b7280", fontWeight: 600 }}> из {formatPoints(max)}</span>
+                </span>
+              </div>
+            );
+            return (
+              <div key={d.cardId} style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>
+                <div style={{ fontWeight: 900, fontSize: 16 }}>{d.disciplineName}</div>
+                <div style={{ color: "#6b7280", fontSize: 13, marginBottom: 8 }}>{d.teacherName}</div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                  <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>Итого</span>
+                  <span style={{ fontSize: 24, fontWeight: 900 }}>
+                    {formatPoints(r.total)}
+                    <span style={{ fontSize: 14, color: "#6b7280", fontWeight: 700 }}> из {formatPoints(d.limits.totalPoints)}</span>
+                  </span>
+                </div>
+                <div style={{ height: 8, borderRadius: 4, background: "#f3f4f6", overflow: "hidden", margin: "6px 0 10px" }}>
+                  <div style={{ height: "100%", width: `${share}%`, background: tone }} />
+                </div>
+                {line("Посещаемость", sum2(r.attendance), sum2(d.max.attendance))}
+                {line("Текущий контроль", sum2(r.current), sum2(d.max.current))}
+                {line("Самостоятельная работа", sum2(r.selfWork), sum2(d.max.selfWork))}
+                {line("Рубежный контроль", sum2(r.border), sum2(d.max.border))}
+                <div style={{ borderTop: "1px solid #f3f4f6", marginTop: 6, paddingTop: 6 }}>
+                  {line(`Модуль 1${d.moduleClosed[0] ? " (закрыт)" : ""}`, r.moduleTotals[0], d.limits.modulePoints)}
+                  {line(`Модуль 2${d.moduleClosed[1] ? " (закрыт)" : ""}`, r.moduleTotals[1], d.limits.modulePoints)}
+                  {d.max.extra > 0 ? line("Дополнительные", r.extra, d.max.extra) : null}
+                </div>
+                <div style={{ marginTop: 6, color: "#6b7280", fontSize: 12 }}>
+                  Занятий: был {r.attended}, пропустил {r.missed}, освобождён {r.excused}.
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div style={{ marginTop: 4, color: "#6b7280", fontSize: 12 }}>
+        Баллы считаются на момент открытия страницы. Итоговая ведомость формируется в GAUDI.
       </div>
 
       <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>

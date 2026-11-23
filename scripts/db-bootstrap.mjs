@@ -3,7 +3,8 @@
 //   before-migrate: если база не пустая и не управляется миграциями Prisma (например, осталась от старой версии),
 //                   то при ALLOW_DB_RESET=true она очищается, иначе сборка останавливается с понятным сообщением.
 //   after-migrate:  если задано SEED_ON_BUILD=true и таблица users пуста, база наполняется тестовыми данными;
-//                   если задано DEMO_SCHEDULE_VERSION, один раз для этой версии загружается демо-расписание.
+//                   если задано DEMO_SCHEDULE_VERSION, один раз для этой версии загружается демо-расписание;
+//                   если задано DEMO_ACTIVITY_VERSION, один раз для версии добавляются отметки и оценки за прошедшие занятия.
 //
 // Оба шага безопасны при повторных деплоях: после первой успешной миграции (_prisma_migrations уже есть)
 // очистка не выполняется никогда, а тестовые данные добавляются только в пустую базу.
@@ -60,6 +61,11 @@ try {
       console.log(`[db-bootstrap] DEMO_SCHEDULE_VERSION=${process.env.DEMO_SCHEDULE_VERSION}: загружаю демо-расписание (один раз для версии).`);
       await prisma.$disconnect();
       execSync("npx ts-node prisma/seed-schedule.ts", { stdio: "inherit" });
+    }
+    if (process.env.DEMO_ACTIVITY_VERSION) {
+      console.log(`[db-bootstrap] DEMO_ACTIVITY_VERSION=${process.env.DEMO_ACTIVITY_VERSION}: добавляю отметки и оценки за прошедшие занятия (один раз для версии).`);
+      await prisma.$disconnect();
+      execSync("npx ts-node prisma/seed-demo-activity.ts", { stdio: "inherit" });
     }
   } else {
     console.error("[db-bootstrap] Используйте: before-migrate | after-migrate");
