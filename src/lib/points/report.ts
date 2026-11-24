@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
 import { attendancePointsForLesson, round2, studentTotal } from "@/lib/points/calc";
+import { buildModuleTables, type CanonStatus, type ModuleTables } from "@/lib/points/module-tables";
 
 export type PointsRow = {
   studentId: string;
@@ -37,6 +38,11 @@ export type GroupPointsReport = {
   attendanceRate: number | null;
   averageTotal: number;
   rows: PointsRow[];
+  /** Таблицы по модулям: посещаемость по занятиям, баллы по занятиям, итог модуля. */
+  modules: [ModuleTables, ModuleTables];
+  /** Сколько занятий в расписании группы (без отменённых) и сколько занятий задано в карте. */
+  sessionsTotal: number;
+  planLessons: number;
 };
 
 /** Считает баллы всей группы по технологической карте. Ничего не сохраняет. */
@@ -46,7 +52,7 @@ export async function buildGroupPointsReport(params: { techCardId: string; group
     include: {
       semester: true,
       discipline: { select: { name: true } },
-      modules: { orderBy: { moduleNo: "asc" } },
+      modules: { orderBy: { moduleNo: "asc" }, include: { lessons: { orderBy: { lessonNo: "asc" } } } },
     },
   });
   if (!card) return null;
@@ -62,7 +68,7 @@ export async function buildGroupPointsReport(params: { techCardId: string; group
   const sessions = await prisma.classSession.findMany({
     where: { groupId: group.id, disciplineId: card.disciplineId, teacherId: card.teacherId, semesterId: card.semesterId, isActive: true, deletedAt: null },
     orderBy: { startTime: "asc" },
-    select: { id: true, status: true, statusV2: true },
+    select: { id: true, status: true, statusV2: true, startTime: true },
   });
   const counted = sessions.filter((s) => (s.statusV2 ?? s.status ?? "").trim().toLowerCase() !== "cancelled");
 
@@ -71,10 +77,16 @@ export async function buildGroupPointsReport(params: { techCardId: string; group
   const c1 = m1?.lessonsCount ?? 0;
   const c2 = m2?.lessonsCount ?? 0;
   const moduleOfSession = new Map<string, 0 | 1>();
+  const lessonsOfModule: [{ sessionId: string; lessonNo: number; startTime: Date }[], { sessionId: string; lessonNo: number; startTime: Date }[]] = [[], []];
   counted.forEach((s, i) => {
     const ordinal = i + 1;
-    if (ordinal <= c1) moduleOfSession.set(s.id, 0);
-    else if (ordinal <= c1 + c2) moduleOfSession.set(s.id, 1);
+    if (ordinal <= c1) {
+      moduleOfSession.set(s.id, 0);
+      lessonsOfModule[0].push({ sessionId: s.id, lessonNo: ordinal, startTime: s.startTime });
+    } else if (ordinal <= c1 + c2) {
+      moduleOfSession.set(s.id, 1);
+      lessonsOfModule[1].push({ sessionId: s.id, lessonNo: ordinal - c1, startTime: s.startTime });
+    }
   });
 
   const sessionIds = counted.map((s) => s.id);
@@ -100,6 +112,7 @@ export async function buildGroupPointsReport(params: { techCardId: string; group
     extra: Math.min(card.extraMaxPoints, card.semester.extraMaxPoints),
   };
   const limits = { modulePoints: card.semester.modulePoints, totalPoints: card.semester.totalPoints, extraMaxPoints: card.semester.extraMaxPoints };
+  const moduleClosedFlags: [boolean, boolean] = [Boolean(card.semester.module1ClosedAt), Boolean(card.semester.module2ClosedAt)];
 
   const rows: PointsRow[] = students.map((st) => {
     const attendance: [number, number] = [0, 0];
@@ -152,6 +165,50 @@ export async function buildGroupPointsReport(params: { techCardId: string; group
     };
   });
 
+  // Таблицы по модулям
+  const statusByKey = new Map<string, CanonStatus>();
+  for (const a of attRows) {
+    const canon = getCanonicalAttendanceStatusV2(a);
+    if (canon) statusByKey.set(`${a.classSessionId}|${a.studentId}`, canon);
+  }
+  const scoreByKey = new Map<string, number>();
+  for (const l of lessonRows) scoreByKey.set(`${l.classSessionId}|${l.studentId}`, l.score);
+  const rowById = new Map(rows.map((r) => [r.studentId, r]));
+  const moduleTables = ([0, 1] as const).map((mi) => {
+    const mod = mi === 0 ? m1 : m2;
+    const lessonMax = (no: number) => mod?.lessons.find((l) => l.lessonNo === no)?.points ?? 0;
+    return buildModuleTables({
+      module: {
+        moduleNo: mi === 0 ? 1 : 2,
+        closed: moduleClosedFlags[mi],
+        lessonsPlanned: mi === 0 ? c1 : c2,
+        lessons: lessonsOfModule[mi].map((l) => ({ ...l, scoreMax: lessonMax(l.lessonNo) })),
+        attendancePerLesson: perLesson[mi],
+        latePercent: card.latePercent,
+        max: {
+          attendance: max.attendance[mi],
+          current: max.current[mi],
+          selfWork: max.selfWork[mi],
+          border: max.border[mi],
+          total: limits.modulePoints,
+        },
+      },
+      students,
+      statusOf: (sid, stid) => statusByKey.get(`${sid}|${stid}`) ?? null,
+      scoreOf: (sid, stid) => scoreByKey.get(`${sid}|${stid}`) ?? null,
+      totalsOf: (stid) => {
+        const r = rowById.get(stid);
+        return {
+          attendance: r?.attendance[mi] ?? 0,
+          current: r?.current[mi] ?? 0,
+          selfWork: r?.selfWork[mi] ?? 0,
+          border: r?.border[mi] ?? 0,
+          total: r?.moduleTotals[mi] ?? 0,
+        };
+      },
+    });
+  }) as [ModuleTables, ModuleTables];
+
   // Посещаемость группы
   let present = 0;
   let marked = 0;
@@ -173,10 +230,13 @@ export async function buildGroupPointsReport(params: { techCardId: string; group
     semesterName: card.semester.name ?? "семестр",
     limits,
     max,
-    moduleClosed: [Boolean(card.semester.module1ClosedAt), Boolean(card.semester.module2ClosedAt)],
+    moduleClosed: moduleClosedFlags,
     attendanceRate: marked > 0 ? Math.round((present / marked) * 1000) / 10 : null,
     averageTotal: rows.length ? round2(rows.reduce((a, r) => a + r.total, 0) / rows.length) : 0,
     rows,
+    modules: moduleTables,
+    sessionsTotal: counted.length,
+    planLessons: c1 + c2,
   };
 }
 
