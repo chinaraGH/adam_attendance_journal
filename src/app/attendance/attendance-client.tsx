@@ -97,6 +97,9 @@ export function AttendanceClient(props: {
   scoresEditable: boolean;
   plan: ClientPlan;
   header?: ReactNode;
+  /** ФИО и роль вошедшего пользователя (показываются справа в верхней панели, как на других экранах). */
+  userName?: string;
+  userRoleLabel?: string;
 }) {
   const { students, classSessionId, attendanceEditable, scoresEditable, plan, header } = props;
   const router = useRouter();
@@ -217,8 +220,14 @@ export function AttendanceClient(props: {
 
   return (
     <>
-      <BackToolbar style={{ marginBottom: 16 }}>
+      <BackToolbar style={{ marginBottom: 16, gap: 12, justifyContent: "space-between" }}>
         <ExitButton disabled={isSaving || isDirty} to="/teacher" preferTo />
+        {props.userName ? (
+          <div style={{ minWidth: 0, textAlign: "right", lineHeight: 1.25 }} title={`${props.userName}${props.userRoleLabel ? ` · ${props.userRoleLabel}` : ""}`}>
+            <div style={{ fontWeight: 800, fontSize: 14, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{props.userName}</div>
+            {props.userRoleLabel ? <div style={{ fontSize: 12, color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{props.userRoleLabel}</div> : null}
+          </div>
+        ) : null}
       </BackToolbar>
 
       {header ? <div>{header}</div> : null}

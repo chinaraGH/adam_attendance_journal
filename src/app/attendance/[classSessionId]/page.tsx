@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getEffectiveClassSessionStatus } from "@/lib/class-session/effective-status";
 import { openJournal } from "@/app/actions/class-session-actions";
-import { formatClassSessionStatusLabel, formatDisciplineLabel } from "@/lib/ui/labels";
+import { formatClassSessionStatusLabel, formatDisciplineLabel, formatRoleLabel } from "@/lib/ui/labels";
 import { BackToolbar, ExitButton } from "@/components/exit-button";
 import { AttendanceClient, type ClientPlan } from "../attendance-client";
 
@@ -25,6 +25,7 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
       statusV2: true,
       outOfSemester: true,
       discipline: { select: { name: true } },
+      teacher: { select: { name: true } },
       semester: { select: { isLocked: true } },
       group: {
         select: {
@@ -115,6 +116,14 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
     initialStatusByStudentId[r.studentId] = r.statusV2 ?? r.status ?? null;
   }
 
+  // ФИО вошедшего пользователя: имена хранятся у преподавателей и студентов, у остальных ролей показываем логин.
+  let userName: string = actor.id;
+  if (actor.role === "TEACHER") {
+    userName = (await prisma.teacher.findFirst({ where: { id: actor.id }, select: { name: true } }))?.name ?? actor.id;
+  } else if (actor.role === "STUDENT") {
+    userName = (await prisma.student.findFirst({ where: { id: actor.id }, select: { name: true } }))?.name ?? actor.id;
+  }
+
   const plan = await loadSessionPlan({ classSessionId: session.id, actor });
   const semesterLocked = !!session.semester?.isLocked;
   const attendanceOpen = attendanceEditable && !semesterLocked;
@@ -160,6 +169,7 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
               <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 6 }}>Журнал посещаемости</h1>
               <div style={{ color: "#111827", fontWeight: 900, fontSize: 18, marginTop: 4 }}>
                 {formatDisciplineLabel({ disciplineId: session.disciplineId, disciplineName: session.discipline?.name })}
+                {session.teacher?.name ? <span style={{ fontWeight: 700 }}> · {session.teacher.name}</span> : null}
               </div>
               <div style={{ color: "#374151", fontWeight: 900, fontSize: 16, marginTop: 2 }}>{session.group.name}</div>
               <div style={{ color: "#6b7280", marginTop: 4 }}>
@@ -182,6 +192,8 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
         attendanceEditable={attendanceOpen}
         scoresEditable={scoresEditable}
         plan={clientPlan}
+        userName={userName}
+        userRoleLabel={formatRoleLabel(actor.role)}
       />
       <section style={{ marginTop: 16, border: "1px solid #e5e7eb", borderRadius: 12, background: "white", padding: 12 }}>
         <div style={{ fontWeight: 900, marginBottom: 8 }}>История статуса занятия</div>

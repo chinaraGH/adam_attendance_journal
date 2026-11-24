@@ -46,8 +46,9 @@ function Section(props: { title: string; hint?: string; button: ReactNode; child
   );
 }
 
-function ModuleView(props: { m: ModuleTables; groupName: string; disciplineName: string; semesterName: string }) {
+function ModuleView(props: { m: ModuleTables; groupName: string; disciplineName: string; semesterName: string; teacherName: string }) {
   const { m, groupName, disciplineName } = props;
+  const meta = { groupName, disciplineName, teacherName: props.teacherName, semesterName: props.semesterName };
   const base = `Итоги_${fileSafe(groupName)}_${fileSafe(disciplineName)}_Модуль${m.moduleNo}`;
   const lessonsFound = m.lessons.length;
   return (
@@ -65,7 +66,7 @@ function ModuleView(props: { m: ModuleTables; groupName: string; disciplineName:
       <Section
         title="1. Итог модуля"
         hint="Баллы по видам контроля и итог за модуль."
-        button={<ExportTableButton filename={`${base}_итог.xlsx`} sheetName={`Итог модуль ${m.moduleNo}`} rows={summarySheet(m)} />}
+        button={<ExportTableButton filename={`${base}_итог.xlsx`} sheet={summarySheet(m, meta)} />}
       >
         <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 560 }}>
           <thead>
@@ -96,7 +97,7 @@ function ModuleView(props: { m: ModuleTables; groupName: string; disciplineName:
       <Section
         title="2. Баллы по занятиям"
         hint="За каждое занятие: баллы за посещение и за текущий контроль, затем СРС, рубежный контроль и итог модуля."
-        button={<ExportTableButton filename={`${base}_баллы_по_занятиям.xlsx`} sheetName={`Баллы модуль ${m.moduleNo}`} rows={pointsSheet(m)} />}
+        button={<ExportTableButton filename={`${base}_баллы_по_занятиям.xlsx`} sheet={pointsSheet(m, meta)} />}
       >
         <table style={{ borderCollapse: "collapse", minWidth: 560 }}>
           <thead>
@@ -146,7 +147,7 @@ function ModuleView(props: { m: ModuleTables; groupName: string; disciplineName:
       <Section
         title="3. Посещаемость по занятиям"
         hint="Отметка каждого студента за каждое занятие, сколько пропущено и процент пропусков."
-        button={<ExportTableButton filename={`${base}_посещаемость.xlsx`} sheetName={`Посещаемость модуль ${m.moduleNo}`} rows={attendanceSheet(m)} />}
+        button={<ExportTableButton filename={`${base}_посещаемость.xlsx`} sheet={attendanceSheet(m, meta)} />}
       >
         <table style={{ borderCollapse: "collapse", minWidth: 560 }}>
           <thead>
@@ -284,7 +285,7 @@ export default async function PointsReportPage(props: { searchParams: { cardId?:
             </table>
           </div>
         ) : (
-          <ModuleView m={report.modules[view === "1" ? 0 : 1]} groupName={report.groupName} disciplineName={report.disciplineName} semesterName={report.semesterName} />
+          <ModuleView m={report.modules[view === "1" ? 0 : 1]} groupName={report.groupName} disciplineName={report.disciplineName} semesterName={report.semesterName} teacherName={card.teacher.name} />
         )}
       </main>
     );

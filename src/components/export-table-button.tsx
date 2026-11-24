@@ -1,29 +1,28 @@
 "use client";
 
-import * as XLSX from "xlsx";
-
-type Cell = string | number | null;
+import { buildXlsx, XLSX_MIME, type XSheet } from "@/lib/xlsx/styled-xlsx";
 
 type ExportTableButtonProps = {
   /** Имя файла с расширением, например «Итоги_УБ-4-23_модуль1.xlsx» */
   filename: string;
-  /** Название листа (до 31 символа, без символов : \ / ? * [ ]) */
-  sheetName: string;
-  /** Строки таблицы; числа остаются числами, чтобы в Excel их можно было суммировать */
-  rows: Cell[][];
+  /** Оформленный лист: заголовки, цвета, объединения. Числа остаются числами. */
+  sheet: XSheet;
   label?: string;
 };
 
-export function ExportTableButton({ filename, sheetName, rows, label = "Скачать Excel" }: ExportTableButtonProps) {
+export function ExportTableButton({ filename, sheet, label = "Скачать Excel" }: ExportTableButtonProps) {
   const handleExport = () => {
-    if (!rows || rows.length === 0) return;
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    const first = rows[0] ?? [];
-    ws["!cols"] = first.map((_, i) => ({ wch: i === 0 ? 34 : 14 }));
-    const wb = XLSX.utils.book_new();
-    const safeName = sheetName.replace(/[:\\/?*[\]]/g, " ").trim().slice(0, 31) || "Лист1";
-    XLSX.utils.book_append_sheet(wb, ws, safeName);
-    XLSX.writeFile(wb, filename);
+    if (!sheet || sheet.cells.length === 0) return;
+    const bytes = buildXlsx(sheet);
+    const blob = new Blob([bytes as BlobPart], { type: XLSX_MIME });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (
