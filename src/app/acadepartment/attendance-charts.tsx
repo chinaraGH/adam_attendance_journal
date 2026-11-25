@@ -919,7 +919,7 @@ export function AcadepartmentNavButtons(props: {
           ))}
         </select>
       </form>
-      <Link href="/acadepartment/points" style={office.btnPrimary}>
+      <Link href="/acadepartment/points" style={office.btnOutline}>
         Баллы и модули
       </Link>
       <Link href="/points-report" style={office.btnOutline}>

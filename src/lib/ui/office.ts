@@ -16,7 +16,7 @@ export const h2: CSSProperties = { fontSize: 17, fontWeight: 800, margin: 0, col
 export const hint: CSSProperties = { color: "#6b7280", fontSize: 13, marginTop: 4 };
 
 export const card: CSSProperties = { border: "1px solid #e5e7eb", borderRadius: 14, background: "white", padding: 16, marginTop: 16 };
-export const subCard: CSSProperties = { border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, display: "grid", gap: 8, alignContent: "start" };
+export const subCard: CSSProperties = { border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, display: "flex", flexDirection: "column", gap: 8 };
 
 const controlBase: CSSProperties = {
   boxSizing: "border-box",
@@ -75,7 +75,7 @@ export const btnSmall: CSSProperties = {
 };
 
 export const btnSmallOutline: CSSProperties = { ...btnSmall, background: "white", color: "#111827" };
-export const btnSmallDanger: CSSProperties = { ...btnSmall, border: "1px solid #991b1b", background: "#991b1b" };
+export const btnSmallDanger: CSSProperties = { ...btnSmall, border: "1px solid #991b1b", background: "white", color: "#991b1b" };
 
 /** Переключатель-фильтр. */
 export function chip(active: boolean): CSSProperties {

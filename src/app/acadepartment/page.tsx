@@ -6,7 +6,7 @@ import { buildAcadepartmentAttendanceCharts } from "@/lib/academic/build-acadepa
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 
-import { btnPrimary, btnSmall, btnSmallDanger, card, chip, field, fmtDateTime, fmtTime, h1, h2, hint, listItem, notice, page, subCard, subtitle, td, th, tableWrap } from "@/lib/ui/office";
+import { btnPrimary, btnSmallDanger, btnSmallOutline, card, chip, field, fmtDateTime, fmtTime, h1, h2, hint, listItem, notice, page, subCard, subtitle, td, th, tableWrap } from "@/lib/ui/office";
 
 import { AcadepartmentChartsWithFilters, AcadepartmentNavButtons } from "./attendance-charts";
 
@@ -621,7 +621,7 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
                       <form action={setClassSessionCancelledState}>
                         <input type="hidden" name="classSessionId" value={s.id} />
                         <input type="hidden" name="next" value={isCancelled ? "restore" : "cancel"} />
-                        <button type="submit" style={isCancelled ? { ...btnSmall, minWidth: 128 } : { ...btnSmallDanger, minWidth: 128 }}>
+                        <button type="submit" style={isCancelled ? { ...btnSmallOutline, minWidth: 140 } : { ...btnSmallDanger, minWidth: 140 }}>
                           {isCancelled ? "Вернуть занятие" : "Отменить"}
                         </button>
                       </form>
@@ -657,12 +657,12 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
       <section style={card}>
         <h2 style={h2}>Справочники</h2>
         <div style={hint}>Ручной ввод: факультет, кафедра, образовательная программа, дисциплина.</div>
-        <div style={{ marginTop: 12, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", alignItems: "start" }}>
+        <div style={{ marginTop: 12, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", alignItems: "stretch" }}>
           <form action={createFaculty} style={subCard}>
             <div style={{ fontWeight: 800 }}>Факультет</div>
             <input name="name" placeholder="Наименование" required style={field} />
             <input name="code" placeholder="Код (необязательно)" style={field} />
-            <button type="submit" style={{ ...btnPrimary, width: "100%" }}>
+            <button type="submit" style={{ ...btnPrimary, width: "100%", marginTop: "auto" }}>
               Добавить факультет
             </button>
           </form>
@@ -679,7 +679,7 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
             </select>
             <input name="name" placeholder="Наименование" required style={field} />
             <input name="code" placeholder="Код (необязательно)" style={field} />
-            <button type="submit" style={{ ...btnPrimary, width: "100%" }}>
+            <button type="submit" style={{ ...btnPrimary, width: "100%", marginTop: "auto" }}>
               Добавить кафедру
             </button>
           </form>
@@ -704,7 +704,7 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
             </select>
             <input name="name" placeholder="Наименование" required style={field} />
             <input name="code" placeholder="Код (необязательно)" style={field} />
-            <button type="submit" style={{ ...btnPrimary, width: "100%" }}>
+            <button type="submit" style={{ ...btnPrimary, width: "100%", marginTop: "auto" }}>
               Добавить программу
             </button>
           </form>
@@ -721,7 +721,7 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
             </select>
             <input name="name" placeholder="Наименование" required style={field} />
             <input name="code" placeholder="Код, как в расписании" required style={{ ...field, textTransform: "uppercase" }} />
-            <button type="submit" style={{ ...btnPrimary, width: "100%" }}>
+            <button type="submit" style={{ ...btnPrimary, width: "100%", marginTop: "auto" }}>
               Добавить дисциплину
             </button>
           </form>
