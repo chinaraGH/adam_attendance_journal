@@ -149,7 +149,7 @@ export const STATUS_LEGEND =
 
 function percent(part: number, whole: number): number | null {
   if (whole <= 0) return null;
-  return Math.round((part / whole) * 1000) / 10;
+  return Math.round((part / whole) * 10000) / 100;
 }
 
 export function buildModuleTables(input: ModuleDataInput): ModuleTables {
@@ -222,35 +222,18 @@ export function buildModuleTables(input: ModuleDataInput): ModuleTables {
   };
 }
 
-// ---------- Оформленные листы для выгрузки в Excel ----------
+// ---------- Листы для выгрузки в Excel ----------
+// Оформление рассчитано на печать на чёрно-белом принтере: без заливок и цветов.
 
 export type SheetMeta = { groupName: string; disciplineName: string; teacherName: string; semesterName: string };
 
-const fmt = (n: number) => String(round2(n)).replace(".", ",");
+/** Число с двумя знаками после запятой в тексте заголовка: 5 → «5,00». */
+const fmt2 = (n: number) => (Math.round(n * 100) / 100).toFixed(2).replace(".", ",");
 const cell = (v: string | number | null, s: StyleKey): XCell => ({ v, s });
+/** Заголовок колонки: название, на второй строке максимум в скобках. */
+const withMax = (label: string, max: number) => `${label}\n(${fmt2(max)})`;
 
-function statusStyle(c: CanonStatus | null): StyleKey {
-  switch (c) {
-    case "P":
-      return "statusP";
-    case "O":
-      return "statusO";
-    case "NB":
-      return "statusNB";
-    case "B_PENDING":
-      return "statusBP";
-    case "B_CONFIRMED":
-      return "statusBC";
-    case "A":
-      return "statusA";
-    case "S":
-      return "statusS";
-    default:
-      return "statusNone";
-  }
-}
-
-/** Две верхние строки: заголовок и подзаголовок на всю ширину таблицы. */
+/** Две верхние строки: заголовок и подзаголовок по центру на всю ширину таблицы. */
 function titleBlock(width: number, title: string, subtitle: string) {
   const cells: XCell[][] = [[cell(title, "title")], [cell(subtitle, "subtitle")]];
   const merges: [number, number, number, number][] = [
@@ -265,10 +248,10 @@ const subtitleOf = (m: SheetMeta) => `${m.disciplineName} · ${m.teacherName} ·
 export function attendanceSheet(t: ModuleTables, meta: SheetMeta): XSheet {
   const L = t.lessons.length;
   const width = 1 + L + 4;
-  const { cells, merges } = titleBlock(width, `Посещаемость по занятиям · ${meta.groupName} · Модуль ${t.moduleNo}`, subtitleOf(meta));
+  const { cells, merges } = titleBlock(width, `Посещаемость модуля ${t.moduleNo}, группа ${meta.groupName}`, subtitleOf(meta));
 
   cells.push([
-    cell("Студент", "headLeft"),
+    cell("Студент", "head"),
     ...t.lessons.map((l) => cell(`${l.no}\n${l.date}`, "head")),
     cell("Был", "head"),
     cell("Пропущено", "head"),
@@ -277,14 +260,13 @@ export function attendanceSheet(t: ModuleTables, meta: SheetMeta): XSheet {
   ]);
 
   t.attendance.forEach((r, i) => {
-    const b = i % 2 === 1;
     cells.push([
-      cell(`${i + 1}. ${r.name}`, b ? "nameBand" : "name"),
-      ...r.cells.map((c) => cell(statusShort(c), statusStyle(c))),
-      cell(r.present, b ? "numBand" : "num"),
-      cell(r.missed, r.missed > 0 ? (b ? "alertBand" : "alert") : b ? "numBand" : "num"),
-      cell(r.excused, b ? "numBand" : "num"),
-      r.missedPercent === null ? cell("—", b ? "dashBand" : "dash") : cell(r.missedPercent, b ? "pctBand" : "pct"),
+      cell(`${i + 1}. ${r.name}`, "name"),
+      ...r.cells.map((c) => cell(statusShort(c), "status")),
+      cell(r.present, "int"),
+      cell(r.missed, "int"),
+      cell(r.excused, "int"),
+      r.missedPercent === null ? cell("—", "dash") : cell(r.missedPercent, "pct"),
     ]);
   });
 
@@ -297,33 +279,33 @@ export function attendanceSheet(t: ModuleTables, meta: SheetMeta): XSheet {
     name: `Посещаемость, модуль ${t.moduleNo}`,
     cells,
     merges,
-    colWidths: [34, ...t.lessons.map(() => 7), 9, 12, 13, 14],
+    colWidths: [34, ...t.lessons.map(() => 8), 10, 13, 14, 16],
     freeze: { rows: 3, cols: 1 },
-    rowHeights: { 0: 26, 1: 20, 2: 36, [legendRow]: 44 },
+    rowHeights: { 0: 26, 1: 20, 2: 34, [legendRow]: 44 },
   };
 }
 
 export function pointsSheet(t: ModuleTables, meta: SheetMeta): XSheet {
   const L = t.lessons.length;
   const width = 1 + L * 2 + 5;
-  const { cells, merges } = titleBlock(width, `Баллы по занятиям · ${meta.groupName} · Модуль ${t.moduleNo}`, subtitleOf(meta));
+  const { cells, merges } = titleBlock(width, `Баллы по занятиям модуля ${t.moduleNo}, группа ${meta.groupName}`, subtitleOf(meta));
 
-  // две строки заголовка: номер занятия с датой, под ним «Пос.» и «Тек.» с максимумами
-  const top: XCell[] = [cell("Студент", "headLeft")];
-  const sub: XCell[] = [cell(null, "headLeft")];
+  // две строки заголовка: номер занятия с датой, под ним «Пос.» и «Тек.» с максимумами в скобках
+  const top: XCell[] = [cell("Студент", "head")];
+  const sub: XCell[] = [cell(null, "head")];
   merges.push([2, 0, 3, 0]);
   t.lessons.forEach((l, k) => {
     const c = 1 + k * 2;
     top.push(cell(`Занятие ${l.no}\n${l.date}`, "head"), cell(null, "head"));
-    sub.push(cell(`Пос.\n${fmt(l.attendanceMax)}`, "headSub"), cell(`Тек.\n${fmt(l.scoreMax)}`, "headSub"));
+    sub.push(cell(withMax("Пос.", l.attendanceMax), "head"), cell(withMax("Тек.", l.scoreMax), "head"));
     merges.push([2, c, 2, c + 1]);
   });
   const totals = [
-    "Посещ.\nсумма",
-    "Текущий\nсумма",
-    `СРС\nмакс. ${fmt(t.max.selfWork)}`,
-    `РК\nмакс. ${fmt(t.max.border)}`,
-    `Итого\nмакс. ${fmt(t.max.total)}`,
+    withMax("Посещ.", t.max.attendance),
+    withMax("Текущий", t.max.current),
+    withMax("СРС", t.max.selfWork),
+    withMax("РК", t.max.border),
+    withMax("Итого", t.max.total),
   ];
   totals.forEach((label, k) => {
     const c = 1 + L * 2 + k;
@@ -334,20 +316,17 @@ export function pointsSheet(t: ModuleTables, meta: SheetMeta): XSheet {
   cells.push(top, sub);
 
   t.points.forEach((r, i) => {
-    const b = i % 2 === 1;
-    const num: StyleKey = b ? "numBand" : "num";
-    const dash: StyleKey = b ? "dashBand" : "dash";
     cells.push([
-      cell(`${i + 1}. ${r.name}`, b ? "nameBand" : "name"),
+      cell(`${i + 1}. ${r.name}`, "name"),
       ...r.cells.flatMap((c) => [
-        c.attendance === null ? cell("—", dash) : cell(c.attendance, num),
-        c.current === null ? cell("—", dash) : cell(c.current, num),
+        c.attendance === null ? cell("—", "dash") : cell(c.attendance, "num"),
+        c.current === null ? cell("—", "dash") : cell(c.current, "num"),
       ]),
-      cell(r.attendanceSum, num),
-      cell(r.currentSum, num),
-      cell(r.selfWork, num),
-      cell(r.border, num),
-      cell(r.total, b ? "totalBand" : "total"),
+      cell(r.attendanceSum, "num"),
+      cell(r.currentSum, "num"),
+      cell(r.selfWork, "num"),
+      cell(r.border, "num"),
+      cell(r.total, "total"),
     ]);
   });
 
@@ -355,7 +334,7 @@ export function pointsSheet(t: ModuleTables, meta: SheetMeta): XSheet {
     name: `Баллы, модуль ${t.moduleNo}`,
     cells,
     merges,
-    colWidths: [34, ...t.lessons.flatMap(() => [8, 8]), 13, 13, 11, 11, 11],
+    colWidths: [34, ...t.lessons.flatMap(() => [10, 10]), 13, 13, 12, 12, 12],
     freeze: { rows: 4, cols: 1 },
     rowHeights: { 0: 26, 1: 20, 2: 32, 3: 32 },
   };
@@ -363,25 +342,23 @@ export function pointsSheet(t: ModuleTables, meta: SheetMeta): XSheet {
 
 export function summarySheet(t: ModuleTables, meta: SheetMeta): XSheet {
   const width = 6;
-  const { cells, merges } = titleBlock(width, `Итог модуля · ${meta.groupName} · Модуль ${t.moduleNo}`, subtitleOf(meta));
+  const { cells, merges } = titleBlock(width, `Итог модуля ${t.moduleNo}, группа ${meta.groupName}`, subtitleOf(meta));
   cells.push([
-    cell("Студент", "headLeft"),
-    cell(`Посещаемость\nмакс. ${fmt(t.max.attendance)}`, "head"),
-    cell(`Текущий контроль\nмакс. ${fmt(t.max.current)}`, "head"),
-    cell(`СРС\nмакс. ${fmt(t.max.selfWork)}`, "head"),
-    cell(`Рубежный контроль\nмакс. ${fmt(t.max.border)}`, "head"),
-    cell(`Итого за модуль\nмакс. ${fmt(t.max.total)}`, "head"),
+    cell("Студент", "head"),
+    cell(withMax("Посещаемость", t.max.attendance), "head"),
+    cell(withMax("Текущий контроль", t.max.current), "head"),
+    cell(withMax("СРС", t.max.selfWork), "head"),
+    cell(withMax("Рубежный контроль", t.max.border), "head"),
+    cell(withMax("Итого за модуль", t.max.total), "head"),
   ]);
   t.summary.forEach((r, i) => {
-    const b = i % 2 === 1;
-    const num: StyleKey = b ? "numBand" : "num";
     cells.push([
-      cell(`${i + 1}. ${r.name}`, b ? "nameBand" : "name"),
-      cell(r.attendance, num),
-      cell(r.current, num),
-      cell(r.selfWork, num),
-      cell(r.border, num),
-      cell(r.total, b ? "totalBand" : "total"),
+      cell(`${i + 1}. ${r.name}`, "name"),
+      cell(r.attendance, "num"),
+      cell(r.current, "num"),
+      cell(r.selfWork, "num"),
+      cell(r.border, "num"),
+      cell(r.total, "total"),
     ]);
   });
   if (t.summary.length > 0) {
@@ -399,8 +376,8 @@ export function summarySheet(t: ModuleTables, meta: SheetMeta): XSheet {
     name: `Итог, модуль ${t.moduleNo}`,
     cells,
     merges,
-    colWidths: [34, 16, 18, 12, 18, 18],
+    colWidths: [34, 17, 19, 12, 19, 18],
     freeze: { rows: 3, cols: 1 },
-    rowHeights: { 0: 26, 1: 20, 2: 36 },
+    rowHeights: { 0: 26, 1: 20, 2: 34 },
   };
 }

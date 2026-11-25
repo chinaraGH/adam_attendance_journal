@@ -10,33 +10,16 @@ export type StyleKey =
   | "title"
   | "subtitle"
   | "head"
-  | "headLeft"
-  | "headSub"
-  | "maxName"
-  | "max"
   | "name"
-  | "nameBand"
   | "num"
-  | "numBand"
-  | "total"
-  | "totalBand"
+  | "int"
   | "pct"
-  | "pctBand"
   | "dash"
-  | "dashBand"
-  | "alert"
-  | "alertBand"
+  | "status"
+  | "total"
   | "avgName"
   | "avg"
-  | "legend"
-  | "statusP"
-  | "statusO"
-  | "statusNB"
-  | "statusBP"
-  | "statusBC"
-  | "statusA"
-  | "statusS"
-  | "statusNone";
+  | "legend";
 
 export type XCell = { v: string | number | null; s: StyleKey };
 
@@ -59,50 +42,34 @@ type StyleSpec = {
   italic?: boolean;
   size?: number;
   color?: string; // RRGGBB
-  fill?: string; // RRGGBB
+  fill?: string; // RRGGBB (в таблицах итогов не используется: при печати заливки дают «грязь»)
   border?: boolean;
   h?: "left" | "center" | "right";
   v?: "center" | "top";
   wrap?: boolean;
-  numFmt?: string;
+  /** Отступ от края в «уровнях» Excel (для выравнивания по правому полю с отступом). */
+  indent?: number;
+  /** Встроенный номер формата (2 = «0,00», 1 = «0») или свой код формата. */
+  numFmt?: string | number;
 };
 
-const INK = "111827";
-const GRAY = "6B7280";
-const BAND = "F3F4F6";
-const TOTAL = "E8EEF9";
+const INK = "000000";
 
+// Без заливок и цветов: таблицы печатаются на чёрно-белом принтере.
 const STYLES: Record<StyleKey, StyleSpec> = {
-  title: { bold: true, size: 15, color: INK, h: "left", v: "center" },
-  subtitle: { size: 11, color: "4B5563", h: "left", v: "center" },
-  head: { bold: true, color: "FFFFFF", fill: INK, border: true, h: "center", v: "center", wrap: true },
-  headLeft: { bold: true, color: "FFFFFF", fill: INK, border: true, h: "left", v: "center", wrap: true },
-  headSub: { bold: true, size: 10, color: INK, fill: "E5E7EB", border: true, h: "center", v: "center", wrap: true },
-  maxName: { italic: true, color: GRAY, fill: "E5E7EB", border: true, h: "left", v: "center" },
-  max: { italic: true, color: GRAY, fill: "E5E7EB", border: true, h: "center", v: "center" },
-  name: { bold: true, color: INK, border: true, h: "left", v: "center" },
-  nameBand: { bold: true, color: INK, fill: BAND, border: true, h: "left", v: "center" },
-  num: { color: INK, border: true, h: "center", v: "center" },
-  numBand: { color: INK, fill: BAND, border: true, h: "center", v: "center" },
-  total: { bold: true, color: INK, fill: TOTAL, border: true, h: "center", v: "center" },
-  totalBand: { bold: true, color: INK, fill: "DDE6F5", border: true, h: "center", v: "center" },
-  pct: { color: INK, border: true, h: "center", v: "center", numFmt: '0.0"%"' },
-  pctBand: { color: INK, fill: BAND, border: true, h: "center", v: "center", numFmt: '0.0"%"' },
-  dash: { color: "9CA3AF", border: true, h: "center", v: "center" },
-  dashBand: { color: "9CA3AF", fill: BAND, border: true, h: "center", v: "center" },
-  alert: { bold: true, color: "991B1B", border: true, h: "center", v: "center" },
-  alertBand: { bold: true, color: "991B1B", fill: BAND, border: true, h: "center", v: "center" },
-  avgName: { bold: true, color: INK, fill: "E5E7EB", border: true, h: "left", v: "center" },
-  avg: { bold: true, color: INK, fill: "E5E7EB", border: true, h: "center", v: "center" },
-  legend: { italic: true, size: 9, color: GRAY, h: "left", v: "top", wrap: true },
-  statusP: { bold: true, color: "166534", fill: "DCFCE7", border: true, h: "center", v: "center" },
-  statusO: { bold: true, color: "92400E", fill: "FEF3C7", border: true, h: "center", v: "center" },
-  statusNB: { bold: true, color: "991B1B", fill: "FEE2E2", border: true, h: "center", v: "center" },
-  statusBP: { bold: true, color: "1E40AF", fill: "DBEAFE", border: true, h: "center", v: "center" },
-  statusBC: { bold: true, color: "1E3A8A", fill: "BFDBFE", border: true, h: "center", v: "center" },
-  statusA: { bold: true, color: "374151", fill: "E5E7EB", border: true, h: "center", v: "center" },
-  statusS: { bold: true, color: GRAY, fill: BAND, border: true, h: "center", v: "center" },
-  statusNone: { color: "9CA3AF", border: true, h: "center", v: "center" },
+  title: { bold: true, size: 14, color: INK, h: "center", v: "center" },
+  subtitle: { size: 11, color: INK, h: "center", v: "center" },
+  head: { bold: true, color: INK, border: true, h: "center", v: "top", wrap: true },
+  name: { color: INK, border: true, h: "left", v: "center" },
+  num: { color: INK, border: true, h: "right", v: "center", indent: 2, numFmt: 2 },
+  int: { color: INK, border: true, h: "right", v: "center", indent: 2, numFmt: 1 },
+  pct: { color: INK, border: true, h: "right", v: "center", indent: 2, numFmt: '0.00"%"' },
+  dash: { color: INK, border: true, h: "right", v: "center", indent: 2 },
+  status: { color: INK, border: true, h: "center", v: "center" },
+  total: { bold: true, color: INK, border: true, h: "right", v: "center", indent: 2, numFmt: 2 },
+  avgName: { bold: true, color: INK, border: true, h: "left", v: "center" },
+  avg: { bold: true, color: INK, border: true, h: "right", v: "center", indent: 2, numFmt: 2 },
+  legend: { italic: true, size: 9, color: INK, h: "left", v: "top", wrap: true },
 };
 
 const STYLE_KEYS = Object.keys(STYLES) as StyleKey[];
@@ -160,6 +127,7 @@ function stylesXml(): string {
   };
   const fmtId = (sp: StyleSpec) => {
     if (!sp.numFmt) return 0;
+    if (typeof sp.numFmt === "number") return sp.numFmt;
     if (!fmtIndex.has(sp.numFmt)) {
       const id = 164 + fmtIndex.size;
       fmtIndex.set(sp.numFmt, id);
@@ -171,7 +139,7 @@ function stylesXml(): string {
   fonts.push(`<font><sz val="11"/><color rgb="FF${INK}"/><name val="Calibri"/><family val="2"/></font>`);
   fontIndex.set(fonts[0], 0);
 
-  const line = '<color rgb="FFD1D5DB"/>';
+  const line = '<color rgb="FF000000"/>';
   const borders = [
     "<border><left/><right/><top/><bottom/><diagonal/></border>",
     `<border><left style="thin">${line}</left><right style="thin">${line}</right><top style="thin">${line}</top><bottom style="thin">${line}</bottom><diagonal/></border>`,
@@ -180,7 +148,7 @@ function stylesXml(): string {
   const xfs = STYLE_KEYS.map((k) => {
     const sp = STYLES[k];
     const nf = fmtId(sp);
-    const align = `<alignment horizontal="${sp.h ?? "left"}" vertical="${sp.v ?? "center"}"${sp.wrap ? ' wrapText="1"' : ""}/>`;
+    const align = `<alignment horizontal="${sp.h ?? "left"}" vertical="${sp.v ?? "center"}"${sp.wrap ? ' wrapText="1"' : ""}${sp.indent ? ` indent="${sp.indent}"` : ""}/>`;
     return `<xf numFmtId="${nf}" fontId="${fontId(sp)}" fillId="${fillId(sp)}" borderId="${sp.border ? 1 : 0}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"${nf ? ' applyNumberFormat="1"' : ""}>${align}</xf>`;
   });
 
