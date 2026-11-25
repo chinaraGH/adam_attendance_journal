@@ -1,17 +1,35 @@
-import Link from "next/link";
-
 import { prisma } from "@/lib/prisma";
-import { ExportExcelButton } from "@/components/export-excel-button";
+import { ExportTableButton } from "@/components/export-table-button";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
-import { formatAttendanceStatusDisplay } from "@/lib/ui/labels";
+import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
+import { buildGroupMatrix, groupMatrixSheet } from "@/lib/points/group-matrix";
+import { statusShort, STATUS_LEGEND, type CanonStatus } from "@/lib/points/module-tables";
+
+export const dynamic = "force-dynamic";
+
+const th = { padding: "8px 8px", textAlign: "right" as const, fontSize: 12, color: "#374151", fontWeight: 800, whiteSpace: "nowrap" as const, borderBottom: "1px solid #e5e7eb" };
+const td = { padding: "8px 8px", textAlign: "right" as const, fontSize: 14, borderBottom: "1px solid #f3f4f6", whiteSpace: "nowrap" as const };
+const stickyName = { position: "sticky" as const, left: 0, background: "white", zIndex: 1 };
+const center = { textAlign: "center" as const };
+const STATUS_COLORS: Record<CanonStatus, { bg: string; fg: string }> = {
+  P: { bg: "#dcfce7", fg: "#166534" },
+  O: { bg: "#fef3c7", fg: "#92400e" },
+  NB: { bg: "#fee2e2", fg: "#991b1b" },
+  B_PENDING: { bg: "#dbeafe", fg: "#1e40af" },
+  B_CONFIRMED: { bg: "#bfdbfe", fg: "#1e3a8a" },
+  A: { bg: "#e5e7eb", fg: "#374151" },
+  S: { bg: "#f3f4f6", fg: "#6b7280" },
+};
+const pct = (n: number | null) => (n === null ? "—" : `${String(n).replace(".", ",")}%`);
+const fileSafe = (t: string) => t.replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, "_");
 
 export default async function AdminGroupReportPage(props: { params: { groupId: string } }) {
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "ADMIN" && actor.role !== "ACADEMIC_OFFICE") {
     return (
-      <main className="mx-auto max-w-[1100px] p-6">
-        <h1 className="text-2xl font-black">Отчет по группе</h1>
-        <p className="mt-3 text-sm text-gray-600">Недостаточно прав.</p>
+      <main style={{ padding: 16, maxWidth: 1200, margin: "0 auto" }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Отчет по группе</h1>
+        <p style={{ marginTop: 8, fontSize: 14, color: "#6b7280" }}>Недостаточно прав.</p>
       </main>
     );
   }
@@ -24,9 +42,9 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
   });
   if (!group) {
     return (
-      <main className="mx-auto max-w-[1100px] p-6">
-        <h1 className="text-2xl font-black">Отчет по группе</h1>
-        <p className="mt-3 text-sm text-gray-600">Группа не найдена.</p>
+      <main style={{ padding: 16, maxWidth: 1200, margin: "0 auto" }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Отчет по группе</h1>
+        <p style={{ marginTop: 8, fontSize: 14, color: "#6b7280" }}>Группа не найдена.</p>
       </main>
     );
   }
@@ -35,11 +53,11 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
     (await prisma.semester.findFirst({
       where: { isLocked: false },
       orderBy: { startDate: "desc" },
-      select: { id: true },
+      select: { id: true, name: true },
     })) ??
     (await prisma.semester.findFirst({
       orderBy: { startDate: "desc" },
-      select: { id: true },
+      select: { id: true, name: true },
     }));
 
   const sessions =
@@ -67,12 +85,10 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
           select: { studentId: true, classSessionId: true, statusV2: true, status: true },
         });
 
-  const cell = new Map<string, string>();
+  const statusByKey = new Map<string, CanonStatus>();
   for (const a of attendance) {
-    cell.set(
-      `${a.studentId}:${a.classSessionId}`,
-      formatAttendanceStatusDisplay({ statusV2: a.statusV2, status: a.status }),
-    );
+    const c = getCanonicalAttendanceStatusV2({ statusV2: a.statusV2, status: a.status });
+    if (c) statusByKey.set(`${a.studentId}:${a.classSessionId}`, c as CanonStatus);
   }
 
   const abbrevMap: Record<string, string> = {
@@ -89,69 +105,93 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
     LIT: "ЛИТ",
     PE: "ФИЗРА",
   };
-
   const translateCode = (code: string | null) => {
     if (!code) return "-";
     return abbrevMap[code.toUpperCase()] || code;
   };
 
-  const excelData = students.map((s) => {
-    const row: any = { Студент: s.name };
-    for (const session of sessions) {
-      const dateStr = new Date(session.startTime).toLocaleDateString("ru-RU").slice(0, 10);
-      const codeStr = translateCode(session.discipline?.code ?? null);
-      const header = `${dateStr} ${codeStr}`;
-      const status = cell.get(`${s.id}:${session.id}`) ?? "";
-      row[header] = status;
-    }
-    return row;
+  const matrix = buildGroupMatrix({
+    sessions: sessions.map((s) => ({ id: s.id, startTime: s.startTime, disciplineShort: translateCode(s.discipline?.code ?? null) })),
+    students,
+    statusOf: (sessionId, studentId) => statusByKey.get(`${studentId}:${sessionId}`) ?? null,
   });
+  const semesterName = semester?.name ?? "семестр";
+  const sheet = groupMatrixSheet(matrix, { groupName: group.name, semesterName });
 
   return (
-    <main className="mx-auto max-w-[1100px] p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black">
-            {group.name} <span className="text-sm font-bold text-gray-600">{group.code ?? ""}</span>
-          </h1>
-          <div className="mt-1 text-sm text-gray-600">Отчет группы (просмотр для учебной части/админа)</div>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link className="font-bold underline" href="/acadepartment">
-            ← Поиск
-          </Link>
-          <ExportExcelButton filename={`group-${groupId}.xlsx`} data={excelData} />
-        </div>
+    <main style={{ padding: 16, maxWidth: 1200, margin: "0 auto" }}>
+      <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>
+        Ведомость группы {group.name}
+        {group.code ? <span style={{ fontSize: 14, fontWeight: 700, color: "#6b7280" }}> · {group.code}</span> : null}
+      </h1>
+      <div style={{ fontWeight: 700, marginTop: 2 }}>Посещаемость · {semesterName}</div>
+      <div style={{ color: "#6b7280", fontSize: 13, marginBottom: 6 }}>
+        Просмотр для учебной части. Показаны первые {matrix.columns.length} занятий семестра, студентов: {matrix.rows.length}.
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-xl border bg-white">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b text-left">
-              <th className="sticky left-0 bg-white px-3 py-2 font-black">Студент</th>
-              {sessions.map((s) => (
-                <th key={s.id} className="min-w-[60px] break-all px-3 py-2 text-xs font-bold uppercase">
-                  <div className="mb-1">{new Date(s.startTime).toLocaleDateString("ru-RU").slice(0, 10)}</div>
-                  <div className="text-[10px] text-gray-500">{translateCode(s.discipline?.code ?? null)}</div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {students.map((st) => (
-              <tr key={st.id} className="border-b last:border-b-0">
-                <td className="sticky left-0 bg-white px-3 py-2 font-bold">{st.name}</td>
-                {sessions.map((s) => (
-                  <td key={s.id} className="px-3 py-2 font-bold">
-                    {cell.get(`${st.id}:${s.id}`) ?? "—"}
-                  </td>
+      <section style={{ marginTop: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+          <div>
+            <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>Посещаемость по занятиям</h2>
+            <div style={{ color: "#6b7280", fontSize: 13, marginTop: 2 }}>{STATUS_LEGEND}</div>
+          </div>
+          <ExportTableButton filename={`Ведомость_${fileSafe(group.name)}.xlsx`} sheet={sheet} label="Скачать Excel (официальная ведомость)" />
+        </div>
+        <div style={{ overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: 12, background: "white" }}>
+          <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 560 }}>
+            <thead>
+              <tr>
+                <th style={{ ...th, textAlign: "left", ...stickyName }}>Студент</th>
+                {matrix.columns.map((c) => (
+                  <th key={c.id} style={{ ...th, ...center, padding: "8px 4px" }}>
+                    {c.date.slice(0, 5)}
+                    <br />
+                    <span style={{ fontWeight: 600 }}>{c.discipline}</span>
+                  </th>
                 ))}
+                <th style={{ ...th, borderLeft: "1px solid #f3f4f6" }}>П</th>
+                <th style={th}>О</th>
+                <th style={th}>НБ</th>
+                <th style={th}>Б</th>
+                <th style={th}>А</th>
+                <th style={th}>% пропусков</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {matrix.rows.map((r, i) => (
+                <tr key={r.studentId}>
+                  <td style={{ ...td, textAlign: "left", fontWeight: 700, ...stickyName }}>
+                    {i + 1}. {r.name}
+                  </td>
+                  {r.cells.map((c, k) => {
+                    const col = c ? STATUS_COLORS[c] : null;
+                    return (
+                      <td key={k} style={{ ...td, ...center, padding: "6px 4px" }}>
+                        <span style={{ display: "inline-block", minWidth: 30, borderRadius: 8, padding: "3px 6px", fontWeight: 800, fontSize: 13, background: col?.bg ?? "transparent", color: col?.fg ?? "#9ca3af" }}>
+                          {statusShort(c)}
+                        </span>
+                      </td>
+                    );
+                  })}
+                  <td style={{ ...td, borderLeft: "1px solid #f3f4f6" }}>{r.counts.P}</td>
+                  <td style={td}>{r.counts.O}</td>
+                  <td style={td}>{r.counts.NB}</td>
+                  <td style={td}>{r.counts.B}</td>
+                  <td style={td}>{r.counts.A}</td>
+                  <td style={td}>{pct(r.missedPercent)}</td>
+                </tr>
+              ))}
+              {matrix.rows.length === 0 ? (
+                <tr>
+                  <td style={{ ...td, textAlign: "left", color: "#6b7280" }} colSpan={matrix.columns.length + 7}>
+                    В группе нет студентов.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </main>
   );
 }
-
