@@ -6,7 +6,7 @@ import { buildAcadepartmentAttendanceCharts } from "@/lib/academic/build-acadepa
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 
-import { btnPrimary, btnSmallDanger, btnSmallOutline, card, chip, field, fmtDateTime, fmtTime, h1, h2, hint, listItem, notice, page, subCard, subtitle, td, th, tableWrap } from "@/lib/ui/office";
+import { btnOutline, btnPrimary, btnSmallDanger, btnSmallOutline, card, field, fmtDateTime, fmtTime, h1, h2, hint, listItem, notice, page, subCard, subtitle, td, th, tableWrap } from "@/lib/ui/office";
 
 import { AcadepartmentChartsWithFilters, AcadepartmentNavButtons } from "./attendance-charts";
 
@@ -149,7 +149,7 @@ async function createDiscipline(formData: FormData) {
     .toUpperCase();
   const departmentIdRaw = String(formData.get("departmentId") ?? "").trim();
   const departmentId = departmentIdRaw.length > 0 ? departmentIdRaw : null;
-  if (!name || !code) return;
+  if (!name || !code || !departmentId) return;
 
   await prisma.discipline.create({
     data: {
@@ -177,8 +177,6 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
   }
 
   const q = qNorm(props.searchParams.q);
-  const semesterScopeParam = qNorm((props.searchParams as { semesterScope?: string }).semesterScope);
-  const semesterScope: "all" | "out" = semesterScopeParam === "out" ? "out" : "all";
   const semesterIdParam = qNorm((props.searchParams as { semesterId?: string }).semesterId);
   const semesterId = semesterIdParam.length > 0 ? semesterIdParam : undefined;
 
@@ -338,7 +336,6 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
     where: {
       isActive: true,
       deletedAt: null,
-      ...(semesterScope === "out" ? { outOfSemester: true } : {}),
     },
     orderBy: { startTime: "desc" },
     take: 40,
@@ -348,72 +345,12 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
       endTime: true,
       status: true,
       statusV2: true,
-      outOfSemester: true,
       group: { select: { name: true, code: true } },
       discipline: { select: { name: true, code: true } },
       teacher: { select: { name: true } },
     },
   });
-  const outOfSemesterAnomalies = await prisma.classSession.findMany({
-    where: { isActive: true, deletedAt: null, outOfSemester: true },
-    orderBy: { startTime: "desc" },
-    take: 200,
-    select: {
-      id: true,
-      group: {
-        select: {
-          id: true,
-          name: true,
-          code: true,
-          program: {
-            select: {
-              name: true,
-              department: { select: { name: true } },
-            },
-          },
-        },
-      },
-      teacher: { select: { id: true, name: true } },
-    },
-  });
-  const anomalyByDepartment = new Map<string, number>();
-  const anomalyByGroup = new Map<string, number>();
-  const anomalyByTeacher = new Map<string, number>();
-  for (const session of outOfSemesterAnomalies) {
-    const departmentName = session.group.program?.department?.name ?? "Без кафедры";
-    const groupLabel = session.group.code ?? session.group.name;
-    const teacherLabel = session.teacher?.name ?? "Без преподавателя";
-    anomalyByDepartment.set(departmentName, (anomalyByDepartment.get(departmentName) ?? 0) + 1);
-    anomalyByGroup.set(groupLabel, (anomalyByGroup.get(groupLabel) ?? 0) + 1);
-    anomalyByTeacher.set(teacherLabel, (anomalyByTeacher.get(teacherLabel) ?? 0) + 1);
-  }
-  const topDepartmentAnomalies = Array.from(anomalyByDepartment.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8);
-  const topGroupAnomalies = Array.from(anomalyByGroup.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8);
-  const topTeacherAnomalies = Array.from(anomalyByTeacher.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8);
-
   const isAdmin = actor.role === "ADMIN";
-
-  const AnomalyBox = (props: { title: string; rows: [string, number][] }) => (
-    <div style={{ ...subCard, gap: 4 }}>
-      <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 4 }}>{props.title}</div>
-      {props.rows.length === 0 ? (
-        <div style={{ fontSize: 13, color: "#6b7280" }}>Нет данных.</div>
-      ) : (
-        props.rows.map(([key, count]) => (
-          <div key={key} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 13, padding: "2px 0" }}>
-            <span>{key}</span>
-            <strong>{count}</strong>
-          </div>
-        ))
-      )}
-    </div>
-  );
 
   const ResultSection = (props: { title: string; empty: boolean; children: ReactNode }) => (
     <section style={{ ...card, marginTop: 0 }}>
@@ -438,7 +375,6 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
         <AcadepartmentNavButtons
           allSemesters={charts.allSemesters}
           currentSemesterId={semesterId}
-          semesterScopeParam={semesterScopeParam}
           qParam={q}
           isAdmin={isAdmin}
         />
@@ -546,9 +482,10 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
       </section>
 
       <section style={card}>
-        <h2 style={h2}>Студенты с наибольшим числом пропусков</h2>
-        <div style={hint}>До 15 студентов с наибольшим числом НБ в выбранном семестре.</div>
-        <div style={{ marginTop: 12 }}>
+        <details>
+          <summary style={{ ...btnOutline, display: "inline-flex", listStyle: "none", cursor: "pointer" }}>Студенты с наибольшим числом пропусков ▾</summary>
+          <div style={{ ...hint, marginTop: 10 }}>До 15 студентов с наибольшим числом НБ в выбранном семестре.</div>
+          <div style={{ marginTop: 12 }}>
           {problemStudentsList.length === 0 ? (
             <div style={hint}>Нет данных о пропусках.</div>
           ) : (
@@ -572,24 +509,17 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
               ))}
             </ol>
           )}
-        </div>
+          </div>
+        </details>
       </section>
 
       <section style={card}>
         <h2 style={h2}>Отмена занятий</h2>
         <div style={hint}>
-          Отменять и возвращать занятия можно только здесь: синхронизация расписания этим не управляет. Показаны последние 40 занятий. После изменения границ семестра запустите пересопоставление занятий.
-        </div>
-        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href={`/acadepartment${semesterId ? `?semesterId=${semesterId}` : ""}`} style={chip(semesterScope === "all")}>
-            Все занятия
-          </Link>
-          <Link href={`/acadepartment?semesterScope=out${semesterId ? `&semesterId=${semesterId}` : ""}`} style={chip(semesterScope === "out")}>
-            Только вне семестров
-          </Link>
+          Отменять и возвращать занятия можно только здесь: синхронизация расписания этим не управляет. Показаны последние 40 занятий.
         </div>
         <div style={{ ...tableWrap, marginTop: 12 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 680 }}>
             <thead>
               <tr>
                 <th style={th}>Дата и время</th>
@@ -597,7 +527,6 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
                 <th style={th}>Дисциплина</th>
                 <th style={th}>Преподаватель</th>
                 <th style={th}>Статус</th>
-                <th style={th}>Семестр</th>
                 <th style={th}>Действие</th>
               </tr>
             </thead>
@@ -616,7 +545,6 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
                     <td style={{ ...td, fontWeight: 800, color: isCancelled ? "#991b1b" : "#111827", whiteSpace: "nowrap" }}>
                       {isCancelled ? "Отменено" : "По расписанию"}
                     </td>
-                    <td style={{ ...td, whiteSpace: "nowrap" }}>{s.outOfSemester ? "Вне семестров" : "В семестре"}</td>
                     <td style={td}>
                       <form action={setClassSessionCancelledState}>
                         <input type="hidden" name="classSessionId" value={s.id} />
@@ -631,26 +559,13 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
               })}
               {sessionsForCancellation.length === 0 ? (
                 <tr>
-                  <td style={{ ...td, color: "#6b7280" }} colSpan={7}>
+                  <td style={{ ...td, color: "#6b7280" }} colSpan={6}>
                     Занятий нет.
                   </td>
                 </tr>
               ) : null}
             </tbody>
           </table>
-        </div>
-      </section>
-
-      <section style={card}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-          <h2 style={h2}>Занятия вне семестров</h2>
-          <div style={{ fontSize: 13, color: "#6b7280" }}>Всего: {outOfSemesterAnomalies.length}</div>
-        </div>
-        <div style={hint}>Контроль качества расписания: где больше всего занятий, не попавших в семестр.</div>
-        <div style={{ marginTop: 12, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-          <AnomalyBox title="По кафедрам" rows={topDepartmentAnomalies} />
-          <AnomalyBox title="По группам" rows={topGroupAnomalies} />
-          <AnomalyBox title="По преподавателям" rows={topTeacherAnomalies} />
         </div>
       </section>
 
@@ -711,8 +626,8 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
 
           <form action={createDiscipline} style={subCard}>
             <div style={{ fontWeight: 800 }}>Дисциплина</div>
-            <select name="departmentId" style={field}>
-              <option value="">Без кафедры</option>
+            <select name="departmentId" required style={field}>
+              <option value="">Выберите кафедру</option>
               {departmentsForInput.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.code ?? d.name}

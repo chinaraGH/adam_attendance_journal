@@ -931,9 +931,6 @@ export function AcadepartmentNavButtons(props: {
       <Link href="/admin/semester" style={office.btnOutline}>
         Управление семестром
       </Link>
-      <Link href="/admin/integration" style={office.btnOutline}>
-        Интеграции
-      </Link>
       {props.isAdmin ? (
         <Link href="/admin/audit" style={office.btnOutline}>
           Журнал действий
