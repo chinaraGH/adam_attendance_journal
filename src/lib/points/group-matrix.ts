@@ -3,9 +3,10 @@
  * Содержание такое же, как было раньше (дата + дисциплина в шапке, отметка в ячейке), меняется только оформление.
  */
 import type { StyleKey, XCell, XSheet } from "../xlsx/styled-xlsx";
+import type { CanonStatus } from "./module-tables";
 
 export type GroupMatrixColumn = { id: string; header: string };
-export type GroupMatrixCell = { text: string; status: string | null };
+export type GroupMatrixCell = { text: string; status: CanonStatus | null };
 export type GroupMatrixRow = { studentId: string; name: string; cells: GroupMatrixCell[] };
 export type GroupMatrix = { columns: GroupMatrixColumn[]; rows: GroupMatrixRow[] };
 
