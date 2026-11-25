@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import * as React from "react";
+import * as office from "@/lib/ui/office";
 
 import type { AcadepartmentFilterOption, AcadepartmentWeeklySeries } from "@/lib/academic/build-acadepartment-charts";
 
@@ -28,11 +29,13 @@ const outlineNavStyle: React.CSSProperties = {
   appearance: "none",
   border: "1px solid #111827",
   borderRadius: 12,
-  padding: "10px 12px",
-  fontWeight: 900,
+  boxSizing: "border-box",
+  minHeight: 44,
+  padding: "0 14px",
+  fontWeight: 800,
   fontFamily: "inherit",
-  fontSize: "inherit",
-  lineHeight: "inherit",
+  fontSize: 14,
+  lineHeight: "20px",
   textDecoration: "none",
   color: "#111827",
   background: "white",
@@ -485,7 +488,9 @@ const dateLabelStyle: React.CSSProperties = { display: "grid", gap: 6, fontWeigh
 const dateInputStyle: React.CSSProperties = {
   border: "1px solid #d1d5db",
   borderRadius: 12,
-  padding: "10px 12px",
+  boxSizing: "border-box",
+  height: 44,
+  padding: "0 12px",
   fontWeight: 700,
   fontSize: 14,
   color: "#111827",
@@ -891,33 +896,49 @@ export function AcadepartmentNavButtons(props: {
   currentSemesterId?: string;
   semesterScopeParam?: string;
   qParam?: string;
+  isAdmin?: boolean;
 }) {
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
-      <form style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+      <form style={{ margin: 0 }}>
         {props.semesterScopeParam ? <input type="hidden" name="semesterScope" value={props.semesterScopeParam} /> : null}
         {props.qParam ? <input type="hidden" name="q" value={props.qParam} /> : null}
-        <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>Семестр:</span>
         <select
           name="semesterId"
+          aria-label="Семестр"
           defaultValue={props.currentSemesterId ?? ""}
           onChange={(e) => e.currentTarget.form?.requestSubmit()}
-          style={{ ...outlineNavStyle, padding: "6px 10px", fontSize: 13 }}
+          style={{ ...office.field, width: "auto", minWidth: 220, fontWeight: 800 }}
         >
-          {!props.currentSemesterId && <option value="">Авто (текущий)</option>}
+          {!props.currentSemesterId && <option value="">Текущий семестр</option>}
           {props.allSemesters.map((s) => (
             <option key={s.id} value={s.id}>
-              {s.name ?? "Без названия"} {s.isLocked ? "(Архив)" : ""}
+              {s.name ?? "Без названия"}
+              {s.isLocked ? " (архив)" : ""}
             </option>
           ))}
         </select>
       </form>
-      <Link href="/acadepartment/ratings" style={outlineNavStyle}>
-        Рейтинг
+      <Link href="/acadepartment/points" style={office.btnPrimary}>
+        Баллы и модули
       </Link>
-      <Link href="/admin/semester" style={outlineNavStyle}>
-        Семестр
+      <Link href="/points-report" style={office.btnOutline}>
+        Итоги по группам
       </Link>
+      <Link href="/acadepartment/ratings" style={office.btnOutline}>
+        Рейтинги
+      </Link>
+      <Link href="/admin/semester" style={office.btnOutline}>
+        Управление семестром
+      </Link>
+      <Link href="/admin/integration" style={office.btnOutline}>
+        Интеграции
+      </Link>
+      {props.isAdmin ? (
+        <Link href="/admin/audit" style={office.btnOutline}>
+          Журнал действий
+        </Link>
+      ) : null}
     </div>
   );
 }

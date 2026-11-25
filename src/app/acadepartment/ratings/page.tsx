@@ -17,9 +17,9 @@ export default async function AcadepartmentRatingsPage() {
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "ADMIN" && actor.role !== "ACADEMIC_OFFICE") {
     return (
-      <main className="mx-auto max-w-[1100px] p-6">
-        <h1 className="text-2xl font-black">Рейтинги</h1>
-        <p className="mt-3 text-sm text-gray-600">Недостаточно прав.</p>
+      <main className="mx-auto max-w-[1200px] p-4">
+        <h1 className="text-[22px] font-extrabold">Рейтинги</h1>
+        <p className="mt-0.5 text-[13px] text-gray-500">Недостаточно прав.</p>
       </main>
     );
   }
@@ -143,29 +143,29 @@ export default async function AcadepartmentRatingsPage() {
     .slice(0, LIST_LIMIT);
 
   return (
-    <main className="mx-auto max-w-[1100px] p-6">
+    <main className="mx-auto max-w-[1200px] p-4">
       <div>
-        <h1 className="text-2xl font-black text-gray-900">Рейтинги</h1>
-        <p className="mt-1 text-sm text-gray-600">
+        <h1 className="text-[22px] font-extrabold text-gray-900">Рейтинги</h1>
+        <p className="mt-0.5 text-[13px] text-gray-500">
           Топ и «проблемные» группы и дисциплины по доле отметок П+О (ниже {LOW_THRESHOLD}% — проблемная зона).
         </p>
       </div>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-2">
-        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-black">Самые посещаемые группы</h2>
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <h2 className="text-[17px] font-extrabold">Самые посещаемые группы</h2>
           <Ul rows={topGroups} href={(id) => `/admin/groups/${id}`} />
         </section>
-        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-black">Наименее посещаемые группы</h2>
+        <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <h2 className="text-[17px] font-extrabold">Наименее посещаемые группы</h2>
           <Ul rows={problemGroups} href={(id) => `/admin/groups/${id}`} empty="Нет групп ниже порога или нет данных." />
         </section>
-        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-black">Самые посещаемые дисциплины (по доле П+О)</h2>
+        <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <h2 className="text-[17px] font-extrabold">Самые посещаемые дисциплины (по доле П+О)</h2>
           <DiscTable rows={topDisciplines} />
         </section>
-        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-black">Наиболее проблемные дисциплины</h2>
+        <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <h2 className="text-[17px] font-extrabold">Наиболее проблемные дисциплины</h2>
           <DiscTable rows={problemDisciplines} empty="Нет дисциплин ниже порога или нет данных." />
         </section>
       </div>

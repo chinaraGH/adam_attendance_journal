@@ -89,7 +89,9 @@ export function AppChrome() {
         : me?.role === "ADMIN" || me?.role === "ACADEMIC_OFFICE"
           ? "/acadepartment"
           : "/teacher"
-      : adminGroup
+      : pathname === "/admin/audit" || pathname === "/admin/integration"
+      ? "/acadepartment"
+      : adminGroup || /^\/admin\/students\/[^/]+$/.test(pathname)
       ? (prevPath || "/acadepartment")
       : pathname === "/curator/exemptions" || curatorExemptionsGroup
         ? "/curator"

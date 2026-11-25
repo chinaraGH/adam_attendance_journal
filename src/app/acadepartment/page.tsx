@@ -1,9 +1,12 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { revalidatePath } from "next/cache";
 
 import { buildAcadepartmentAttendanceCharts } from "@/lib/academic/build-acadepartment-charts";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
+
+import { btnPrimary, btnSmall, btnSmallDanger, card, chip, field, fmtDateTime, fmtTime, h1, h2, hint, listItem, notice, page, subCard, subtitle, td, th, tableWrap } from "@/lib/ui/office";
 
 import { AcadepartmentChartsWithFilters, AcadepartmentNavButtons } from "./attendance-charts";
 
@@ -166,9 +169,9 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "ADMIN" && actor.role !== "ACADEMIC_OFFICE") {
     return (
-      <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 900 }}>Учебная часть</h1>
-        <p style={{ marginTop: 12, fontSize: 14, color: "#6b7280", fontWeight: 600 }}>Недостаточно прав.</p>
+      <main style={page}>
+        <h1 style={h1}>Учебная часть</h1>
+        <p style={subtitle}>Недостаточно прав.</p>
       </main>
     );
   }
@@ -394,48 +397,55 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8);
 
+  const isAdmin = actor.role === "ADMIN";
+
+  const AnomalyBox = (props: { title: string; rows: [string, number][] }) => (
+    <div style={{ ...subCard, gap: 4 }}>
+      <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 4 }}>{props.title}</div>
+      {props.rows.length === 0 ? (
+        <div style={{ fontSize: 13, color: "#6b7280" }}>Нет данных.</div>
+      ) : (
+        props.rows.map(([key, count]) => (
+          <div key={key} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 13, padding: "2px 0" }}>
+            <span>{key}</span>
+            <strong>{count}</strong>
+          </div>
+        ))
+      )}
+    </div>
+  );
+
+  const ResultSection = (props: { title: string; empty: boolean; children: ReactNode }) => (
+    <section style={{ ...card, marginTop: 0 }}>
+      <h3 style={{ ...h2, fontSize: 15 }}>{props.title}</h3>
+      {props.empty ? (
+        <div style={{ ...hint, marginTop: 8 }}>Нет результатов.</div>
+      ) : (
+        <ul style={{ marginTop: 10, display: "grid", gap: 8, padding: 0, listStyle: "none" }}>{props.children}</ul>
+      )}
+    </section>
+  );
+
+  const linkStyle = { color: "#111827", fontWeight: 800, textDecoration: "underline" } as const;
+  const muted = { fontSize: 13, color: "#6b7280" } as const;
+
   return (
-    <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
-      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0, color: "#111827" }}>Учебная часть</h1>
-          <p style={{ marginTop: 8, fontSize: 14, color: "#6b7280", fontWeight: 600 }}>
-            Семестр: <span style={{ fontWeight: 800, color: "#111827" }}>{charts.semesterName ?? "—"}</span>
-          </p>
-        </div>
+    <main style={page}>
+      <h1 style={h1}>Учебная часть</h1>
+      <div style={subtitle}>Посещаемость, баллы и справочники университета.</div>
+
+      <div style={{ marginTop: 12 }}>
         <AcadepartmentNavButtons
           allSemesters={charts.allSemesters}
           currentSemesterId={semesterId}
           semesterScopeParam={semesterScopeParam}
           qParam={q}
+          isAdmin={isAdmin}
         />
       </div>
-      <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <Link href="/acadepartment/points" style={{ border: "1px solid #111827", borderRadius: 10, padding: "8px 12px", fontSize: 13, fontWeight: 800, color: "#111827", textDecoration: "none", background: "white" }}>
-          Баллы семестра: лимиты и закрытие модулей
-        </Link>
-        <Link href="/points-report" style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 12px", fontSize: 13, fontWeight: 800, color: "#374151", textDecoration: "none", background: "white" }}>
-          Итоги по группам
-        </Link>
-      </div>
 
-      <div style={{ marginTop: 20 }}>
-        {charts.emptyMessage ? (
-          <p
-            style={{
-              marginBottom: 16,
-              borderRadius: 12,
-              border: "1px solid #fde68a",
-              background: "#fffbeb",
-              padding: "12px 16px",
-              fontSize: 14,
-              fontWeight: 800,
-              color: "#92400e",
-            }}
-          >
-            {charts.emptyMessage}
-          </p>
-        ) : null}
+      <div style={{ marginTop: 16 }}>
+        {charts.emptyMessage ? <div style={{ ...notice, marginBottom: 12 }}>{charts.emptyMessage}</div> : null}
         <AcadepartmentChartsWithFilters
           weekKeys={charts.weekKeys}
           emptyHint={null}
@@ -449,66 +459,259 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
         />
       </div>
 
-      <section style={{ marginTop: 24, borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
-        <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0, color: "#111827" }}>Ввод справочников</h2>
-        <div style={{ marginTop: 10, fontSize: 13, color: "#6b7280", fontWeight: 600 }}>
-          Ручной ввод сущностей: Факультет, Кафедра, Образовательная программа (ОП), Дисциплина.
+      <section style={card}>
+        <h2 style={h2}>Поиск</h2>
+        <form style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {semesterIdParam ? <input type="hidden" name="semesterId" value={semesterIdParam} /> : null}
+          <input name="q" defaultValue={q} placeholder="ФИО, код или идентификатор" style={{ ...field, flex: 1, minWidth: 240, width: "auto" }} />
+          <button type="submit" style={btnPrimary}>
+            Найти
+          </button>
+        </form>
+
+        {q.length === 0 ? (
+          <div style={{ ...hint, marginTop: 10 }}>Введите запрос: студент, преподаватель, группа, факультет, образовательная программа или дисциплина.</div>
+        ) : (
+          <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
+            <ResultSection title="Студенты" empty={students.length === 0}>
+              {students.map((s) => (
+                <li key={s.id} style={listItem}>
+                  <div>
+                    <Link style={linkStyle} href={`/admin/students/${s.id}`}>
+                      {s.name}
+                    </Link>
+                    <span style={{ marginLeft: 8, fontSize: 12, color: "#6b7280" }}>Б*: {sickCountByStudent.get(s.id) ?? 0}</span>
+                  </div>
+                  <div style={muted}>
+                    {s.gaudiId} ·{" "}
+                    <Link style={linkStyle} href={`/admin/groups/${s.group.id}`}>
+                      {s.group.code ?? s.group.name}
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ResultSection>
+
+            <ResultSection title="Преподаватели" empty={teachers.length === 0}>
+              {teachers.map((t) => (
+                <li key={t.id} style={listItem}>
+                  <div style={{ fontWeight: 800 }}>{t.name}</div>
+                  <div style={muted}>{t.gaudiId ?? "—"}</div>
+                </li>
+              ))}
+            </ResultSection>
+
+            <ResultSection title="Группы" empty={groups.length === 0}>
+              {groups.map((g) => (
+                <li key={g.id} style={listItem}>
+                  <Link style={linkStyle} href={`/admin/groups/${g.id}`}>
+                    {g.name}
+                  </Link>
+                  <div style={muted}>{g.code && g.code !== g.name ? g.code : ""}</div>
+                </li>
+              ))}
+            </ResultSection>
+
+            <ResultSection title="Факультеты" empty={facultiesSearch.length === 0}>
+              {facultiesSearch.map((f) => (
+                <li key={f.id} style={listItem}>
+                  <div style={{ fontWeight: 800 }}>{f.name}</div>
+                  <div style={muted}>{f.code ?? ""}</div>
+                </li>
+              ))}
+            </ResultSection>
+
+            <ResultSection title="Образовательные программы" empty={programsSearch.length === 0}>
+              {programsSearch.map((p) => (
+                <li key={p.id} style={listItem}>
+                  <div>
+                    <div style={{ fontWeight: 800 }}>{p.name}</div>
+                    {p.department?.name ? <div style={muted}>{p.department.name}</div> : null}
+                  </div>
+                  <div style={muted}>{p.code ?? ""}</div>
+                </li>
+              ))}
+            </ResultSection>
+
+            <ResultSection title="Дисциплины" empty={disciplinesSearch.length === 0}>
+              {disciplinesSearch.map((d) => (
+                <li key={d.id} style={listItem}>
+                  <div style={{ fontWeight: 800 }}>{d.name}</div>
+                  <div style={muted}>{d.code ?? ""}</div>
+                </li>
+              ))}
+            </ResultSection>
+          </div>
+        )}
+      </section>
+
+      <section style={card}>
+        <h2 style={h2}>Студенты с наибольшим числом пропусков</h2>
+        <div style={hint}>До 15 студентов с наибольшим числом НБ в выбранном семестре.</div>
+        <div style={{ marginTop: 12 }}>
+          {problemStudentsList.length === 0 ? (
+            <div style={hint}>Нет данных о пропусках.</div>
+          ) : (
+            <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
+              {problemStudentsList.map((st, i) => (
+                <li key={st.id} style={listItem}>
+                  <div>
+                    <div>
+                      <span style={{ color: "#6b7280", marginRight: 6 }}>{i + 1}.</span>
+                      <Link href={`/admin/students/${st.id}`} style={linkStyle}>
+                        {st.name}
+                      </Link>
+                    </div>
+                    <div style={muted}>{st.groupName}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <strong style={{ fontSize: 16 }}>{st.nbCount}</strong>
+                    <div style={{ fontSize: 12, color: "#6b7280" }}>НБ</div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
-        <div style={{ marginTop: 14, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
-          <form action={createFaculty} style={{ border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, display: "grid", gap: 8 }}>
-            <div style={{ fontWeight: 900, color: "#111827" }}>Факультет</div>
-            <input name="name" placeholder="Наименование" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
-            <input name="code" placeholder="Код (опционально)" style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
-            <button type="submit" style={{ border: "1px solid #111827", background: "#111827", color: "white", borderRadius: 10, padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}>
-              Добавить Факультет
+      </section>
+
+      <section style={card}>
+        <h2 style={h2}>Отмена занятий</h2>
+        <div style={hint}>
+          Отменять и возвращать занятия можно только здесь: синхронизация расписания этим не управляет. Показаны последние 40 занятий. После изменения границ семестра запустите пересопоставление занятий.
+        </div>
+        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link href={`/acadepartment${semesterId ? `?semesterId=${semesterId}` : ""}`} style={chip(semesterScope === "all")}>
+            Все занятия
+          </Link>
+          <Link href={`/acadepartment?semesterScope=out${semesterId ? `&semesterId=${semesterId}` : ""}`} style={chip(semesterScope === "out")}>
+            Только вне семестров
+          </Link>
+        </div>
+        <div style={{ ...tableWrap, marginTop: 12 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
+            <thead>
+              <tr>
+                <th style={th}>Дата и время</th>
+                <th style={th}>Группа</th>
+                <th style={th}>Дисциплина</th>
+                <th style={th}>Преподаватель</th>
+                <th style={th}>Статус</th>
+                <th style={th}>Семестр</th>
+                <th style={th}>Действие</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sessionsForCancellation.map((s) => {
+                const current = (s.statusV2 ?? s.status ?? "scheduled").toLowerCase();
+                const isCancelled = current === "cancelled";
+                return (
+                  <tr key={s.id}>
+                    <td style={{ ...td, fontWeight: 700, whiteSpace: "nowrap" }}>
+                      {fmtDateTime(s.startTime)}–{fmtTime(s.endTime)}
+                    </td>
+                    <td style={td}>{s.group.code ?? s.group.name}</td>
+                    <td style={td}>{s.discipline.code ?? s.discipline.name}</td>
+                    <td style={td}>{s.teacher?.name ?? "—"}</td>
+                    <td style={{ ...td, fontWeight: 800, color: isCancelled ? "#991b1b" : "#111827", whiteSpace: "nowrap" }}>
+                      {isCancelled ? "Отменено" : "По расписанию"}
+                    </td>
+                    <td style={{ ...td, whiteSpace: "nowrap" }}>{s.outOfSemester ? "Вне семестров" : "В семестре"}</td>
+                    <td style={td}>
+                      <form action={setClassSessionCancelledState}>
+                        <input type="hidden" name="classSessionId" value={s.id} />
+                        <input type="hidden" name="next" value={isCancelled ? "restore" : "cancel"} />
+                        <button type="submit" style={isCancelled ? { ...btnSmall, minWidth: 128 } : { ...btnSmallDanger, minWidth: 128 }}>
+                          {isCancelled ? "Вернуть занятие" : "Отменить"}
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                );
+              })}
+              {sessionsForCancellation.length === 0 ? (
+                <tr>
+                  <td style={{ ...td, color: "#6b7280" }} colSpan={7}>
+                    Занятий нет.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section style={card}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+          <h2 style={h2}>Занятия вне семестров</h2>
+          <div style={{ fontSize: 13, color: "#6b7280" }}>Всего: {outOfSemesterAnomalies.length}</div>
+        </div>
+        <div style={hint}>Контроль качества расписания: где больше всего занятий, не попавших в семестр.</div>
+        <div style={{ marginTop: 12, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+          <AnomalyBox title="По кафедрам" rows={topDepartmentAnomalies} />
+          <AnomalyBox title="По группам" rows={topGroupAnomalies} />
+          <AnomalyBox title="По преподавателям" rows={topTeacherAnomalies} />
+        </div>
+      </section>
+
+      <section style={card}>
+        <h2 style={h2}>Справочники</h2>
+        <div style={hint}>Ручной ввод: факультет, кафедра, образовательная программа, дисциплина.</div>
+        <div style={{ marginTop: 12, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", alignItems: "start" }}>
+          <form action={createFaculty} style={subCard}>
+            <div style={{ fontWeight: 800 }}>Факультет</div>
+            <input name="name" placeholder="Наименование" required style={field} />
+            <input name="code" placeholder="Код (необязательно)" style={field} />
+            <button type="submit" style={{ ...btnPrimary, width: "100%" }}>
+              Добавить факультет
             </button>
           </form>
 
-          <form action={createDepartment} style={{ border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, display: "grid", gap: 8 }}>
-            <div style={{ fontWeight: 900, color: "#111827" }}>Кафедра</div>
-            <select name="facultyId" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }}>
-              <option value="">Выберите Факультет</option>
+          <form action={createDepartment} style={subCard}>
+            <div style={{ fontWeight: 800 }}>Кафедра</div>
+            <select name="facultyId" required style={field}>
+              <option value="">Выберите факультет</option>
               {facultiesForInput.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.code ?? f.name}
                 </option>
               ))}
             </select>
-            <input name="name" placeholder="Наименование" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
-            <input name="code" placeholder="Код (опционально)" style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
-            <button type="submit" style={{ border: "1px solid #111827", background: "#111827", color: "white", borderRadius: 10, padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}>
-              Добавить Кафедру
+            <input name="name" placeholder="Наименование" required style={field} />
+            <input name="code" placeholder="Код (необязательно)" style={field} />
+            <button type="submit" style={{ ...btnPrimary, width: "100%" }}>
+              Добавить кафедру
             </button>
           </form>
 
-          <form action={createProgram} style={{ border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, display: "grid", gap: 8 }}>
-            <div style={{ fontWeight: 900, color: "#111827" }}>Обр. Программа</div>
-            <select name="facultyId" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }}>
-              <option value="">Выберите Факультет</option>
+          <form action={createProgram} style={subCard}>
+            <div style={{ fontWeight: 800 }}>Образовательная программа</div>
+            <select name="facultyId" required style={field}>
+              <option value="">Выберите факультет</option>
               {facultiesForInput.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.code ?? f.name}
                 </option>
               ))}
             </select>
-            <select name="departmentId" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }}>
-              <option value="">Выберите Кафедру</option>
+            <select name="departmentId" required style={field}>
+              <option value="">Выберите кафедру</option>
               {departmentsForInput.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.code ?? d.name}
                 </option>
               ))}
             </select>
-            <input name="name" placeholder="Наименование" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
-            <input name="code" placeholder="Код (опционально)" style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
-            <button type="submit" style={{ border: "1px solid #111827", background: "#111827", color: "white", borderRadius: 10, padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}>
-              Добавить Программу
+            <input name="name" placeholder="Наименование" required style={field} />
+            <input name="code" placeholder="Код (необязательно)" style={field} />
+            <button type="submit" style={{ ...btnPrimary, width: "100%" }}>
+              Добавить программу
             </button>
           </form>
 
-          <form action={createDiscipline} style={{ border: "1px solid #f3f4f6", borderRadius: 12, padding: 12, display: "grid", gap: 8 }}>
-            <div style={{ fontWeight: 900, color: "#111827" }}>Дисциплина</div>
-            <select name="departmentId" style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }}>
+          <form action={createDiscipline} style={subCard}>
+            <div style={{ fontWeight: 800 }}>Дисциплина</div>
+            <select name="departmentId" style={field}>
               <option value="">Без кафедры</option>
               {departmentsForInput.map((d) => (
                 <option key={d.id} value={d.id}>
@@ -516,412 +719,13 @@ export default async function AcadepartmentPage(props: { searchParams: { q?: str
                 </option>
               ))}
             </select>
-            <input name="name" placeholder="Наименование" required style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700 }} />
-            <input
-              name="code"
-              placeholder="Код (обязателен, как в расписании)"
-              required
-              style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontWeight: 700, textTransform: "uppercase" }}
-            />
-            <button type="submit" style={{ border: "1px solid #111827", background: "#111827", color: "white", borderRadius: 10, padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}>
-              Добавить Дисциплину
+            <input name="name" placeholder="Наименование" required style={field} />
+            <input name="code" placeholder="Код, как в расписании" required style={{ ...field, textTransform: "uppercase" }} />
+            <button type="submit" style={{ ...btnPrimary, width: "100%" }}>
+              Добавить дисциплину
             </button>
           </form>
         </div>
-      </section>
-
-      <section style={{ marginTop: 24, borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0, color: "#111827" }}>Управление отменой занятий</h2>
-          <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
-            Отмена/разотмена доступны только на экране учебной части
-          </div>
-        </div>
-        <div style={{ marginTop: 10, fontSize: 13, color: "#6b7280", fontWeight: 600 }}>
-          Синхронизация расписания не управляет отменой. Ниже отображаются последние занятия.
-        </div>
-        <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link
-            href={`/acadepartment${semesterId ? `?semesterId=${semesterId}` : ""}`}
-            style={{
-              border: "1px solid #d1d5db",
-              borderRadius: 10,
-              padding: "6px 10px",
-              fontSize: 12,
-              fontWeight: 800,
-              color: semesterScope === "all" ? "#111827" : "#4b5563",
-              textDecoration: "none",
-              background: semesterScope === "all" ? "#f3f4f6" : "white",
-            }}
-          >
-            Все занятия
-          </Link>
-          <Link
-            href={`/acadepartment?semesterScope=out${semesterId ? `&semesterId=${semesterId}` : ""}`}
-            style={{
-              border: "1px solid #f59e0b",
-              borderRadius: 10,
-              padding: "6px 10px",
-              fontSize: 12,
-              fontWeight: 800,
-              color: semesterScope === "out" ? "#92400e" : "#78350f",
-              textDecoration: "none",
-              background: semesterScope === "out" ? "#fef3c7" : "white",
-            }}
-          >
-            Только вне семестров
-          </Link>
-          <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, alignSelf: "center" }}>
-            После изменения границ запустите пересопоставление занятий.
-          </div>
-        </div>
-        <div style={{ marginTop: 14, overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb" }}>
-                <th style={{ padding: "8px 6px" }}>Дата/время</th>
-                <th style={{ padding: "8px 6px" }}>Группа</th>
-                <th style={{ padding: "8px 6px" }}>Дисциплина</th>
-                <th style={{ padding: "8px 6px" }}>Преподаватель</th>
-                <th style={{ padding: "8px 6px" }}>Статус</th>
-                <th style={{ padding: "8px 6px" }}>Семестр</th>
-                <th style={{ padding: "8px 6px" }}>Действие</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sessionsForCancellation.map((s) => {
-                const current = (s.statusV2 ?? s.status ?? "scheduled").toLowerCase();
-                const isCancelled = current === "cancelled";
-                const isOutOfSemester = Boolean(s.outOfSemester);
-                return (
-                  <tr key={s.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                    <td style={{ padding: "8px 6px", fontWeight: 700 }}>
-                      {new Date(s.startTime).toLocaleString("ru-RU")} - {new Date(s.endTime).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
-                    </td>
-                    <td style={{ padding: "8px 6px" }}>{s.group.code ?? s.group.name}</td>
-                    <td style={{ padding: "8px 6px" }}>{s.discipline.code ?? s.discipline.name}</td>
-                    <td style={{ padding: "8px 6px" }}>{s.teacher?.name ?? "—"}</td>
-                    <td style={{ padding: "8px 6px", fontWeight: 800, color: isCancelled ? "#b91c1c" : "#065f46" }}>
-                      {isCancelled ? "Отменено" : "Активно в расписании"}
-                    </td>
-                    <td style={{ padding: "8px 6px" }}>
-                      {isOutOfSemester ? (
-                        <span
-                          style={{
-                            border: "1px solid #f59e0b",
-                            background: "#fef3c7",
-                            color: "#92400e",
-                            borderRadius: 999,
-                            padding: "2px 8px",
-                            fontSize: 11,
-                            fontWeight: 900,
-                          }}
-                        >
-                          Вне семестров
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: 12, color: "#047857", fontWeight: 800 }}>В семестре</span>
-                      )}
-                    </td>
-                    <td style={{ padding: "8px 6px" }}>
-                      <form action={setClassSessionCancelledState}>
-                        <input type="hidden" name="classSessionId" value={s.id} />
-                        <input type="hidden" name="next" value={isCancelled ? "restore" : "cancel"} />
-                        <button
-                          type="submit"
-                          style={{
-                            border: `1px solid ${isCancelled ? "#065f46" : "#b91c1c"}`,
-                            background: isCancelled ? "#065f46" : "#b91c1c",
-                            color: "white",
-                            borderRadius: 10,
-                            padding: "6px 10px",
-                            fontSize: 12,
-                            fontWeight: 800,
-                            cursor: "pointer",
-                          }}
-                        >
-                          {isCancelled ? "Снять отмену" : "Отменить"}
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section style={{ marginTop: 24, borderRadius: 14, border: "1px solid #fecaca", background: "#fef2f2", padding: 16 }}>
-        <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0, color: "#991b1b" }}>Топ-15 проблемных студентов (по числу НБ)</h2>
-        <div style={{ marginTop: 10, fontSize: 13, color: "#7f1d1d", fontWeight: 600 }}>
-          Отображаются студенты с наибольшим количеством пропусков в выбранном семестре.
-        </div>
-        <div style={{ marginTop: 14 }}>
-          {problemStudentsList.length === 0 ? (
-            <div style={{ fontSize: 13, color: "#991b1b" }}>Нет данных о пропусках.</div>
-          ) : (
-            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
-              {problemStudentsList.map((st, i) => (
-                <li key={st.id} style={{ display: "flex", justifyContent: "space-between", background: "white", padding: "10px 14px", borderRadius: 10, border: "1px solid #fca5a5" }}>
-                  <div>
-                    <span style={{ fontWeight: 800, color: "#991b1b", marginRight: 8 }}>#{i + 1}</span>
-                    <Link href={`/admin/students/${st.id}`} style={{ fontWeight: 900, color: "#111827", textDecoration: "none" }}>{st.name}</Link>
-                    <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280", fontWeight: 700 }}>{st.groupName}</div>
-                  </div>
-                  <strong style={{ color: "#b91c1c", fontSize: 16 }}>{st.nbCount}</strong>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
-
-      <section style={{ marginTop: 24, borderRadius: 14, border: "1px solid #fde68a", background: "#fffbeb", padding: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0, color: "#92400e" }}>Аномалии расписания (вне семестров)</h2>
-          <div style={{ fontSize: 12, color: "#92400e", fontWeight: 800 }}>
-            Всего занятий вне семестров: {outOfSemesterAnomalies.length}
-          </div>
-        </div>
-        <div style={{ marginTop: 10, fontSize: 13, color: "#78350f", fontWeight: 600 }}>
-          Контроль качества данных: топ-группировки по кафедрам, группам и преподавателям.
-        </div>
-        <div style={{ marginTop: 14, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-          <div style={{ border: "1px solid #fcd34d", borderRadius: 12, background: "white", padding: 10 }}>
-            <div style={{ fontWeight: 900, fontSize: 13, color: "#92400e", marginBottom: 6 }}>По кафедрам</div>
-            {topDepartmentAnomalies.length === 0 ? (
-              <div style={{ fontSize: 12, color: "#6b7280" }}>Нет данных.</div>
-            ) : (
-              topDepartmentAnomalies.map(([key, count]) => (
-                <div key={key} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "2px 0" }}>
-                  <span>{key}</span>
-                  <strong>{count}</strong>
-                </div>
-              ))
-            )}
-          </div>
-          <div style={{ border: "1px solid #fcd34d", borderRadius: 12, background: "white", padding: 10 }}>
-            <div style={{ fontWeight: 900, fontSize: 13, color: "#92400e", marginBottom: 6 }}>По группам</div>
-            {topGroupAnomalies.length === 0 ? (
-              <div style={{ fontSize: 12, color: "#6b7280" }}>Нет данных.</div>
-            ) : (
-              topGroupAnomalies.map(([key, count]) => (
-                <div key={key} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "2px 0" }}>
-                  <span>{key}</span>
-                  <strong>{count}</strong>
-                </div>
-              ))
-            )}
-          </div>
-          <div style={{ border: "1px solid #fcd34d", borderRadius: 12, background: "white", padding: 10 }}>
-            <div style={{ fontWeight: 900, fontSize: 13, color: "#92400e", marginBottom: 6 }}>По преподавателям</div>
-            {topTeacherAnomalies.length === 0 ? (
-              <div style={{ fontSize: 12, color: "#6b7280" }}>Нет данных.</div>
-            ) : (
-              topTeacherAnomalies.map(([key, count]) => (
-                <div key={key} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "2px 0" }}>
-                  <span>{key}</span>
-                  <strong>{count}</strong>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section style={{ marginTop: 36, borderTop: "1px solid #e5e7eb", paddingTop: 28 }}>
-        <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0, color: "#111827" }}>Поиск</h2>
-        <form style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <input
-            name="q"
-            defaultValue={q}
-            placeholder="ФИО / код / ID"
-            style={{
-              minWidth: 260,
-              flex: 1,
-              borderRadius: 12,
-              border: "1px solid #d1d5db",
-              padding: "10px 12px",
-              fontWeight: 700,
-              fontSize: 14,
-            }}
-          />
-          <button
-            type="submit"
-            style={{
-              borderRadius: 12,
-              border: "1px solid #111827",
-              background: "#111827",
-              color: "white",
-              padding: "10px 16px",
-              fontSize: 14,
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-          >
-            Найти
-          </button>
-        </form>
-
-        {q.length === 0 ? (
-          <div style={{ marginTop: 16, fontSize: 14, color: "#6b7280", fontWeight: 600 }}>Введите запрос: студент / преподаватель / группа / факультет / направление / предмет.</div>
-        ) : (
-          <div style={{ marginTop: 20, display: "grid", gap: 16 }}>
-            <section style={{ borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
-              <div style={{ fontWeight: 900 }}>Студенты</div>
-              {students.length === 0 ? (
-                <div style={{ marginTop: 8, fontSize: 14, color: "#6b7280" }}>Нет результатов.</div>
-              ) : (
-                <ul style={{ marginTop: 12, display: "grid", gap: 8, padding: 0, listStyle: "none" }}>
-                  {students.map((s) => (
-                    <li
-                      key={s.id}
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        justifyContent: "space-between",
-                        gap: 8,
-                        borderRadius: 12,
-                        border: "1px solid #f3f4f6",
-                        padding: 12,
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 900 }}>
-                          <Link style={{ color: "#1e40af", fontWeight: 900 }} href={`/admin/students/${s.id}`}>
-                            {s.name}
-                          </Link>
-                          <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 900, color: "#1d4ed8" }}>
-                            Б*: {sickCountByStudent.get(s.id) ?? 0}
-                          </span>
-                        </div>
-                        <div style={{ marginTop: 4, fontSize: 14, color: "#6b7280" }}>
-                          {s.gaudiId} •{" "}
-                          <Link style={{ fontWeight: 800, color: "#1e40af" }} href={`/admin/groups/${s.group.id}`}>
-                            {s.group.code ?? s.group.name}
-                          </Link>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 12, color: "#6b7280" }}>{s.id}</div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section style={{ borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
-              <div style={{ fontWeight: 900 }}>Преподаватели</div>
-              {teachers.length === 0 ? (
-                <div style={{ marginTop: 8, fontSize: 14, color: "#6b7280" }}>Нет результатов.</div>
-              ) : (
-                <ul style={{ marginTop: 12, display: "grid", gap: 8, padding: 0, listStyle: "none" }}>
-                  {teachers.map((t) => (
-                    <li
-                      key={t.id}
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        justifyContent: "space-between",
-                        gap: 8,
-                        borderRadius: 12,
-                        border: "1px solid #f3f4f6",
-                        padding: 12,
-                      }}
-                    >
-                      <div style={{ fontWeight: 900 }}>{t.name}</div>
-                      <div style={{ fontSize: 14, color: "#6b7280" }}>
-                        {t.gaudiId ?? "—"} • <span style={{ fontSize: 12 }}>{t.id}</span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section style={{ borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
-              <div style={{ fontWeight: 900 }}>Группы</div>
-              {groups.length === 0 ? (
-                <div style={{ marginTop: 8, fontSize: 14, color: "#6b7280" }}>Нет результатов.</div>
-              ) : (
-                <ul style={{ marginTop: 12, display: "grid", gap: 8, padding: 0, listStyle: "none" }}>
-                  {groups.map((g) => (
-                    <li
-                      key={g.id}
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        justifyContent: "space-between",
-                        gap: 8,
-                        borderRadius: 12,
-                        border: "1px solid #f3f4f6",
-                        padding: 12,
-                      }}
-                    >
-                      <div style={{ fontWeight: 900 }}>
-                        <Link style={{ color: "#1e40af", fontWeight: 900 }} href={`/admin/groups/${g.id}`}>
-                          {g.name}
-                        </Link>
-                      </div>
-                      <div style={{ fontSize: 14, color: "#6b7280" }}>{g.code ?? "—"}</div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section style={{ borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
-              <div style={{ fontWeight: 900 }}>Факультеты</div>
-              {facultiesSearch.length === 0 ? (
-                <div style={{ marginTop: 8, fontSize: 14, color: "#6b7280" }}>Нет результатов.</div>
-              ) : (
-                <ul style={{ marginTop: 12, display: "grid", gap: 8, padding: 0, listStyle: "none" }}>
-                  {facultiesSearch.map((f) => (
-                    <li key={f.id} style={{ display: "flex", justifyContent: "space-between", borderRadius: 12, border: "1px solid #f3f4f6", padding: 12 }}>
-                      <div style={{ fontWeight: 900 }}>{f.name}</div>
-                      <div style={{ fontSize: 14, color: "#6b7280" }}>{f.code ?? "—"}</div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section style={{ borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
-              <div style={{ fontWeight: 900 }}>Направления</div>
-              {programsSearch.length === 0 ? (
-                <div style={{ marginTop: 8, fontSize: 14, color: "#6b7280" }}>Нет результатов.</div>
-              ) : (
-                <ul style={{ marginTop: 12, display: "grid", gap: 8, padding: 0, listStyle: "none" }}>
-                  {programsSearch.map((p) => (
-                    <li key={p.id} style={{ display: "flex", justifyContent: "space-between", borderRadius: 12, border: "1px solid #f3f4f6", padding: 12 }}>
-                      <div>
-                        <div style={{ fontWeight: 900 }}>{p.name}</div>
-                        <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>{p.department?.name ?? "—"}</div>
-                      </div>
-                      <div style={{ fontSize: 14, color: "#6b7280" }}>{p.code ?? "—"}</div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section style={{ borderRadius: 14, border: "1px solid #e5e7eb", background: "white", padding: 16 }}>
-              <div style={{ fontWeight: 900 }}>Предметы (Дисциплины)</div>
-              {disciplinesSearch.length === 0 ? (
-                <div style={{ marginTop: 8, fontSize: 14, color: "#6b7280" }}>Нет результатов.</div>
-              ) : (
-                <ul style={{ marginTop: 12, display: "grid", gap: 8, padding: 0, listStyle: "none" }}>
-                  {disciplinesSearch.map((d) => (
-                    <li key={d.id} style={{ display: "flex", justifyContent: "space-between", borderRadius: 12, border: "1px solid #f3f4f6", padding: 12 }}>
-                      <div style={{ fontWeight: 900 }}>{d.name}</div>
-                      <div style={{ fontSize: 14, color: "#6b7280" }}>{d.code ?? "—"}</div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          </div>
-        )}
       </section>
     </main>
   );

@@ -2,13 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { getAllSemesters, getCurrentSemester, lockSemester } from "./actions";
 import { SemesterForm } from "./semester-form";
+import { btnDanger, card, fmtDateTime, h1, h2, hint, page, subtitle, tableWrap, td, th } from "@/lib/ui/office";
 
 export const dynamic = "force-dynamic";
-
-function toDateInputValue(d: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-}
 
 function formatSemesterDateRu(d: Date) {
   return d.toLocaleDateString("ru-RU", { timeZone: "UTC" });
@@ -18,9 +14,9 @@ export default async function SemesterAdminPage() {
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "ACADEMIC_OFFICE" && actor.role !== "ADMIN") {
     return (
-      <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 26, fontWeight: 900 }}>Семестр</h1>
-        <p style={{ marginTop: 12 }}>Недостаточно прав.</p>
+      <main style={page}>
+        <h1 style={h1}>Управление семестром</h1>
+        <p style={subtitle}>Недостаточно прав.</p>
       </main>
     );
   }
@@ -40,104 +36,81 @@ export default async function SemesterAdminPage() {
 
   if (!semester) {
     return (
-      <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 26, fontWeight: 900 }}>Семестр</h1>
-        <p style={{ marginTop: 12 }}>Семестр не найден.</p>
+      <main style={page}>
+        <h1 style={h1}>Управление семестром</h1>
+        <p style={subtitle}>Семестр не найден.</p>
       </main>
     );
   }
 
   return (
-    <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-        <h1 style={{ fontSize: 26, fontWeight: 900 }}>Управление семестром</h1>
+    <main style={page}>
+      <h1 style={h1}>Управление семестром</h1>
+      <div style={subtitle}>
+        {semester.isLocked ? "Нет активных семестров. Заполните форму ниже, чтобы создать новый." : `Текущий семестр: ${semester.name ?? semester.id}`}
       </div>
 
-      <div style={{ marginTop: 12, color: "#6b7280" }}>
-        {semester.isLocked ? (
-          <>Нет активных семестров. Заполните форму ниже, чтобы создать новый.</>
-        ) : (
-          <>Semester ID: <span style={{ fontWeight: 900 }}>{semester.id}</span></>
-        )}
-      </div>
-
-      <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>
-        <div style={{ fontWeight: 900, marginBottom: 8 }}>Статус интеграций</div>
-        <div style={{ display: "grid", gap: 6, color: "#111827" }}>
+      <section style={card}>
+        <h2 style={h2}>Последняя успешная синхронизация</h2>
+        <div style={{ marginTop: 10, display: "grid", gap: 4, fontSize: 14 }}>
           <div>
-            <span style={{ fontWeight: 900 }}>schedule_last_sync_at</span>:{" "}
-            <span style={{ color: "#6b7280" }}>
-              {scheduleLastSuccess ? new Date(scheduleLastSuccess.createdAt).toLocaleString("ru-RU") : "—"}
-            </span>
+            Расписание: <span style={{ fontWeight: 800 }}>{scheduleLastSuccess ? fmtDateTime(scheduleLastSuccess.createdAt) : "—"}</span>
           </div>
           <div>
-            <span style={{ fontWeight: 900 }}>gaudi_last_sync_at</span>:{" "}
-            <span style={{ color: "#6b7280" }}>
-              {gaudiLastSuccess ? new Date(gaudiLastSuccess.createdAt).toLocaleString("ru-RU") : "—"}
-            </span>
+            Данные GAUDI: <span style={{ fontWeight: 800 }}>{gaudiLastSuccess ? fmtDateTime(gaudiLastSuccess.createdAt) : "—"}</span>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div style={{ marginTop: 16, border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>
-        <div style={{ fontWeight: 900, marginBottom: 10 }}>Создание / редактирование семестра</div>
-        <SemesterForm semester={semester.isLocked ? null : semester} />
+      <section style={card}>
+        <h2 style={h2}>{semester.isLocked ? "Создание семестра" : "Редактирование семестра"}</h2>
+        <div style={{ marginTop: 12 }}>
+          <SemesterForm semester={semester.isLocked ? null : semester} />
+        </div>
 
-        <div style={{ marginTop: 14, color: "#6b7280", fontWeight: 700 }}>Последние семестры:</div>
-        <div style={{ marginTop: 8, overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+        <h3 style={{ ...h2, fontSize: 15, marginTop: 20 }}>Последние семестры</h3>
+        <div style={{ ...tableWrap, marginTop: 8 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb" }}>
-                <th style={{ padding: "10px 8px" }}>Название</th>
-                <th style={{ padding: "10px 8px" }}>Начало</th>
-                <th style={{ padding: "10px 8px" }}>Конец</th>
-                <th style={{ padding: "10px 8px" }}>Locked</th>
+              <tr>
+                <th style={th}>Название</th>
+                <th style={th}>Начало</th>
+                <th style={th}>Конец</th>
+                <th style={th}>Заблокирован</th>
               </tr>
             </thead>
             <tbody>
               {semesters.map((s) => (
-                <tr key={s.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                  <td style={{ padding: "10px 8px", fontWeight: 900 }}>{s.name ?? "—"}</td>
-                  <td style={{ padding: "10px 8px" }}>{formatSemesterDateRu(new Date(s.startDate))}</td>
-                  <td style={{ padding: "10px 8px" }}>{formatSemesterDateRu(new Date(s.endDate))}</td>
-                  <td style={{ padding: "10px 8px" }}>{s.isLocked ? "Да" : "Нет"}</td>
+                <tr key={s.id}>
+                  <td style={{ ...td, fontWeight: 800 }}>{s.name ?? "—"}</td>
+                  <td style={td}>{formatSemesterDateRu(new Date(s.startDate))}</td>
+                  <td style={td}>{formatSemesterDateRu(new Date(s.endDate))}</td>
+                  <td style={td}>{s.isLocked ? "Да" : "Нет"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
 
-      <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>
+      <section style={card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontWeight: 900 }}>Блокировка семестра</div>
-            <div style={{ marginTop: 4, color: "#6b7280" }}>
-              После блокировки любые изменения посещаемости запрещены.
-            </div>
+            <h2 style={h2}>Блокировка семестра</h2>
+            <div style={hint}>После блокировки любые изменения посещаемости запрещены.</div>
           </div>
           <form action={lockSemester}>
             <input type="hidden" name="semesterId" value={semester.id} />
             <button
               type="submit"
               disabled={semester.isLocked}
-              style={{
-                border: "1px solid #dc2626",
-                background: semester.isLocked ? "#f3f4f6" : "#dc2626",
-                color: semester.isLocked ? "#6b7280" : "white",
-                padding: "10px 14px",
-                borderRadius: 12,
-                fontWeight: 900,
-                cursor: semester.isLocked ? "not-allowed" : "pointer",
-                opacity: semester.isLocked ? 0.7 : 1,
-              }}
+              style={semester.isLocked ? { ...btnDanger, background: "#f3f4f6", borderColor: "#d1d5db", color: "#6b7280", cursor: "not-allowed" } : btnDanger}
             >
               {semester.isLocked ? "Семестр заблокирован" : "Заблокировать семестр"}
             </button>
           </form>
         </div>
-      </div>
+      </section>
     </main>
   );
 }
-

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { ExportTableButton } from "@/components/export-table-button";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
+import { fmtDate, page, h1, subtitle } from "@/lib/ui/office";
 import { disciplinesLegend, groupMatrixSheet, type GroupMatrix } from "@/lib/points/group-matrix";
 import { formatAttendanceStatusDisplay } from "@/lib/ui/labels";
 import type { CanonStatus } from "@/lib/points/module-tables";
@@ -17,8 +18,8 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "ADMIN" && actor.role !== "ACADEMIC_OFFICE") {
     return (
-      <main style={{ padding: 16, maxWidth: 1200, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Отчет по группе</h1>
+      <main style={page}>
+        <h1 style={h1}>Отчет по группе</h1>
         <p style={{ marginTop: 8, fontSize: 14, color: "#6b7280" }}>Недостаточно прав.</p>
       </main>
     );
@@ -32,8 +33,8 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
   });
   if (!group) {
     return (
-      <main style={{ padding: 16, maxWidth: 1200, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Отчет по группе</h1>
+      <main style={page}>
+        <h1 style={h1}>Отчет по группе</h1>
         <p style={{ marginTop: 8, fontSize: 14, color: "#6b7280" }}>Группа не найдена.</p>
       </main>
     );
@@ -106,7 +107,7 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
   const matrix: GroupMatrix = {
     columns: sessions.map((s) => ({
       id: s.id,
-      date: new Date(s.startTime).toLocaleDateString("ru-RU").slice(0, 10),
+      date: fmtDate(s.startTime),
       discipline: translateCode(s.discipline?.code ?? null),
     })),
     rows: students.map((st) => ({
@@ -125,8 +126,8 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
   const codeDiffers = !!group.code && group.code.trim().toLowerCase() !== group.name.trim().toLowerCase();
 
   return (
-    <main style={{ padding: 16, maxWidth: 1200, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>
+    <main style={page}>
+      <h1 style={h1}>
         {group.name}
         {codeDiffers ? <span style={{ fontSize: 14, fontWeight: 700, color: "#6b7280" }}> {group.code}</span> : null}
       </h1>
