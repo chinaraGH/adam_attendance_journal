@@ -73,6 +73,8 @@ export type AttendanceRow = {
   missed: number;
   /** А + подтверждённая Б */
   excused: number;
+  /** Сколько раз у студента стоит каждая отметка (Б — подтверждённая и без подтверждения вместе). */
+  counts: { P: number; O: number; NB: number; B: number; A: number };
   /** Пропуски от занятий, по которым студент не освобождён: missed / (present + missed), %. */
   missedPercent: number | null;
 };
@@ -169,8 +171,14 @@ export function buildModuleTables(input: ModuleDataInput): ModuleTables {
     let present = 0;
     let missed = 0;
     let excused = 0;
+    const counts = { P: 0, O: 0, NB: 0, B: 0, A: 0 };
     const cells = m.lessons.map((l) => {
       const s = statusOf(l.sessionId, st.id);
+      if (s === "P") counts.P += 1;
+      else if (s === "O") counts.O += 1;
+      else if (s === "NB") counts.NB += 1;
+      else if (s === "B_PENDING" || s === "B_CONFIRMED") counts.B += 1;
+      else if (s === "A") counts.A += 1;
       if (s === "P" || s === "O") present += 1;
       else if (s === "NB" || s === "B_PENDING") missed += 1;
       else if (s === "A" || s === "B_CONFIRMED") excused += 1;
@@ -178,7 +186,7 @@ export function buildModuleTables(input: ModuleDataInput): ModuleTables {
     });
     groupPresent += present;
     groupMissed += missed;
-    return { studentId: st.id, name: st.name, cells, present, missed, excused, missedPercent: percent(missed, present + missed) };
+    return { studentId: st.id, name: st.name, cells, present, missed, excused, counts, missedPercent: percent(missed, present + missed) };
   });
 
   const points: PointsLessonRow[] = students.map((st) => {
@@ -247,15 +255,17 @@ const subtitleOf = (m: SheetMeta) => `${m.disciplineName} · ${m.teacherName} ·
 
 export function attendanceSheet(t: ModuleTables, meta: SheetMeta): XSheet {
   const L = t.lessons.length;
-  const width = 1 + L + 4;
+  const width = 1 + L + 6;
   const { cells, merges } = titleBlock(width, `Посещаемость модуля ${t.moduleNo}, группа ${meta.groupName}`, subtitleOf(meta));
 
   cells.push([
     cell("Студент", "head"),
     ...t.lessons.map((l) => cell(`${l.no}\n${l.date}`, "head")),
-    cell("Был", "head"),
-    cell("Пропущено", "head"),
-    cell("Освобождён", "head"),
+    cell("П", "head"),
+    cell("О", "head"),
+    cell("НБ", "head"),
+    cell("Б", "head"),
+    cell("А", "head"),
     cell("% пропусков", "head"),
   ]);
 
@@ -263,23 +273,25 @@ export function attendanceSheet(t: ModuleTables, meta: SheetMeta): XSheet {
     cells.push([
       cell(`${i + 1}. ${r.name}`, "name"),
       ...r.cells.map((c) => cell(statusShort(c), "status")),
-      cell(r.present, "int"),
-      cell(r.missed, "int"),
-      cell(r.excused, "int"),
+      cell(r.counts.P, "int"),
+      cell(r.counts.O, "int"),
+      cell(r.counts.NB, "int"),
+      cell(r.counts.B, "int"),
+      cell(r.counts.A, "int"),
       r.missedPercent === null ? cell("—", "dash") : cell(r.missedPercent, "pct"),
     ]);
   });
 
   const legendRow = cells.length + 1; // пустая строка между таблицей и пояснением
   cells.push([]);
-  cells.push([cell(`${STATUS_LEGEND}. Процент пропусков: пропущено ÷ (был + пропущено); освобождённые занятия не учитываются.`, "legend")]);
+  cells.push([cell(`${STATUS_LEGEND}. Колонки П, О, НБ, Б, А: сколько раз у студента стоит эта отметка (Б — подтверждённая и без подтверждения вместе). % пропусков = (НБ + Б без подтверждения) ÷ (П + О + НБ + Б без подтверждения); подтверждённая Б и А не учитываются.`, "legend")]);
   merges.push([legendRow, 0, legendRow, width - 1]);
 
   return {
     name: `Посещаемость, модуль ${t.moduleNo}`,
     cells,
     merges,
-    colWidths: [34, ...t.lessons.map(() => 8), 10, 13, 14, 16],
+    colWidths: [34, ...t.lessons.map(() => 8), 8, 8, 8, 8, 8, 16],
     freeze: { rows: 3, cols: 1 },
     rowHeights: { 0: 26, 1: 20, 2: 34, [legendRow]: 44 },
   };

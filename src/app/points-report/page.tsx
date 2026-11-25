@@ -156,9 +156,11 @@ function ModuleView(props: { m: ModuleTables; groupName: string; disciplineName:
               {m.lessons.map((l) => (
                 <th key={l.no} style={{ ...th, ...center }}>{l.no}<br /><span style={{ fontWeight: 600 }}>{l.date}</span></th>
               ))}
-              <th style={{ ...th, borderLeft: "1px solid #e5e7eb" }}>Был</th>
-              <th style={th}>Пропущено</th>
-              <th style={th}>Освобождён</th>
+              <th style={{ ...th, borderLeft: "1px solid #e5e7eb" }}>П</th>
+              <th style={th}>О</th>
+              <th style={th}>НБ</th>
+              <th style={th}>Б</th>
+              <th style={th}>А</th>
               <th style={th}>% пропусков</th>
             </tr>
           </thead>
@@ -174,16 +176,18 @@ function ModuleView(props: { m: ModuleTables; groupName: string; disciplineName:
                     </td>
                   );
                 })}
-                <td style={{ ...td, borderLeft: "1px solid #f3f4f6" }}>{r.present}</td>
-                <td style={{ ...td, fontWeight: 800, color: r.missed > 0 ? "#991b1b" : undefined }}>{r.missed}</td>
-                <td style={td}>{r.excused}</td>
+                <td style={{ ...td, borderLeft: "1px solid #f3f4f6" }}>{r.counts.P}</td>
+                <td style={td}>{r.counts.O}</td>
+                <td style={td}>{r.counts.NB}</td>
+                <td style={td}>{r.counts.B}</td>
+                <td style={td}>{r.counts.A}</td>
                 <td style={td}>{pct(r.missedPercent)}</td>
               </tr>
             ))}
           </tbody>
         </table>
         <div style={{ padding: "8px 10px", fontSize: 12, color: "#6b7280", borderTop: "1px solid #f3f4f6" }}>
-          {STATUS_LEGEND}. Процент пропусков: пропущено ÷ (был + пропущено); освобождённые занятия не учитываются.
+          {STATUS_LEGEND}. Колонки П, О, НБ, Б, А: сколько раз у студента стоит эта отметка (Б — подтверждённая и без подтверждения вместе). % пропусков = (НБ + Б без подтверждения) ÷ (П + О + НБ + Б без подтверждения); подтверждённая Б и А не учитываются.
         </div>
       </Section>
     </div>
