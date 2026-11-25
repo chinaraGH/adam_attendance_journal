@@ -2,8 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { ExportTableButton } from "@/components/export-table-button";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
-import { buildGroupMatrix, groupMatrixSheet } from "@/lib/points/group-matrix";
-import { statusShort, STATUS_LEGEND, type CanonStatus } from "@/lib/points/module-tables";
+import { groupMatrixSheet, type GroupMatrix } from "@/lib/points/group-matrix";
+import { formatAttendanceStatusDisplay } from "@/lib/ui/labels";
+import type { CanonStatus } from "@/lib/points/module-tables";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +21,6 @@ const STATUS_COLORS: Record<CanonStatus, { bg: string; fg: string }> = {
   A: { bg: "#e5e7eb", fg: "#374151" },
   S: { bg: "#f3f4f6", fg: "#6b7280" },
 };
-const pct = (n: number | null) => (n === null ? "—" : `${String(n).replace(".", ",")}%`);
-const fileSafe = (t: string) => t.replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, "_");
 
 export default async function AdminGroupReportPage(props: { params: { groupId: string } }) {
   const actor = await getCurrentUserOrRedirect();
@@ -53,11 +52,11 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
     (await prisma.semester.findFirst({
       where: { isLocked: false },
       orderBy: { startDate: "desc" },
-      select: { id: true, name: true },
+      select: { id: true },
     })) ??
     (await prisma.semester.findFirst({
       orderBy: { startDate: "desc" },
-      select: { id: true, name: true },
+      select: { id: true },
     }));
 
   const sessions =
@@ -85,10 +84,13 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
           select: { studentId: true, classSessionId: true, statusV2: true, status: true },
         });
 
-  const statusByKey = new Map<string, CanonStatus>();
+  const statusByKey = new Map<string, { text: string; status: CanonStatus | null }>();
   for (const a of attendance) {
     const c = getCanonicalAttendanceStatusV2({ statusV2: a.statusV2, status: a.status });
-    if (c) statusByKey.set(`${a.studentId}:${a.classSessionId}`, c as CanonStatus);
+    statusByKey.set(`${a.studentId}:${a.classSessionId}`, {
+      text: formatAttendanceStatusDisplay({ statusV2: a.statusV2, status: a.status }),
+      status: (c as CanonStatus | null) ?? null,
+    });
   }
 
   const abbrevMap: Record<string, string> = {
@@ -110,84 +112,63 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
     return abbrevMap[code.toUpperCase()] || code;
   };
 
-  const matrix = buildGroupMatrix({
-    sessions: sessions.map((s) => ({ id: s.id, startTime: s.startTime, disciplineShort: translateCode(s.discipline?.code ?? null) })),
-    students,
-    statusOf: (sessionId, studentId) => statusByKey.get(`${studentId}:${sessionId}`) ?? null,
-  });
-  const semesterName = semester?.name ?? "семестр";
-  const sheet = groupMatrixSheet(matrix, { groupName: group.name, semesterName });
+  const matrix: GroupMatrix = {
+    columns: sessions.map((s) => ({
+      id: s.id,
+      header: `${new Date(s.startTime).toLocaleDateString("ru-RU").slice(0, 10)} ${translateCode(s.discipline?.code ?? null)}`,
+    })),
+    rows: students.map((st) => ({
+      studentId: st.id,
+      name: st.name,
+      cells: sessions.map((s) => statusByKey.get(`${st.id}:${s.id}`) ?? { text: "—", status: null }),
+    })),
+  };
+  const sheet = groupMatrixSheet(matrix, `${group.name}${group.code ? ` ${group.code}` : ""}`);
 
   return (
     <main style={{ padding: 16, maxWidth: 1200, margin: "0 auto" }}>
       <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>
-        Ведомость группы {group.name}
-        {group.code ? <span style={{ fontSize: 14, fontWeight: 700, color: "#6b7280" }}> · {group.code}</span> : null}
+        {group.name} <span style={{ fontSize: 14, fontWeight: 700, color: "#6b7280" }}>{group.code ?? ""}</span>
       </h1>
-      <div style={{ fontWeight: 700, marginTop: 2 }}>Посещаемость · {semesterName}</div>
-      <div style={{ color: "#6b7280", fontSize: 13, marginBottom: 6 }}>
-        Просмотр для учебной части. Показаны первые {matrix.columns.length} занятий семестра, студентов: {matrix.rows.length}.
-      </div>
+      <div style={{ color: "#6b7280", fontSize: 13, marginBottom: 6 }}>Отчет группы (просмотр для учебной части/админа)</div>
 
       <section style={{ marginTop: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
-          <div>
-            <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>Посещаемость по занятиям</h2>
-            <div style={{ color: "#6b7280", fontSize: 13, marginTop: 2 }}>{STATUS_LEGEND}</div>
-          </div>
-          <ExportTableButton filename={`Ведомость_${fileSafe(group.name)}.xlsx`} sheet={sheet} label="Скачать Excel (официальная ведомость)" />
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+          <ExportTableButton filename={`group-${groupId}.xlsx`} sheet={sheet} label="Скачать Excel (официальная ведомость)" />
         </div>
         <div style={{ overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: 12, background: "white" }}>
           <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 560 }}>
             <thead>
               <tr>
                 <th style={{ ...th, textAlign: "left", ...stickyName }}>Студент</th>
-                {matrix.columns.map((c) => (
-                  <th key={c.id} style={{ ...th, ...center, padding: "8px 4px" }}>
-                    {c.date.slice(0, 5)}
-                    <br />
-                    <span style={{ fontWeight: 600 }}>{c.discipline}</span>
-                  </th>
-                ))}
-                <th style={{ ...th, borderLeft: "1px solid #f3f4f6" }}>П</th>
-                <th style={th}>О</th>
-                <th style={th}>НБ</th>
-                <th style={th}>Б</th>
-                <th style={th}>А</th>
-                <th style={th}>% пропусков</th>
+                {matrix.columns.map((c) => {
+                  const [date, code] = [c.header.slice(0, 10), c.header.slice(11)];
+                  return (
+                    <th key={c.id} style={{ ...th, ...center, padding: "8px 6px" }}>
+                      {date}
+                      <br />
+                      <span style={{ fontWeight: 600 }}>{code}</span>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {matrix.rows.map((r, i) => (
+              {matrix.rows.map((r) => (
                 <tr key={r.studentId}>
-                  <td style={{ ...td, textAlign: "left", fontWeight: 700, ...stickyName }}>
-                    {i + 1}. {r.name}
-                  </td>
+                  <td style={{ ...td, textAlign: "left", fontWeight: 700, ...stickyName }}>{r.name}</td>
                   {r.cells.map((c, k) => {
-                    const col = c ? STATUS_COLORS[c] : null;
+                    const col = c.status ? STATUS_COLORS[c.status] : null;
                     return (
                       <td key={k} style={{ ...td, ...center, padding: "6px 4px" }}>
                         <span style={{ display: "inline-block", minWidth: 30, borderRadius: 8, padding: "3px 6px", fontWeight: 800, fontSize: 13, background: col?.bg ?? "transparent", color: col?.fg ?? "#9ca3af" }}>
-                          {statusShort(c)}
+                          {c.text}
                         </span>
                       </td>
                     );
                   })}
-                  <td style={{ ...td, borderLeft: "1px solid #f3f4f6" }}>{r.counts.P}</td>
-                  <td style={td}>{r.counts.O}</td>
-                  <td style={td}>{r.counts.NB}</td>
-                  <td style={td}>{r.counts.B}</td>
-                  <td style={td}>{r.counts.A}</td>
-                  <td style={td}>{pct(r.missedPercent)}</td>
                 </tr>
               ))}
-              {matrix.rows.length === 0 ? (
-                <tr>
-                  <td style={{ ...td, textAlign: "left", color: "#6b7280" }} colSpan={matrix.columns.length + 7}>
-                    В группе нет студентов.
-                  </td>
-                </tr>
-              ) : null}
             </tbody>
           </table>
         </div>
