@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { ExportTableButton } from "@/components/export-table-button";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
-import { groupMatrixSheet, type GroupMatrix } from "@/lib/points/group-matrix";
+import { disciplinesLegend, groupMatrixSheet, type GroupMatrix } from "@/lib/points/group-matrix";
 import { formatAttendanceStatusDisplay } from "@/lib/ui/labels";
 import type { CanonStatus } from "@/lib/points/module-tables";
 
@@ -12,15 +12,6 @@ const th = { padding: "8px 8px", textAlign: "right" as const, fontSize: 12, colo
 const td = { padding: "8px 8px", textAlign: "right" as const, fontSize: 14, borderBottom: "1px solid #f3f4f6", whiteSpace: "nowrap" as const };
 const stickyName = { position: "sticky" as const, left: 0, background: "white", zIndex: 1 };
 const center = { textAlign: "center" as const };
-const STATUS_COLORS: Record<CanonStatus, { bg: string; fg: string }> = {
-  P: { bg: "#dcfce7", fg: "#166534" },
-  O: { bg: "#fef3c7", fg: "#92400e" },
-  NB: { bg: "#fee2e2", fg: "#991b1b" },
-  B_PENDING: { bg: "#dbeafe", fg: "#1e40af" },
-  B_CONFIRMED: { bg: "#bfdbfe", fg: "#1e3a8a" },
-  A: { bg: "#e5e7eb", fg: "#374151" },
-  S: { bg: "#f3f4f6", fg: "#6b7280" },
-};
 
 export default async function AdminGroupReportPage(props: { params: { groupId: string } }) {
   const actor = await getCurrentUserOrRedirect();
@@ -52,11 +43,11 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
     (await prisma.semester.findFirst({
       where: { isLocked: false },
       orderBy: { startDate: "desc" },
-      select: { id: true },
+      select: { id: true, name: true },
     })) ??
     (await prisma.semester.findFirst({
       orderBy: { startDate: "desc" },
-      select: { id: true },
+      select: { id: true, name: true },
     }));
 
   const sessions =
@@ -65,7 +56,7 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
           where: { groupId, semesterId: semester.id, isActive: true, deletedAt: null, OR: [{ statusV2: { not: "cancelled" } }, { statusV2: null, status: { not: "cancelled" } }] },
           orderBy: { startTime: "asc" },
           take: 20,
-          select: { id: true, startTime: true, discipline: { select: { code: true } } },
+          select: { id: true, startTime: true, discipline: { select: { code: true, name: true } } },
         })
       : [];
 
@@ -115,7 +106,8 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
   const matrix: GroupMatrix = {
     columns: sessions.map((s) => ({
       id: s.id,
-      header: `${new Date(s.startTime).toLocaleDateString("ru-RU").slice(0, 10)} ${translateCode(s.discipline?.code ?? null)}`,
+      date: new Date(s.startTime).toLocaleDateString("ru-RU").slice(0, 10),
+      discipline: translateCode(s.discipline?.code ?? null),
     })),
     rows: students.map((st) => ({
       studentId: st.id,
@@ -123,12 +115,20 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
       cells: sessions.map((s) => statusByKey.get(`${st.id}:${s.id}`) ?? { text: "—", status: null }),
     })),
   };
-  const sheet = groupMatrixSheet(matrix, `${group.name}${group.code ? ` ${group.code}` : ""}`);
+  const legend = disciplinesLegend(
+    sessions
+      .filter((s) => s.discipline)
+      .map((s) => ({ short: translateCode(s.discipline?.code ?? null), name: s.discipline?.name ?? "" })),
+  );
+  const semesterName = semester?.name ?? "семестр";
+  const sheet = groupMatrixSheet(matrix, { groupName: group.name, semesterName, disciplinesLegend: legend });
+  const codeDiffers = !!group.code && group.code.trim().toLowerCase() !== group.name.trim().toLowerCase();
 
   return (
     <main style={{ padding: 16, maxWidth: 1200, margin: "0 auto" }}>
       <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>
-        {group.name} <span style={{ fontSize: 14, fontWeight: 700, color: "#6b7280" }}>{group.code ?? ""}</span>
+        {group.name}
+        {codeDiffers ? <span style={{ fontSize: 14, fontWeight: 700, color: "#6b7280" }}> {group.code}</span> : null}
       </h1>
       <div style={{ color: "#6b7280", fontSize: 13, marginBottom: 6 }}>Отчет группы (просмотр для учебной части/админа)</div>
 
@@ -141,37 +141,30 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
             <thead>
               <tr>
                 <th style={{ ...th, textAlign: "left", ...stickyName }}>Студент</th>
-                {matrix.columns.map((c) => {
-                  const [date, code] = [c.header.slice(0, 10), c.header.slice(11)];
-                  return (
-                    <th key={c.id} style={{ ...th, ...center, padding: "8px 6px" }}>
-                      {date}
-                      <br />
-                      <span style={{ fontWeight: 600 }}>{code}</span>
-                    </th>
-                  );
-                })}
+                {matrix.columns.map((c) => (
+                  <th key={c.id} style={{ ...th, ...center, padding: "8px 6px" }}>
+                    {c.date}
+                    <br />
+                    <span style={{ fontWeight: 600 }}>{c.discipline}</span>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {matrix.rows.map((r) => (
                 <tr key={r.studentId}>
                   <td style={{ ...td, textAlign: "left", fontWeight: 700, ...stickyName }}>{r.name}</td>
-                  {r.cells.map((c, k) => {
-                    const col = c.status ? STATUS_COLORS[c.status] : null;
-                    return (
-                      <td key={k} style={{ ...td, ...center, padding: "6px 4px" }}>
-                        <span style={{ display: "inline-block", minWidth: 30, borderRadius: 8, padding: "3px 6px", fontWeight: 800, fontSize: 13, background: col?.bg ?? "transparent", color: col?.fg ?? "#9ca3af" }}>
-                          {c.text}
-                        </span>
-                      </td>
-                    );
-                  })}
+                  {r.cells.map((c, k) => (
+                    <td key={k} style={{ ...td, ...center, fontWeight: 700 }}>
+                      {c.text}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        {legend ? <div style={{ color: "#6b7280", fontSize: 13, marginTop: 8 }}>Дисциплины: {legend}</div> : null}
       </section>
     </main>
   );
