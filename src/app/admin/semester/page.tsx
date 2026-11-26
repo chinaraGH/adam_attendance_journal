@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
-import { getAllSemesters, getCurrentSemester, lockSemester } from "./actions";
+import { getAllSemesters, getCurrentSemester, lockSemester, reconcileSessionsNow } from "./actions";
 import { SemesterForm } from "./semester-form";
-import { btnDanger, card, fmtDateTime, h1, h2, hint, page, subtitle, tableWrap, td, th } from "@/lib/ui/office";
+import { btnDanger, btnOutline, card, fmtDateTime, h1, h2, hint, page, subtitle, tableWrap, td, th } from "@/lib/ui/office";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 function formatSemesterDateRu(d: Date) {
   return d.toLocaleDateString("ru-RU", { timeZone: "UTC" });
@@ -107,6 +108,20 @@ export default async function SemesterAdminPage() {
               style={semester.isLocked ? { ...btnDanger, background: "#f3f4f6", borderColor: "#d1d5db", color: "#6b7280", cursor: "not-allowed" } : btnDanger}
             >
               {semester.isLocked ? "Семестр заблокирован" : "Заблокировать семестр"}
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <section style={card}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <h2 style={h2}>Занятия и семестры</h2>
+            <div style={hint}>Пересчитать, к какому семестру относится каждое занятие. Нужно, если после изменения дат что-то отображается не в том семестре.</div>
+          </div>
+          <form action={reconcileSessionsNow}>
+            <button type="submit" style={btnOutline}>
+              Пересчитать занятия
             </button>
           </form>
         </div>

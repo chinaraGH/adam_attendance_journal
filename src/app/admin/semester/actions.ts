@@ -166,3 +166,11 @@ export async function lockSemester(formData: FormData) {
   revalidatePath("/admin/semester");
 }
 
+
+/** Повторно пересчитать семестр у занятий по текущим границам семестров (если предыдущий пересчёт был прерван). */
+export async function reconcileSessionsNow() {
+  const actor = await requireAcademicOffice();
+  await reconcileClassSessionsBySemesterBoundaries({ actorType: "academic_office", actorId: actor.id, correlationId: randomUUID() });
+  revalidatePath("/admin/semester");
+  revalidatePath("/acadepartment");
+}
