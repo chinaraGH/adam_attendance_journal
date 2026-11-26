@@ -24,3 +24,37 @@ export async function resolveSemesterId(requested?: string | null): Promise<stri
   const last = await prisma.semester.findFirst({ orderBy: { startDate: "desc" }, select: { id: true } });
   return last?.id ?? null;
 }
+
+export type LatestSemester = { id: string; name: string | null; startDate: Date; endDate: Date; isLocked: boolean };
+
+/**
+ * Последний семестр (по дате начала): открытый или, если новый ещё не создан, закрытый.
+ * Преподаватель, куратор и студент видят аналитику только за него.
+ */
+export async function latestSemester(): Promise<LatestSemester | null> {
+  return prisma.semester.findFirst({
+    orderBy: { startDate: "desc" },
+    select: { id: true, name: true, startDate: true, endDate: true, isLocked: true },
+  });
+}
+
+export async function latestSemesterId(): Promise<string | null> {
+  return (await latestSemester())?.id ?? null;
+}
+
+/** Сдвигает период [from, to] внутрь семестра (даты в локальном времени сервера, как и в отчётах). */
+export function clampPeriodToSemester(from: Date, to: Date, sem: { startDate: Date; endDate: Date }): { from: Date; to: Date } {
+  const start = new Date(sem.startDate);
+  const end = new Date(sem.endDate);
+  end.setHours(23, 59, 59, 999);
+  let f = from < start ? start : from;
+  let t = to > end ? end : to;
+  if (f > t) {
+    t = t < start ? start : t;
+    f = new Date(t);
+    f.setDate(f.getDate() - 30);
+    f.setHours(0, 0, 0, 0);
+    if (f < start) f = start;
+  }
+  return { from: f, to: t };
+}

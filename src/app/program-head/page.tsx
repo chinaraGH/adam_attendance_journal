@@ -175,7 +175,8 @@ export default async function ProgramHeadPage(props: { searchParams: Params }) {
   const selectedProgram = programs.find((p) => p.id === sp.programId) ?? null;
   const scopeIds = selectedProgram ? [selectedProgram.id] : allowed === null ? null : programs.map((p) => p.id);
 
-  const semesterId = await resolveSemesterId(sp.semesterId);
+  const allSemestersMode = sp.semesterId === "all";
+  const semesterId = allSemestersMode ? null : await resolveSemesterId(sp.semesterId);
   const semesterOptions = await listSemesterOptions();
   const rows: AnalyticsRow[] = await loadAnalyticsRows(scopeIds, semesterId);
   const total = aggregate(rows);
@@ -212,7 +213,8 @@ export default async function ProgramHeadPage(props: { searchParams: Params }) {
     if (q.groupId) p.set("groupId", q.groupId);
     if (q.disciplineId) p.set("disciplineId", q.disciplineId);
     if (q.course) p.set("course", q.course);
-    if (semesterId) p.set("semesterId", semesterId);
+    if (allSemestersMode) p.set("semesterId", "all");
+    else if (semesterId) p.set("semesterId", semesterId);
     const pid = q.programId ?? selectedProgram?.id;
     if (pid) p.set("programId", pid);
     const s = p.toString();
@@ -559,7 +561,8 @@ export default async function ProgramHeadPage(props: { searchParams: Params }) {
             const q = new URLSearchParams();
             if (view !== "overview") q.set("view", view);
             if (p.id) q.set("programId", p.id);
-            if (semesterId) q.set("semesterId", semesterId);
+            if (allSemestersMode) q.set("semesterId", "all");
+            else if (semesterId) q.set("semesterId", semesterId);
             return (
               <Link
                 key={p.id || "all"}
@@ -578,7 +581,8 @@ export default async function ProgramHeadPage(props: { searchParams: Params }) {
       <div style={{ marginBottom: 10 }}>
         <CuratorSemesterSelector
           allSemesters={semesterOptions}
-          currentSemesterId={semesterId ?? undefined}
+          currentSemesterId={allSemestersMode ? "all" : semesterId ?? undefined}
+          allowAll
           hidden={{
             ...(view !== "overview" ? { view } : {}),
             ...(selectedProgram ? { programId: selectedProgram.id } : {}),

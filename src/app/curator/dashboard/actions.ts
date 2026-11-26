@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { BISHKEK_TIME_ZONE } from "@/lib/time/bishkek-now";
 import { processSickRequest, setAdministrativeAbsence } from "@/app/actions/curator-actions";
+import { latestSemesterId } from "@/lib/semester/resolve";
 
 export type CuratorSickSemesterRow = {
   attendanceId: string;
@@ -30,7 +31,7 @@ export type CuratorSickSemesterRow = {
 };
 
 /** Блокирующие статусы за семестр: B_PENDING, B_CONFIRMED и отклонённые Б (NB после sick_reject в audit). Без изменения бизнес-правил записи. */
-export async function getCuratorSickSemesterOverview(dateParam?: string, semesterIdParam?: string): Promise<
+export async function getCuratorSickSemesterOverview(dateParam?: string, _semesterIdParam?: string): Promise<
   | { ok: false; error: string }
   | {
       ok: true;
@@ -40,6 +41,8 @@ export async function getCuratorSickSemesterOverview(dateParam?: string, semeste
       rows: CuratorSickSemesterRow[];
     }
 > {
+  // Куратор видит только последний семестр.
+  const semesterIdParam = (await latestSemesterId()) ?? undefined;
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "CURATOR") {
     return { ok: false, error: "Недостаточно прав." };
@@ -258,7 +261,9 @@ export async function getPendingSickAttendances() {
   return { ok: true as const, items };
 }
 
-export async function getCuratorGroupSummary(semesterId?: string) {
+export async function getCuratorGroupSummary(_semesterId?: string) {
+  // Куратор видит только последний семестр.
+  const semesterId = (await latestSemesterId()) ?? undefined;
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "CURATOR") {
     return { ok: false as const, error: "Недостаточно прав." };
@@ -461,7 +466,9 @@ export async function decideSickRequest(input: { attendanceId: string; decision:
   return processSickRequest(input);
 }
 
-export async function getCuratorProblematicStudents(semesterId?: string) {
+export async function getCuratorProblematicStudents(_semesterId?: string) {
+  // Куратор видит только последний семестр.
+  const semesterId = (await latestSemesterId()) ?? undefined;
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "CURATOR") {
     return { ok: false as const, error: "Недостаточно прав." };
@@ -549,7 +556,7 @@ export async function getCuratorAllSemesters() {
   return await prisma.semester.findMany({
     orderBy: { startDate: "desc" },
     select: { id: true, name: true, isLocked: true },
-    take: 50,
+    take: 1,
   });
 }
 

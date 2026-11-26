@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { latestSemesterId } from "@/lib/semester/resolve";
 import { buildGroupPointsReport, type GroupPointsReport, type PointsRow } from "@/lib/points/report";
 
 export type StudentDisciplinePoints = {
@@ -18,15 +19,19 @@ export async function loadStudentPoints(studentId: string, groupId: string): Pro
   const group = await prisma.group.findFirst({ where: { id: groupId }, select: { programId: true } });
   if (!group?.programId) return [];
 
+  // Студент видит баллы только за последний семестр.
+  const semesterId = await latestSemesterId();
+  if (!semesterId) return [];
+
   const sessions = await prisma.classSession.findMany({
-    where: { groupId, isActive: true, deletedAt: null, semesterId: { not: null } },
+    where: { groupId, isActive: true, deletedAt: null, semesterId },
     select: { disciplineId: true, teacherId: true, semesterId: true },
   });
   const pairs = new Set(sessions.map((s) => `${s.disciplineId}|${s.teacherId}|${s.semesterId}`));
   if (pairs.size === 0) return [];
 
   const cards = await prisma.techCard.findMany({
-    where: { programId: group.programId, isActive: true, deletedAt: null },
+    where: { programId: group.programId, semesterId, isActive: true, deletedAt: null },
     include: { discipline: { select: { name: true } }, teacher: { select: { name: true } }, semester: { select: { name: true, startDate: true } } },
     orderBy: { createdAt: "asc" },
   });

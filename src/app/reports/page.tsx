@@ -1,3 +1,4 @@
+import { clampPeriodToSemester, latestSemester } from "@/lib/semester/resolve";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { formatDisciplineLabel } from "@/lib/ui/labels";
@@ -87,8 +88,13 @@ export default async function ReportsPage(props: {
   const defaultTo = new Date(now);
   defaultTo.setHours(23, 59, 59, 999);
 
-  const from = toStartOfDay(parseDate(props.searchParams.from) ?? defaultFrom);
-  const to = toEndOfDay(parseDate(props.searchParams.to) ?? defaultTo);
+  // Преподаватель и куратор видят аналитику только за последний семестр: период ограничивается его датами.
+  const sem = await latestSemester();
+  const wanted = {
+    from: toStartOfDay(parseDate(props.searchParams.from) ?? defaultFrom),
+    to: toEndOfDay(parseDate(props.searchParams.to) ?? defaultTo),
+  };
+  const { from, to } = sem ? clampPeriodToSemester(wanted.from, wanted.to, sem) : wanted;
 
   const disciplines = groupId
     ? await prisma.classSession.findMany({
@@ -219,6 +225,12 @@ export default async function ReportsPage(props: {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
         <h1 style={{ fontSize: 26, fontWeight: 900 }}>Отчеты</h1>
       </div>
+      {sem ? (
+        <div style={{ marginTop: 4, color: "#6b7280", fontSize: 13 }}>
+          Данные за последний семестр: {sem.name ?? "семестр"}
+          {sem.isLocked ? " (закрыт, только просмотр)" : ""}.
+        </div>
+      ) : null}
 
       <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>
         <div style={{ fontWeight: 900, marginBottom: 10 }}>Фильтры</div>

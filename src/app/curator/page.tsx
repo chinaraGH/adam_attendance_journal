@@ -4,12 +4,10 @@ import {
   getCuratorGroupSummary,
   getCuratorSickSemesterOverview,
   getCuratorProblematicStudents,
-  getCuratorAllSemesters,
 } from "./dashboard/actions";
 import { formatDisciplineLabel } from "@/lib/ui/labels";
 import { SickRequestActions } from "./dashboard/sick-request-actions";
 import { DateInputWithApply } from "./exemptions/auto-submit-date-input";
-import { CuratorSemesterSelector } from "./semester-selector";
 
 function parseYmd(param: string | undefined): string | null {
   if (!param || typeof param !== "string") return null;
@@ -19,10 +17,9 @@ function parseYmd(param: string | undefined): string | null {
 
 export default async function CuratorPage(props: { searchParams: { date?: string; semesterId?: string } }) {
   const selectedDate = parseYmd(props.searchParams.date);
-  const semesterIdParam = props.searchParams.semesterId;
-  const semesterId = typeof semesterIdParam === "string" && semesterIdParam.length > 0 ? semesterIdParam : undefined;
+  // Куратор видит только последний семестр (его подставляют сами функции).
+  const semesterId = undefined;
 
-  const allSemesters = await getCuratorAllSemesters();
   const sickSemester = await getCuratorSickSemesterOverview(selectedDate ?? undefined, semesterId);
   const summary = await getCuratorGroupSummary(semesterId);
   const problemRes = await getCuratorProblematicStudents(semesterId);
@@ -32,7 +29,6 @@ export default async function CuratorPage(props: { searchParams: { date?: string
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           <h1 style={{ fontSize: 28, fontWeight: 900 }}>Кабинет куратора</h1>
-          <CuratorSemesterSelector allSemesters={allSemesters} currentSemesterId={semesterId} dateParam={selectedDate ?? undefined} />
         </div>
         <Link
           href="/curator/exemptions"
@@ -125,7 +121,6 @@ export default async function CuratorPage(props: { searchParams: { date?: string
       </p>
 
       <form method="get" style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "end" }}>
-        {semesterId && <input type="hidden" name="semesterId" value={semesterId} />}
         <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
           Дата
           <DateInputWithApply defaultValue={selectedDate ?? ""} />

@@ -3,6 +3,7 @@ import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
 import { formatAttendanceStatusDisplay } from "@/lib/ui/labels";
 import { StudentAttendanceFilters } from "@/components/student-attendance-filters";
+import { clampPeriodToSemester, latestSemester } from "@/lib/semester/resolve";
 import { loadStudentPoints } from "@/lib/points/student-points";
 import { formatPoints } from "@/lib/points/calc";
 
@@ -102,8 +103,13 @@ export default async function StudentPage(props: {
   const defaultTo = new Date(now);
   defaultTo.setHours(23, 59, 59, 999);
 
-  const from = toStartOfDay(parseDate(props.searchParams.from) ?? defaultFrom);
-  const to = toEndOfDay(parseDate(props.searchParams.to) ?? defaultTo);
+  // Студент видит только последний семестр: период ограничивается его датами.
+  const sem = await latestSemester();
+  const wanted = {
+    from: toStartOfDay(parseDate(props.searchParams.from) ?? defaultFrom),
+    to: toEndOfDay(parseDate(props.searchParams.to) ?? defaultTo),
+  };
+  const { from, to } = sem ? clampPeriodToSemester(wanted.from, wanted.to, sem) : wanted;
 
   // Find sessions in period for this student's group, then join attendances.
   const sessions = await prisma.classSession.findMany({
@@ -186,6 +192,12 @@ export default async function StudentPage(props: {
           <div style={{ marginTop: 6, color: "#6b7280", fontWeight: 800 }}>
             {student.name} • {student.group.name}
           </div>
+          {sem ? (
+            <div style={{ marginTop: 2, color: "#6b7280", fontSize: 13 }}>
+              Семестр: {sem.name ?? "последний"}
+              {sem.isLocked ? " (закрыт, только просмотр)" : ""}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -213,7 +225,6 @@ export default async function StudentPage(props: {
             return (
               <div key={d.cardId} style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>
                 <div style={{ fontWeight: 900, fontSize: 16 }}>{d.disciplineName}</div>
-                {new Set(myPoints.map((x) => x.semesterName)).size > 1 ? <div style={{ fontSize: 12, color: "#6b7280" }}>{d.semesterName}</div> : null}
                 <div style={{ color: "#6b7280", fontSize: 13, marginBottom: 8 }}>{d.teacherName}</div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                   <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>Итого</span>

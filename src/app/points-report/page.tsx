@@ -9,7 +9,7 @@ import { buildGroupPointsReport, groupsForTechCard } from "@/lib/points/report";
 import { formatPoints } from "@/lib/points/calc";
 import { attendanceSheet, pointsSheet, statusShort, summarySheet, STATUS_LEGEND, type CanonStatus, type ModuleTables } from "@/lib/points/module-tables";
 import { ExportTableButton } from "@/components/export-table-button";
-import { listSemesterOptions, resolveSemesterId } from "@/lib/semester/resolve";
+import { latestSemesterId, listSemesterOptions, resolveSemesterId } from "@/lib/semester/resolve";
 import { CuratorSemesterSelector } from "@/app/curator/semester-selector";
 
 export const dynamic = "force-dynamic";
@@ -238,8 +238,10 @@ export default async function PointsReportPage(props: { searchParams: { cardId?:
   const view: "all" | "1" | "2" = props.searchParams.module === "1" ? "1" : props.searchParams.module === "2" ? "2" : "all";
 
   if (cardId && groupId) {
-    const card = await prisma.techCard.findFirst({ where: { id: cardId, isActive: true, deletedAt: null }, select: { teacherId: true, programId: true, teacher: { select: { name: true } } } });
+    const card = await prisma.techCard.findFirst({ where: { id: cardId, isActive: true, deletedAt: null }, select: { teacherId: true, programId: true, semesterId: true, teacher: { select: { name: true } } } });
     if (!card || !(await canViewTechCard(actor, card))) redirect(back);
+    // Преподаватель видит итоги только за последний семестр.
+    if (actor.role === "TEACHER" && card.semesterId !== (await latestSemesterId())) redirect(back);
     const report = await buildGroupPointsReport({ techCardId: cardId, groupId });
     if (!report) redirect(back);
     const sum2 = (a: [number, number]) => a[0] + a[1];
@@ -299,7 +301,8 @@ export default async function PointsReportPage(props: { searchParams: { cardId?:
 
   // Список доступных отчётов
   const programs = await visibleProgramIds(actor);
-  const semesterId = await resolveSemesterId(props.searchParams.semesterId);
+  // Преподаватель видит только последний семестр, учебная часть и руководители выбирают любой.
+  const semesterId = actor.role === "TEACHER" ? await latestSemesterId() : await resolveSemesterId(props.searchParams.semesterId);
   const semesterOptions = await listSemesterOptions();
   const cards = await prisma.techCard.findMany({
     where: {
@@ -321,9 +324,11 @@ export default async function PointsReportPage(props: { searchParams: { cardId?:
     <main style={{ padding: 16, maxWidth: 640, margin: "0 auto" }}>
       <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Итоги по группам</h1>
       <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 12 }}>Баллы за посещаемость и оценки, расчёт на момент открытия.</p>
-      <div style={{ marginBottom: 12 }}>
-        <CuratorSemesterSelector allSemesters={semesterOptions} currentSemesterId={semesterId ?? undefined} />
-      </div>
+      {actor.role !== "TEACHER" ? (
+        <div style={{ marginBottom: 12 }}>
+          <CuratorSemesterSelector allSemesters={semesterOptions} currentSemesterId={semesterId ?? undefined} />
+        </div>
+      ) : null}
       {items.length === 0 ? <p>Нет данных: сначала заполните технологические карты.</p> : null}
       <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
         {items.map((it) => (

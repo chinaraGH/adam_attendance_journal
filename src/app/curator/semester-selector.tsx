@@ -5,6 +5,8 @@ export function CuratorSemesterSelector(props: {
   currentSemesterId?: string;
   dateParam?: string;
   hidden?: Record<string, string>;
+  /** Добавляет пункт «Все семестры» (значение all). */
+  allowAll?: boolean;
 }) {
   return (
     <form style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -30,6 +32,7 @@ export function CuratorSemesterSelector(props: {
         }}
       >
         {!props.currentSemesterId && <option value="">Авто (текущий)</option>}
+        {props.allowAll ? <option value="all">Все семестры</option> : null}
         {props.allSemesters.map((s) => (
           <option key={s.id} value={s.id}>
             {s.name ?? "Без названия"} {s.isLocked ? "(Архив)" : ""}
