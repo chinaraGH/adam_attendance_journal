@@ -4,10 +4,14 @@ export function CuratorSemesterSelector(props: {
   allSemesters: { id: string; name: string | null; isLocked: boolean }[];
   currentSemesterId?: string;
   dateParam?: string;
+  hidden?: Record<string, string>;
 }) {
   return (
     <form style={{ display: "flex", alignItems: "center", gap: 8 }}>
       {props.dateParam ? <input type="hidden" name="date" value={props.dateParam} /> : null}
+      {Object.entries(props.hidden ?? {}).map(([k, v]) => (
+        <input key={k} type="hidden" name={k} value={v} />
+      ))}
       <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>Семестр:</span>
       <select
         name="semesterId"

@@ -7,11 +7,13 @@ import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { visibleProgramIds } from "@/lib/points/access";
 import { aggregate, loadAnalyticsRows, sumCounts, ATTENDANCE_RISK_PERCENT, type Aggregate, type AnalyticsRow, type Counts } from "@/lib/points/analytics";
 import { formatPoints } from "@/lib/points/calc";
+import { listSemesterOptions, resolveSemesterId } from "@/lib/semester/resolve";
+import { CuratorSemesterSelector } from "@/app/curator/semester-selector";
 
 export const dynamic = "force-dynamic";
 
 type View = "overview" | "courses" | "groups" | "disciplines";
-type Params = { view?: string; groupId?: string; disciplineId?: string; programId?: string; course?: string };
+type Params = { view?: string; groupId?: string; disciplineId?: string; programId?: string; course?: string; semesterId?: string };
 
 const pct = (n: number | null) => (n === null ? "нет данных" : `${String(n).replace(".", ",")}%`);
 const rateColor = (n: number | null) => (n === null ? "#6b7280" : n >= 85 ? "#166534" : n >= ATTENDANCE_RISK_PERCENT ? "#b45309" : "#b91c1c");
@@ -173,7 +175,9 @@ export default async function ProgramHeadPage(props: { searchParams: Params }) {
   const selectedProgram = programs.find((p) => p.id === sp.programId) ?? null;
   const scopeIds = selectedProgram ? [selectedProgram.id] : allowed === null ? null : programs.map((p) => p.id);
 
-  const rows: AnalyticsRow[] = await loadAnalyticsRows(scopeIds);
+  const semesterId = await resolveSemesterId(sp.semesterId);
+  const semesterOptions = await listSemesterOptions();
+  const rows: AnalyticsRow[] = await loadAnalyticsRows(scopeIds, semesterId);
   const total = aggregate(rows);
 
   // занятия есть, а карты нет
@@ -181,15 +185,14 @@ export default async function ProgramHeadPage(props: { searchParams: Params }) {
     where: {
       isActive: true,
       deletedAt: null,
-      semesterId: { not: null },
-      semester: { isLocked: false },
+      ...(semesterId ? { semesterId } : { semesterId: { not: null } }),
       ...(scopeIds === null ? {} : { group: { programId: { in: scopeIds } } }),
     },
     select: { disciplineId: true, teacherId: true, discipline: { select: { name: true } }, teacher: { select: { name: true } } },
   });
   const haveCard = new Set(rows.map((r) => `${r.disciplineId}|${r.teacherId}`));
   const cardsInScope = await prisma.techCard.findMany({
-    where: { isActive: true, deletedAt: null, semester: { isLocked: false }, ...(scopeIds === null ? {} : { programId: { in: scopeIds } }) },
+    where: { isActive: true, deletedAt: null, ...(semesterId ? { semesterId } : {}), ...(scopeIds === null ? {} : { programId: { in: scopeIds } }) },
     select: { disciplineId: true, teacherId: true },
   });
   for (const c of cardsInScope) haveCard.add(`${c.disciplineId}|${c.teacherId}`);
@@ -209,6 +212,7 @@ export default async function ProgramHeadPage(props: { searchParams: Params }) {
     if (q.groupId) p.set("groupId", q.groupId);
     if (q.disciplineId) p.set("disciplineId", q.disciplineId);
     if (q.course) p.set("course", q.course);
+    if (semesterId) p.set("semesterId", semesterId);
     const pid = q.programId ?? selectedProgram?.id;
     if (pid) p.set("programId", pid);
     const s = p.toString();
@@ -555,6 +559,7 @@ export default async function ProgramHeadPage(props: { searchParams: Params }) {
             const q = new URLSearchParams();
             if (view !== "overview") q.set("view", view);
             if (p.id) q.set("programId", p.id);
+            if (semesterId) q.set("semesterId", semesterId);
             return (
               <Link
                 key={p.id || "all"}
@@ -569,6 +574,17 @@ export default async function ProgramHeadPage(props: { searchParams: Params }) {
       ) : programs.length === 1 ? (
         <div style={{ fontWeight: 800, marginBottom: 10 }}>{programs[0].name}</div>
       ) : null}
+
+      <div style={{ marginBottom: 10 }}>
+        <CuratorSemesterSelector
+          allSemesters={semesterOptions}
+          currentSemesterId={semesterId ?? undefined}
+          hidden={{
+            ...(view !== "overview" ? { view } : {}),
+            ...(selectedProgram ? { programId: selectedProgram.id } : {}),
+          }}
+        />
+      </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         {tab("overview", "Общая")}

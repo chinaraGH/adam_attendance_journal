@@ -3,6 +3,8 @@ import { buildGroupPointsReport, type GroupPointsReport, type PointsRow } from "
 
 export type StudentDisciplinePoints = {
   cardId: string;
+  semesterName: string;
+  semesterStart: Date;
   disciplineName: string;
   teacherName: string;
   row: PointsRow;
@@ -17,15 +19,15 @@ export async function loadStudentPoints(studentId: string, groupId: string): Pro
   if (!group?.programId) return [];
 
   const sessions = await prisma.classSession.findMany({
-    where: { groupId, isActive: true, deletedAt: null, semesterId: { not: null }, semester: { isLocked: false } },
+    where: { groupId, isActive: true, deletedAt: null, semesterId: { not: null } },
     select: { disciplineId: true, teacherId: true, semesterId: true },
   });
   const pairs = new Set(sessions.map((s) => `${s.disciplineId}|${s.teacherId}|${s.semesterId}`));
   if (pairs.size === 0) return [];
 
   const cards = await prisma.techCard.findMany({
-    where: { programId: group.programId, isActive: true, deletedAt: null, semester: { isLocked: false } },
-    include: { discipline: { select: { name: true } }, teacher: { select: { name: true } } },
+    where: { programId: group.programId, isActive: true, deletedAt: null },
+    include: { discipline: { select: { name: true } }, teacher: { select: { name: true } }, semester: { select: { name: true, startDate: true } } },
     orderBy: { createdAt: "asc" },
   });
   const mine = cards.filter((c) => pairs.has(`${c.disciplineId}|${c.teacherId}|${c.semesterId}`));
@@ -40,6 +42,8 @@ export async function loadStudentPoints(studentId: string, groupId: string): Pro
       if (!rep || !row) return;
       out.push({
         cardId: c.id,
+        semesterName: c.semester.name ?? "Семестр",
+        semesterStart: c.semester.startDate,
         disciplineName: c.discipline.name,
         teacherName: c.teacher.name,
         row,
@@ -49,5 +53,5 @@ export async function loadStudentPoints(studentId: string, groupId: string): Pro
       });
     });
   }
-  return out.sort((a, b) => a.disciplineName.localeCompare(b.disciplineName, "ru"));
+  return out.sort((a, b) => b.semesterStart.getTime() - a.semesterStart.getTime() || a.disciplineName.localeCompare(b.disciplineName, "ru"));
 }

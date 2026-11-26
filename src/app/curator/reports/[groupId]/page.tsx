@@ -6,6 +6,8 @@ import { getCurrentUserOrRedirect } from "@/lib/auth/get-current-user";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { getCanonicalAttendanceStatusV2 } from "@/lib/attendance/status-machine";
 import { formatAttendanceStatusDisplay } from "@/lib/ui/labels";
+import { listSemesterOptions, resolveSemesterId } from "@/lib/semester/resolve";
+import { CuratorSemesterSelector } from "@/app/curator/semester-selector";
 
 function fmtShort(d: Date) {
   return new Date(d).toLocaleDateString("ru-RU", { month: "2-digit", day: "2-digit" });
@@ -15,7 +17,7 @@ function fmtTime(d: Date) {
   return new Date(d).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }
 
-export default async function CuratorGroupReportPage(props: { params: { groupId: string } }) {
+export default async function CuratorGroupReportPage(props: { params: { groupId: string }; searchParams?: { semesterId?: string } }) {
   const t0 = performance.now();
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "CURATOR") {
@@ -55,17 +57,12 @@ export default async function CuratorGroupReportPage(props: { params: { groupId:
     );
   }
 
-  // Берем текущий (не locked) семестр, иначе самый последний.
-  const semester =
-    (await prisma.semester.findFirst({
-      where: { isLocked: false },
-      orderBy: { startDate: "desc" },
-      select: { id: true, startDate: true, endDate: true, isLocked: true },
-    })) ??
-    (await prisma.semester.findFirst({
-      orderBy: { startDate: "desc" },
-      select: { id: true, startDate: true, endDate: true, isLocked: true },
-    }));
+  // Выбранный семестр, иначе текущий (не закрытый), иначе последний. Закрытый семестр доступен для просмотра.
+  const semesterId = await resolveSemesterId(props.searchParams?.semesterId);
+  const semesterOptions = await listSemesterOptions();
+  const semester = semesterId
+    ? await prisma.semester.findUnique({ where: { id: semesterId }, select: { id: true, startDate: true, endDate: true, isLocked: true } })
+    : null;
 
   const sessions =
     semester?.id
@@ -176,6 +173,7 @@ export default async function CuratorGroupReportPage(props: { params: { groupId:
             Формула: % = (П + О) / всего занятий (по выбранным столбцам)
           </div>
         </div>
+        <CuratorSemesterSelector allSemesters={semesterOptions} currentSemesterId={semesterId ?? undefined} />
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">

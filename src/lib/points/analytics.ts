@@ -124,9 +124,9 @@ export function aggregate(rows: AnalyticsRow[]): Aggregate {
 }
 
 /** Считает строки «студент × дисциплина» по всем технологическим картам направлений. programIds = null — все направления. */
-export async function loadAnalyticsRows(programIds: string[] | null): Promise<AnalyticsRow[]> {
+export async function loadAnalyticsRows(programIds: string[] | null, semesterId?: string | null): Promise<AnalyticsRow[]> {
   const cards = await prisma.techCard.findMany({
-    where: { isActive: true, deletedAt: null, semester: { isLocked: false }, ...(programIds === null ? {} : { programId: { in: programIds } }) },
+    where: { isActive: true, deletedAt: null, ...(semesterId ? { semesterId } : {}), ...(programIds === null ? {} : { programId: { in: programIds } }) },
     include: {
       discipline: { select: { name: true } },
       teacher: { select: { name: true } },

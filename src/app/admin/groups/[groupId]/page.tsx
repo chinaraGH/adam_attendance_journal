@@ -6,6 +6,8 @@ import { fmtDate, page, h1, subtitle } from "@/lib/ui/office";
 import { disciplinesLegend, groupMatrixSheet, type GroupMatrix } from "@/lib/points/group-matrix";
 import { formatAttendanceStatusDisplay } from "@/lib/ui/labels";
 import type { CanonStatus } from "@/lib/points/module-tables";
+import { listSemesterOptions, resolveSemesterId } from "@/lib/semester/resolve";
+import { CuratorSemesterSelector } from "@/app/curator/semester-selector";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +16,7 @@ const td = { padding: "8px 8px", textAlign: "right" as const, fontSize: 14, bord
 const stickyName = { position: "sticky" as const, left: 0, background: "white", zIndex: 1 };
 const center = { textAlign: "center" as const };
 
-export default async function AdminGroupReportPage(props: { params: { groupId: string } }) {
+export default async function AdminGroupReportPage(props: { params: { groupId: string }; searchParams?: { semesterId?: string } }) {
   const actor = await getCurrentUserOrRedirect();
   if (actor.role !== "ADMIN" && actor.role !== "ACADEMIC_OFFICE") {
     return (
@@ -40,16 +42,9 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
     );
   }
 
-  const semester =
-    (await prisma.semester.findFirst({
-      where: { isLocked: false },
-      orderBy: { startDate: "desc" },
-      select: { id: true, name: true },
-    })) ??
-    (await prisma.semester.findFirst({
-      orderBy: { startDate: "desc" },
-      select: { id: true, name: true },
-    }));
+  const semesterId = await resolveSemesterId(props.searchParams?.semesterId);
+  const semesterOptions = await listSemesterOptions();
+  const semester = semesterId ? await prisma.semester.findUnique({ where: { id: semesterId }, select: { id: true, name: true } }) : null;
 
   const sessions =
     semester?.id
@@ -132,6 +127,9 @@ export default async function AdminGroupReportPage(props: { params: { groupId: s
         {codeDiffers ? <span style={{ fontSize: 14, fontWeight: 700, color: "#6b7280" }}> {group.code}</span> : null}
       </h1>
       <div style={{ color: "#6b7280", fontSize: 13, marginBottom: 6 }}>Отчет группы (просмотр для учебной части/админа)</div>
+      <div style={{ marginTop: 8 }}>
+        <CuratorSemesterSelector allSemesters={semesterOptions} currentSemesterId={semesterId ?? undefined} />
+      </div>
 
       <section style={{ marginTop: 16 }}>
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>

@@ -9,6 +9,8 @@ import { buildGroupPointsReport, groupsForTechCard } from "@/lib/points/report";
 import { formatPoints } from "@/lib/points/calc";
 import { attendanceSheet, pointsSheet, statusShort, summarySheet, STATUS_LEGEND, type CanonStatus, type ModuleTables } from "@/lib/points/module-tables";
 import { ExportTableButton } from "@/components/export-table-button";
+import { listSemesterOptions, resolveSemesterId } from "@/lib/semester/resolve";
+import { CuratorSemesterSelector } from "@/app/curator/semester-selector";
 
 export const dynamic = "force-dynamic";
 
@@ -228,7 +230,7 @@ function Tabs(props: { cardId: string; groupId: string; active: "all" | "1" | "2
   );
 }
 
-export default async function PointsReportPage(props: { searchParams: { cardId?: string; groupId?: string; module?: string } }) {
+export default async function PointsReportPage(props: { searchParams: { cardId?: string; groupId?: string; module?: string; semesterId?: string } }) {
   const actor = await getCurrentUserOrRedirect();
   if (actor.role === "STUDENT" || actor.role === "CURATOR") redirect("/login");
   const back = actor.role === "TEACHER" ? "/teacher" : actor.role === "PROGRAM_HEAD" ? "/program-head" : "/acadepartment";
@@ -297,11 +299,13 @@ export default async function PointsReportPage(props: { searchParams: { cardId?:
 
   // Список доступных отчётов
   const programs = await visibleProgramIds(actor);
+  const semesterId = await resolveSemesterId(props.searchParams.semesterId);
+  const semesterOptions = await listSemesterOptions();
   const cards = await prisma.techCard.findMany({
     where: {
       isActive: true,
       deletedAt: null,
-      semester: { isLocked: false },
+      ...(semesterId ? { semesterId } : {}),
       ...(actor.role === "TEACHER" ? { teacherId: actor.id } : programs === null ? {} : { programId: { in: programs } }),
     },
     include: { discipline: { select: { name: true } }, program: { select: { name: true } }, teacher: { select: { name: true } } },
@@ -317,6 +321,9 @@ export default async function PointsReportPage(props: { searchParams: { cardId?:
     <main style={{ padding: 16, maxWidth: 640, margin: "0 auto" }}>
       <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Итоги по группам</h1>
       <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 12 }}>Баллы за посещаемость и оценки, расчёт на момент открытия.</p>
+      <div style={{ marginBottom: 12 }}>
+        <CuratorSemesterSelector allSemesters={semesterOptions} currentSemesterId={semesterId ?? undefined} />
+      </div>
       {items.length === 0 ? <p>Нет данных: сначала заполните технологические карты.</p> : null}
       <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
         {items.map((it) => (

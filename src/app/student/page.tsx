@@ -213,6 +213,7 @@ export default async function StudentPage(props: {
             return (
               <div key={d.cardId} style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, background: "white" }}>
                 <div style={{ fontWeight: 900, fontSize: 16 }}>{d.disciplineName}</div>
+                {new Set(myPoints.map((x) => x.semesterName)).size > 1 ? <div style={{ fontSize: 12, color: "#6b7280" }}>{d.semesterName}</div> : null}
                 <div style={{ color: "#6b7280", fontSize: 13, marginBottom: 8 }}>{d.teacherName}</div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                   <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>Итого</span>
