@@ -32,7 +32,9 @@ export async function ensureTechCard(params: { actor: Actor; disciplineId: strin
   const maxPerGroup = Math.max(...perGroup.values());
   const lessonsCount = Math.max(1, Math.min(30, Math.ceil(maxPerGroup / 2)));
 
-  const semester = await prisma.semester.findUnique({ where: { id: semesterId }, select: { modulePoints: true } });
+  const semester = await prisma.semester.findUnique({ where: { id: semesterId }, select: { modulePoints: true, isLocked: true } });
+  // В закрытом семестре новые карты не создаются.
+  if (!semester || semester.isLocked) return null;
   const modulePoints = semester?.modulePoints ?? 50;
   const selfWork = round2(modulePoints * 0.2);
   const border = round2(modulePoints * 0.4);

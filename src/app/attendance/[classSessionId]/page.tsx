@@ -70,7 +70,7 @@ export default async function AttendanceBySessionPage(props: { params: { classSe
     status: session.status,
     statusV2: session.statusV2,
   });
-  if (effective === "auto_closed" && !attendanceEditable) {
+  if (effective === "auto_closed" && !attendanceEditable && !session.semester?.isLocked) {
     const updated = await prisma.attendance.updateMany({
       where: {
         classSessionId: session.id,

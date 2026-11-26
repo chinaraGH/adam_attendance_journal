@@ -25,10 +25,12 @@ export async function openJournal(input: { classSessionId: string }) {
       flagLateTeacher: true,
       status: true,
       statusV2: true,
+      semester: { select: { isLocked: true } },
     },
   });
 
   if (!session) return { ok: false as const, error: "Занятие не найдено или недоступно." };
+  if (session.semester?.isLocked) return { ok: false as const, error: "Семестр закрыт. Журнал открыть нельзя." };
 
   const effective = getEffectiveClassSessionStatus({
     startTime: session.startTime,

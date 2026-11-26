@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       isActive: true,
       deletedAt: null,
       statusV2: "B_PENDING",
-      classSession: { endTime: { lt: fourteenDaysAgo } },
+      classSession: { endTime: { lt: fourteenDaysAgo }, OR: [{ semesterId: null }, { semester: { isLocked: false } }] },
     },
     take: 1000,
     select: { id: true, studentId: true, classSessionId: true, semesterId: true },
@@ -95,7 +95,11 @@ export async function POST(request: Request) {
       deletedAt: null,
       openedAt: null,
       endTime: { lt: nowInstant },
-      OR: [{ statusV2: { not: "cancelled" } }, { statusV2: null, status: { not: "cancelled" } }],
+      AND: [
+        { OR: [{ statusV2: { not: "cancelled" } }, { statusV2: null, status: { not: "cancelled" } }] },
+        // в закрытом семестре ничего не меняем
+        { OR: [{ semesterId: null }, { semester: { isLocked: false } }] },
+      ],
     },
     select: { id: true, groupId: true, statusV2: true, status: true },
   });
@@ -167,6 +171,7 @@ export async function POST(request: Request) {
       isActive: true,
       deletedAt: null,
       startTime: { gte: nowInstant, lte: inFiveMinutesInstant },
+      semester: { isLocked: false },
       OR: [{ statusV2: { not: "cancelled" } }, { statusV2: null, status: { not: "cancelled" } }],
     },
     select: { id: true, groupId: true, semesterId: true },
