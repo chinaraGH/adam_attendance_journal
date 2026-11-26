@@ -55,6 +55,14 @@ export async function reconcileClassSessionsBySemesterBoundaries(params: Reconci
       select: { id: true },
     });
 
+    // Отметки занятия переходят в тот же семестр, что и само занятие.
+    if (nextSemesterId) {
+      await prisma.attendance.updateMany({
+        where: { classSessionId: session.id, NOT: { semesterId: nextSemesterId } },
+        data: { semesterId: nextSemesterId },
+      });
+    }
+
     await prisma.auditTrail.create({
       data: {
         actorType: params.actorType,

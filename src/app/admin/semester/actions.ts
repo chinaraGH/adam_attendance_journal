@@ -55,20 +55,36 @@ export async function upsertSemester(prevState: any, formData: FormData) {
   const actor = await requireAcademicOffice();
 
   const intent = formData.get("intent") as string | null;
-  const semesterId = formData.get("semesterId") as string | null;
-  const name = formData.get("name") as string | null;
-  const startDate = formData.get("startDate") as string | null;
-  const endDate = formData.get("endDate") as string | null;
+  let semesterId = ((formData.get("semesterId") as string | null) ?? "").trim();
+  const name = ((formData.get("name") as string | null) ?? "").trim();
+  const startDate = ((formData.get("startDate") as string | null) ?? "").trim();
+  const endDate = ((formData.get("endDate") as string | null) ?? "").trim();
 
-  if (intent !== "create" && intent !== "update") throw new Error("Invalid intent");
-  if (!semesterId) throw new Error(intent === "create" ? "Укажите ID для нового семестра" : "semesterId is required");
-  if (!name) throw new Error("name is required");
-  if (!startDate) throw new Error("startDate is required");
-  if (!endDate) throw new Error("endDate is required");
+  if (intent !== "create" && intent !== "update") return { error: "Неизвестное действие. Обновите страницу и повторите." };
+  if (intent === "update" && !semesterId) return { error: "Не найден семестр для редактирования. Обновите страницу." };
+  if (!name) return { error: "Укажите название семестра." };
+  if (!startDate) return { error: "Укажите дату начала." };
+  if (!endDate) return { error: "Укажите дату конца." };
 
-  const start = parseYmdToUtcDate(startDate);
-  const end = parseYmdToUtcDate(endDate);
+  let start: Date;
+  let end: Date;
+  try {
+    start = parseYmdToUtcDate(startDate);
+    end = parseYmdToUtcDate(endDate);
+  } catch {
+    return { error: "Некорректные даты." };
+  }
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return { error: "Некорректные даты." };
+  if (end.getTime() <= start.getTime()) return { error: "Дата конца должна быть позже даты начала." };
+
+  // Идентификатор нового семестра создаётся автоматически по дате начала (SEM20260901), пользователю вводить его не нужно.
+  if (intent === "create" && !semesterId) {
+    const base = `SEM${startDate.replace(/-/g, "")}`;
+    semesterId = base;
+    for (let i = 2; await prisma.semester.findUnique({ where: { id: semesterId }, select: { id: true } }); i += 1) {
+      semesterId = `${base}-${i}`;
+    }
+  }
 
   const intersecting = await prisma.semester.findFirst({
     where: {
@@ -99,13 +115,6 @@ export async function upsertSemester(prevState: any, formData: FormData) {
     }
   }
 
-  if (intent === "create") {
-    const exists = await prisma.semester.findUnique({ where: { id: semesterId } });
-    if (exists) {
-      return { error: "Семестр с таким ID уже существует." };
-    }
-  }
-
   const row = intent === "update"
     ? await prisma.semester.update({
         where: { id: semesterId },
@@ -121,7 +130,7 @@ export async function upsertSemester(prevState: any, formData: FormData) {
     data: {
       actorType: "academic_office",
       actorId: actor.id,
-      action: semesterId ? "semester_update" : "semester_create",
+      action: intent === "update" ? "semester_update" : "semester_create",
       entityType: "Semester",
       entityId: row.id,
       beforeJson: null,

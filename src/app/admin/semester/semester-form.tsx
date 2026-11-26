@@ -28,25 +28,15 @@ export function SemesterForm({ semester }: { semester?: { id: string; name: stri
     <form action={formAction} style={{ display: "grid", gap: 12, maxWidth: 520 }}>
       <input type="hidden" name="intent" value={isCreate ? "create" : "update"} />
       
-      {isCreate ? (
-        <label style={{ display: "grid", gap: 6, fontWeight: 800, fontSize: 14 }}>
-          Идентификатор семестра (уникальный)
-          <input
-            name="semesterId"
-            placeholder="Например: SEM26F"
-            style={field}
-          />
-        </label>
-      ) : (
-        <input type="hidden" name="semesterId" value={semester.id} />
-      )}
+      {isCreate ? null : <input type="hidden" name="semesterId" value={semester.id} />}
 
       <label style={{ display: "grid", gap: 6, fontWeight: 800, fontSize: 14 }}>
         Название
         <input
           name="name"
+          required
           defaultValue={semester?.name ?? ""}
-          placeholder="Например: Весенний семестр 2026"
+          placeholder="Например: Осень 2026"
           style={field}
         />
       </label>
@@ -55,6 +45,7 @@ export function SemesterForm({ semester }: { semester?: { id: string; name: stri
         <input
           type="date"
           name="startDate"
+          required
           defaultValue={semester ? toDateInputValue(new Date(semester.startDate)) : ""}
           style={field}
         />
@@ -64,6 +55,7 @@ export function SemesterForm({ semester }: { semester?: { id: string; name: stri
         <input
           type="date"
           name="endDate"
+          required
           defaultValue={semester ? toDateInputValue(new Date(semester.endDate)) : ""}
           style={field}
         />
